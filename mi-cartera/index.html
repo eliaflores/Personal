@@ -57,7 +57,7 @@ main{padding-block:20px 110px}
 .view{display:flex;flex-direction:column;gap:20px}
 .grid{display:grid;gap:14px}
 .g-kpi{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
-.g-2{grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
+.g-2{grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));align-items:start}
 .g-cards{grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
 .panel-h{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
@@ -180,6 +180,7 @@ dialog::backdrop{background:rgba(10,20,18,.55)}
       <a href="#gastos" data-v="gastos">Gastos</a>
       <a href="#pagos" data-v="pagos">Pagos y MSI</a>
       <a href="#plan" data-v="plan">Plan de pagos</a>
+      <a href="#creditos" data-v="creditos">Créditos</a>
       <a href="#ahorros" data-v="ahorros">Ahorros</a>
     </nav>
     <div class="banner" id="banner" hidden></div>
@@ -415,10 +416,13 @@ function cutsBetween(card,a,b){
 function planOf(e){
   const months=+e.msi||0, total=+e.amount||0;
   const cuota=r2(total/months);
-  return {id:e.id, exp:e, months, total, cuota, paid:0};
+  const pb=Math.min(Math.max(0,Math.floor(+e.msiPaidBefore||0)),months);
+  return {id:e.id, exp:e, months, total, cuota, pb, paid:pb>=months?total:r2(pb*cuota)};
 }
 function billedAmt(plan,card,L){
-  const k=Math.min(plan.months,cutsBetween(card,pd(plan.exp.date),L));
+  const k = plan.pb>0
+    ? Math.min(plan.months, plan.pb+cutsBetween(card,pd(plan.exp.msiAsOf||plan.exp.date),L))
+    : Math.min(plan.months,cutsBetween(card,pd(plan.exp.date),L));
   return k>=plan.months ? plan.total : r2(k*plan.cuota);
 }
 
@@ -508,6 +512,35 @@ function projectStatements(card,horizonEnd){
   return out;
 }
 
+/* ================= créditos y préstamos ================= */
+const LOAN_TYPES=["Personal","Nómina","Auto","Hipotecario","Departamental","Familiar","Otro"];
+const LOAN_FREQ={mensual:"Mensual",quincenal:"Quincenal",catorcenal:"Cada 14 días",semanal:"Semanal"};
+const perMonth={mensual:1,quincenal:2,catorcenal:26/12,semanal:52/12};
+function stepDate(anchor,freq,k,day){
+  if(k<=0) return new Date(anchor);
+  if(freq==="semanal") return addDays(anchor,7*k);
+  if(freq==="catorcenal") return addDays(anchor,14*k);
+  if(freq==="quincenal"){ let d=new Date(anchor); for(let i=0;i<k;i++){ const last=dim(d.getFullYear(),d.getMonth()); d = d.getDate()<15 ? new Date(d.getFullYear(),d.getMonth(),15) : d.getDate()<last ? new Date(d.getFullYear(),d.getMonth(),last) : new Date(d.getFullYear(),d.getMonth()+1,15); } return d; }
+  const y=anchor.getFullYear(), m=anchor.getMonth()+k; const dd=day||anchor.getDate();
+  return new Date(y,m,Math.min(dd,dim(new Date(y,m,1).getFullYear(),new Date(y,m,1).getMonth())));
+}
+function loanState(l){
+  const n=Math.max(1,Math.floor(+l.total||1)), cuota=+l.cuota||0, pb=Math.min(n,Math.max(0,Math.floor(+l.paidBefore||0)));
+  const pays=all("loanpay").filter(p=>p.loanId===l.id).sort((a,b)=>a.date.localeCompare(b.date)||(a.createdAt||0)-(b.createdAt||0));
+  const totalToPay=r2(n*cuota);
+  const paidAmt=Math.min(totalToPay,r2(pb*cuota+pays.reduce((s,p)=>s+(+p.amount||0),0)));
+  const remaining=Math.max(0,r2(totalToPay-paidAmt));
+  const done=Math.min(n,Math.floor((paidAmt+0.01)/(cuota||1)));
+  const anchor=pd(l.nextDate||todayS()), day=anchor.getDate();
+  const dueOf=j=>stepDate(anchor,l.freq||"mensual",j-pb-1,day);
+  const next = done<n ? {j:done+1,date:dueOf(done+1),amt:r2((done+1)*cuota-paidAmt)} : null;
+  let overdue=0; for(let j=done+1;j<=n;j++){ if(dueOf(j)<today()) overdue++; else break; }
+  const principal=+l.principal||0;
+  return {loan:l,n,cuota,pb,pays,totalToPay,paidAmt,remaining,done,next,overdue,dueOf,principal,
+    interest:principal?Math.max(0,r2(totalToPay-principal)):0,monthly:r2(cuota*(perMonth[l.freq]||1)),
+    daysToNext:next?daysBetween(today(),next.date):null};
+}
+
 /* ================= ingresos / fijos ================= */
 function occurrences(f,from,to){
   const out=[]; if(f.active===false) return out;
@@ -542,7 +575,9 @@ function buildPlan(){
   const fixed=all("flow").filter(f=>f.type==="fijo").flatMap(f=>occurrences(f,t,end));
   const cards=all("card").filter(c=>c.type==="credito");
   const stmts=cards.flatMap(c=>projectStatements(c,end));
-  const obligations=[
+  const loanObl=[];
+  all("loan").forEach(l=>{ const st=loanState(l); for(let j=st.done+1;j<=st.n;j++){ let d=st.dueOf(j); if(d>end) break; if(d<t) d=new Date(t); const amt=j===st.done+1?st.next.amt:st.cuota; loanObl.push({kind:"prestamo",date:d,amount:amt,must:amt,name:l.name,rate:+l.rate||0,loanJ:j,loanN:st.n}); } });
+  const obligations=[...loanObl,
     ...fixed.map(o=>({kind:"fijo",date:o.date,amount:o.amount,name:o.flow.name,must:o.amount,rate:0})),
     ...stmts.map(x=>({kind:"tarjeta",date:x.date,amount:x.total,must:x.msi,name:x.card.name,card:x.card,stmt:x,rate:+x.card.rate||0}))
   ].sort((a,b)=>a.date-b.date);
@@ -610,13 +645,13 @@ function scheduleRender(){ if(rq) return; rq=true; requestAnimationFrame(()=>{ r
 function render(){
   cacheState.clear();
   const v=(location.hash||"#resumen").slice(1);
-  view=["resumen","tarjetas","gastos","pagos","plan","ahorros"].includes(v)?v:"resumen";
+  view=["resumen","tarjetas","gastos","pagos","creditos","plan","ahorros"].includes(v)?v:"resumen";
   $$("#tabs a").forEach(a=>a.classList.toggle("on",a.dataset.v===view));
   killCharts();
   const app=$("#app");
   if(S.mode==="signin"){ app.innerHTML=`<div class="panel empty" style="padding-block:48px"><b>Entra para ver tus finanzas</b><span>Tus tarjetas, gastos y ahorros se guardan en tu cuenta. Solo tú puedes verlos.</span><button class="btn pri" data-act="signIn">Entrar con Google</button>${S.authErr?`<div class="note bad" role="alert" style="max-width:520px;text-align:left">${esc(S.authErr)}</div>`:""}</div>`; return; }
   if(!S.loaded){ app.innerHTML=`<div class="panel empty"><b>Cargando tus datos…</b><span>Tus tarjetas, gastos y ahorros aparecerán aquí.</span></div>`; return; }
-  const fn={resumen:vResumen,tarjetas:vTarjetas,gastos:vGastos,pagos:vPagos,plan:vPlan,ahorros:vAhorros}[view];
+  const fn={resumen:vResumen,tarjetas:vTarjetas,gastos:vGastos,pagos:vPagos,creditos:vCreditos,plan:vPlan,ahorros:vAhorros}[view];
   app.innerHTML=`<section class="view">${fn()}</section>`;
   if(!window.Chart){ $$("#app canvas").forEach(c=>{ c.parentElement.innerHTML=`<div class="empty">No se pudo cargar la gráfica. Revisa tu conexión y recarga.</div>`; }); }
   try{ afterRender[view] && afterRender[view](); }catch(e){ console.error(e); }
@@ -639,7 +674,7 @@ function emptyAll(){
 function monthSpend(key){ return all("exp").filter(e=>monthKey(e.date)===key).reduce((s,e)=>s+(+e.amount||0),0); }
 function vResumen(){
   const cards=all("card");
-  if(!cards.length && !all("exp").length) return emptyAll();
+  if(!cards.length && !all("exp").length && !all("loan").length) return emptyAll();
   const credit=cards.filter(c=>c.type==="credito").map(cardState);
   const debt=credit.reduce((s,c)=>s+c.debt,0), lim=credit.reduce((s,c)=>s+c.limit,0);
   const msiOut=credit.reduce((s,c)=>s+c.msiOut,0);
@@ -652,14 +687,18 @@ function vResumen(){
   const plan=buildPlan();
   const msiMonth=credit.reduce((s,c)=>s+c.plans.filter(p=>p.paid<p.total-0.009).reduce((x,p)=>x+p.cuota,0),0);
   const dlt = mp? (ms-mp)/mp : 0;
+  const lsts=all("loan").map(loanState), loanRem=lsts.reduce((s,x)=>s+x.remaining,0);
+  const lnx=lsts.filter(x=>x.next&&(x.overdue||x.daysToNext<=10)).sort((a,b)=>a.next.date-b.next.date)[0];
   return `
   <div class="grid g-kpi">
     <div class="panel kpi"><span class="lbl">Deuda en tarjetas</span><span class="val num">${money(debt)}</span><span class="sub">${lim?Math.round(debt/lim*100)+"% de tu línea total":"Sin tarjetas de crédito"}</span></div>
     <div class="panel kpi"><span class="lbl">Crédito disponible</span><span class="val num">${money(lim-debt)}</span><span class="sub">de ${money(lim)}</span></div>
     <div class="panel kpi"><span class="lbl">Gastado en ${MES[+mk.slice(5)-1]}</span><span class="val num">${money(ms)}</span><span class="sub">${mp?`<span class="chip ${dlt>0.05?"warn":"good"}">${dlt>=0?"+":""}${Math.round(dlt*100)}%</span> vs mes anterior`:"Primer mes registrado"}</span></div>
     <div class="panel kpi"><span class="lbl">Meses sin intereses</span><span class="val num">${money(msiOut)}</span><span class="sub">${money(msiMonth)} al mes en mensualidades</span></div>
+    ${lsts.length?`<div class="panel kpi"><span class="lbl">Créditos y préstamos</span><span class="val num">${money(loanRem)}</span><span class="sub">${money(lsts.filter(x=>x.next).reduce((s,x)=>s+x.monthly,0))} al mes</span></div>`:""}
     <div class="panel kpi"><span class="lbl">Ahorrado</span><span class="val num">${money(saved)}</span><span class="sub">${all("goal").length} meta(s)</span></div>
   </div>
+  ${lnx?`<div class="note ${lnx.overdue?"bad":"warn"}"><b>Crédito:</b> ${esc(lnx.loan.name)} · pago ${lnx.next.j} de ${lnx.n} por <b class="num">${money(lnx.next.amt)}</b> ${lnx.overdue?`venció el <b>${fDate(ds(lnx.next.date))}</b>`:`vence el <b>${fDate(ds(lnx.next.date))}</b>`}. <a href="#creditos">Ver créditos</a></div>`:""}
   ${nx?`<div class="note ${nx.daysToPay<=3?"bad":nx.daysToPay<=7?"warn":"acc"}"><b>Próximo pago:</b> ${esc(nx.card.name)} vence el <b>${fDate(ds(nx.nextPay))}</b> (${nx.daysToPay===0?"hoy":nx.daysToPay===1?"mañana":"en "+nx.daysToPay+" días"}). Paga <b class="num">${money(nx.noInt)}</b> para no generar intereses${nx.msiDue>0?` (incluye ${money(nx.msiDue)} de mensualidades MSI)`:""}. <a href="#plan">Ver plan de pagos</a></div>`:""}
   ${plan.totalShort>0?`<div class="note bad">Con los ingresos que registraste te faltarían <b class="num">${money(plan.totalShort)}</b> en los próximos ${settings().horizon||60} días. <a href="#plan">Ver qué pagar primero</a></div>`:""}
   <div class="grid g-2">
@@ -899,14 +938,14 @@ function vPlan(){
       <div class="chart-box"><canvas id="chProj"></canvas></div></div>
   </div>
   ${!plan.hasIncome?`<div class="note warn">Registra al menos un ingreso para armar el plan. Mientras tanto se usa sólo tu dinero disponible hoy.</div>`:""}
-  ${plan.totalShort>0?`<div class="note bad"><b>Te faltan ${money(plan.totalShort)}</b> para cubrir todo a tiempo. El plan prioriza gastos fijos y mensualidades MSI (evitan recargos), luego el saldo de la tarjeta con la tasa más alta.${plan.totalInt>0?` Intereses estimados por lo que quede pendiente: <b class="num">${money(plan.totalInt)}</b> (con IVA).`:""}</div>`
+  ${plan.totalShort>0?`<div class="note bad"><b>Te faltan ${money(plan.totalShort)}</b> para cubrir todo a tiempo. El plan prioriza gastos fijos, pagos de préstamos y mensualidades MSI (evitan recargos), luego el saldo de la tarjeta con la tasa más alta.${plan.totalInt>0?` Intereses estimados por lo que quede pendiente: <b class="num">${money(plan.totalInt)}</b> (con IVA).`:""}</div>`
     : plan.periods.some(p=>p.lines.length)?`<div class="note good">Con tus ingresos alcanzas a pagar todo sin intereses en los próximos ${s.horizon||60} días.</div>`:""}
   <div class="view" style="gap:12px">
   ${plan.periods.filter(p=>p.lines.length||p.save||!p.isCash).map(p=>`<div class="period">
     <div class="period-h"><div><b>${p.isCash?"Desde hoy":"Al recibir "+esc(p.label)}</b><div class="small muted">${fDateS(ds(p.start))} – ${fDateS(ds(p.end))}</div></div>
       <div class="num">${p.isCash?"":`<span style="color:var(--good)">+${money(p.income)}</span> · `}disponible ${money(p.availStart)}</div></div>
     <div class="period-b">
-      ${p.lines.length?p.lines.map(l=>`<div class="pline"><div class="what"><b>${l.o.kind==="tarjeta"?"Paga "+esc(l.o.name):esc(l.o.name)}</b>
+      ${p.lines.length?p.lines.map(l=>`<div class="pline"><div class="what"><b>${l.o.kind==="tarjeta"?"Paga "+esc(l.o.name):l.o.kind==="prestamo"?"Pago de "+esc(l.o.name)+` <span class="chip">${l.o.loanJ} de ${l.o.loanN}</span>`:esc(l.o.name)}</b>
           <div class="small muted">vence ${fDate(ds(l.o.date))}${l.o.kind==="tarjeta"?` · total para no generar intereses ${money(l.o.amount)}${l.o.stmt.msi?` (MSI ${money(l.o.stmt.msi)})`:""}${l.o.stmt.first?"":" · estimado"}`:""}</div>
           ${l.short>0.009?`<div class="small" style="color:var(--bad)">Faltan ${money(l.short)}${l.shortMust>0.009?` · incluye ${money(l.shortMust)} obligatorio`:""}${l.interest?` · intereses aprox. ${money(l.interest)}`:""}</div>`:""}</div>
         <div class="num" style="text-align:right;white-space:nowrap">${money(l.pay)}${l.short>0.009?`<div class="chip bad">parcial</div>`:`<div class="chip good">completo</div>`}</div></div>`).join("")
@@ -926,6 +965,125 @@ afterRender.plan=()=>{
     segment:{borderColor:c=>c.p1.parsed.y<0?cssv("--bad"):acc}}]},
     options:baseChartOpts({plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>" "+money(c.parsed.y)}}},scales:{x:{ticks:{color:cssv("--muted"),maxTicksLimit:7,maxRotation:0},grid:{display:false}},y:{ticks:{color:cssv("--muted"),callback:v=>moneyK(v)},grid:{color:cssv("--line")},border:{display:false}}}})});
 };
+
+/* ---------- Créditos y préstamos ---------- */
+function loanChip(st){
+  if(!st.next) return `<span class="chip good">liquidado</span>`;
+  if(st.overdue) return `<span class="chip bad">${st.overdue} vencido(s)</span>`;
+  if(st.daysToNext<=5) return `<span class="chip warn">${st.daysToNext===0?"hoy":st.daysToNext===1?"mañana":"en "+st.daysToNext+" días"}</span>`;
+  return `<span class="chip">${fDateS(ds(st.next.date))}</span>`;
+}
+function vCreditos(){
+  const loans=all("loan");
+  if(!loans.length) return `<h2>Créditos y préstamos</h2><div class="panel empty"><b>Registra tus créditos y préstamos</b><span>Préstamo personal, de nómina, auto, hipoteca, tienda departamental o con familia. Pon cuánto pagas, cada cuándo y cuántos pagos llevas: te digo cuánto falta y lo meto en tu plan de pagos.</span><button class="btn pri" data-act="newLoan">＋ Crédito o préstamo</button></div>`;
+  const sts=loans.map(loanState);
+  const rem=sts.reduce((s,x)=>s+x.remaining,0), mo=sts.filter(x=>x.next).reduce((s,x)=>s+x.monthly,0);
+  const nx=sts.filter(x=>x.next).sort((a,b)=>a.next.date-b.next.date)[0];
+  return `<div class="spread"><h2>Créditos y préstamos</h2><button class="btn pri" data-act="newLoan">＋ Crédito o préstamo</button></div>
+  <div class="grid g-kpi">
+    <div class="panel kpi"><span class="lbl">Te falta pagar</span><span class="val num">${money(rem)}</span><span class="sub">${sts.filter(x=>x.next).length} crédito(s) activo(s)</span></div>
+    <div class="panel kpi"><span class="lbl">Pagas al mes</span><span class="val num">${money(mo)}</span><span class="sub">sumando todos tus créditos</span></div>
+    ${nx?`<div class="panel kpi"><span class="lbl">Próximo pago</span><span class="val num">${money(nx.next.amt)}</span><span class="sub">${esc(nx.loan.name)} · ${fDate(ds(nx.next.date))}</span></div>`:""}
+  </div>
+  <div class="grid g-2">
+    <div class="panel"><div class="list">${sts.map(x=>`<div class="item" data-act="openLoan" data-id="${x.loan.id}" style="flex-direction:column;align-items:stretch;gap:6px">
+      <div class="spread"><b><span class="dot" style="background:${x.loan.color};margin-right:6px"></span>${esc(x.loan.name)} <span class="chip">${esc(x.loan.ltype||"")}</span></b>${loanChip(x)}</div>
+      <div class="bar"><i style="width:${x.paidAmt/(x.totalToPay||1)*100}%;background:${x.loan.color}"></i></div>
+      <div class="spread small muted"><span>${x.done} de ${x.n} pagos · ${money(x.cuota)} ${(LOAN_FREQ[x.loan.freq]||"").toLowerCase()}</span><span>falta <b class="num" style="color:var(--fg)">${money(x.remaining)}</b></span></div></div>`).join("")}</div></div>
+    <div class="panel"><div class="panel-h"><h3>Todo lo que debes</h3><span class="small muted">tarjetas y créditos</span></div><div class="chart-box"><canvas id="chDebt"></canvas></div></div>
+  </div>`;
+}
+afterRender.creditos=()=>{
+  const el=$("#chDebt"); if(!el) return;
+  const rows=[...all("card").filter(c=>c.type==="credito").map(c=>{ const st=cardState(c); return [c.name,st.debt,c.color]; }),...all("loan").map(l=>{ const st=loanState(l); return [l.name,st.remaining,l.color]; })].filter(r=>r[1]>0.009).sort((a,b)=>b[1]-a[1]);
+  if(!rows.length){ el.parentElement.innerHTML=`<div class="empty">No debes nada. 🎉</div>`; return; }
+  const tot=rows.reduce((s,r)=>s+r[1],0);
+  charts.debt=new Chart(el,{type:"doughnut",data:{labels:rows.map(r=>r[0]),datasets:[{data:rows.map(r=>r2(r[1])),backgroundColor:rows.map(r=>r[2]),borderColor:cssv("--surface"),borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:"62%",plugins:{legend:{position:"right",labels:{color:cssv("--muted"),boxWidth:10,usePointStyle:true,font:{size:11}}},tooltip:{callbacks:{label:c=>` ${c.label}: ${money(c.parsed)} (${Math.round(c.parsed/tot*100)}%)`}}}}});
+};
+function loanForm(l){
+  const isNew=!l; l=l||{ltype:"Personal",freq:"mensual",color:CARD_COLORS[(all("loan").length+3)%CARD_COLORS.length],paidBefore:0,nextDate:todayS()};
+  openDialog(isNew?"Nuevo crédito o préstamo":"Editar crédito",`
+    <div class="fgrid">
+      <label class="f">Nombre<input type="text" id="lName" value="${esc(l.name||"")}" placeholder="Ej. Préstamo Banorte"></label>
+      <label class="f">Tipo<select id="lType">${LOAN_TYPES.map(t=>`<option ${t===l.ltype?"selected":""}>${t}</option>`).join("")}</select></label>
+    </div>
+    <div class="fgrid">
+      <label class="f">Pago de cada vez<input type="number" id="lCuota" step="0.01" inputmode="decimal" value="${l.cuota||""}" placeholder="0.00"></label>
+      <label class="f">Cada cuándo<select id="lFreq">${Object.entries(LOAN_FREQ).map(([k,v])=>`<option value="${k}" ${k===l.freq?"selected":""}>${v}</option>`).join("")}</select></label>
+    </div>
+    <div class="fgrid">
+      <label class="f">Número total de pagos<input type="number" id="lTotal" min="1" step="1" inputmode="numeric" value="${l.total||""}" placeholder="Ej. 24"></label>
+      <label class="f">Pagos que ya hiciste<input type="number" id="lPb" min="0" step="1" inputmode="numeric" value="${l.paidBefore||0}"></label>
+      <label class="f">Fecha de tu siguiente pago<input type="date" id="lNext" value="${l.nextDate||todayS()}"></label>
+    </div>
+    <div class="fgrid">
+      <label class="f">Monto que te prestaron (opcional)<input type="number" id="lPrin" step="0.01" inputmode="decimal" value="${l.principal||""}"></label>
+      <label class="f">Tasa anual % (opcional)<input type="number" id="lRate" step="0.1" value="${l.rate||""}"></label>
+    </div>
+    <div><div class="small muted" style="font-weight:600;margin-bottom:6px">Color</div><div class="swatches" id="lsw">${CARD_COLORS.map(col=>`<button type="button" style="background:${col}" data-col="${col}" class="${col===l.color?"on":""}" aria-label="Color ${col}"></button>`).join("")}</div></div>
+    <div class="note" id="lInfo"></div>
+    <div class="small" id="lErr" style="color:var(--bad)"></div>`,
+    `<div class="confirm" id="delZone">${isNew?"":`<button class="btn danger" data-act="askDelete" data-id="${l.id}">Borrar</button>`}</div><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="lSave">Guardar</button></div>`);
+  $$("#lsw button").forEach(b=>b.onclick=()=>{ $$("#lsw button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); });
+  const info=()=>{ const c=+$("#lCuota").value||0, n=Math.floor(+$("#lTotal").value||0), pb=Math.floor(+$("#lPb").value||0), pr=+$("#lPrin").value||0;
+    if(!c||!n){ $("#lInfo").textContent="Pon el pago y el número de pagos para ver cuánto te falta."; return; }
+    $("#lInfo").innerHTML=`En total pagarás <b class="num">${money(c*n)}</b>${pr?` (<b class="num">${money(Math.max(0,c*n-pr))}</b> de intereses y comisiones)`:""}. Llevas <b>${Math.min(pb,n)} de ${n}</b> pagos; te faltan <b>${Math.max(0,n-pb)}</b> pagos = <b class="num">${money(Math.max(0,n-pb)*c)}</b>.`; };
+  ["#lCuota","#lTotal","#lPb","#lPrin"].forEach(id=>$(id).oninput=info); info();
+  $("#lSave").onclick=async()=>{
+    const name=$("#lName").value.trim(), c=+$("#lCuota").value, n=Math.floor(+$("#lTotal").value), pb=Math.floor(+$("#lPb").value||0);
+    if(!name){ $("#lErr").textContent="Ponle un nombre al crédito."; return; }
+    if(!(c>0)||!(n>=1)){ $("#lErr").textContent="Escribe el pago y el número total de pagos."; return; }
+    if(pb<0||pb>n){ $("#lErr").textContent=`Los pagos que ya hiciste deben ser de 0 a ${n}.`; return; }
+    await put({...(l.id?l:{}),kind:"loan",name,ltype:$("#lType").value,cuota:r2(c),freq:$("#lFreq").value,total:n,paidBefore:pb,nextDate:$("#lNext").value||todayS(),principal:+$("#lPrin").value||0,rate:+$("#lRate").value||0,color:$("#lsw .on")?.dataset.col||CARD_COLORS[0],createdAt:l.createdAt||Date.now()});
+    closeDialog(); toast(isNew?"Crédito agregado":"Crédito guardado");
+  };
+}
+function loanDetail(id){
+  const l=get(id); if(!l) return; const st=loanState(l);
+  const rows=[]; for(let j=st.done+1;j<=st.n&&rows.length<24;j++) rows.push({j,date:st.dueOf(j),amt:j===st.done+1?st.next.amt:st.cuota});
+  openDialog(esc(l.name),`
+    <div class="grid g-kpi">
+      <div class="kpi"><span class="lbl">Falta pagar</span><span class="num">${money(st.remaining)}</span></div>
+      <div class="kpi"><span class="lbl">Pagado</span><span class="num">${money(st.paidAmt)}</span></div>
+      <div class="kpi"><span class="lbl">Pagos</span><span class="num">${st.done} de ${st.n}</span></div>
+      <div class="kpi"><span class="lbl">Pago ${(LOAN_FREQ[l.freq]||"").toLowerCase()}</span><span class="num">${money(st.cuota)}</span></div>
+    </div>
+    <div class="bar"><i style="width:${st.paidAmt/(st.totalToPay||1)*100}%;background:${l.color}"></i></div>
+    ${st.principal?`<div class="note">Te prestaron <b class="num">${money(st.principal)}</b> y pagarás en total <b class="num">${money(st.totalToPay)}</b>: <b class="num">${money(st.interest)}</b> son intereses y comisiones${l.rate?` (tasa anual ${l.rate}%)`:""}.</div>`:""}
+    ${st.overdue?`<div class="note bad">Tienes <b>${st.overdue}</b> pago(s) con fecha vencida. Si ya los pagaste, regístralos con “Registrar pago”.</div>`:""}
+    <h3>Pagos que faltan</h3>
+    ${rows.length?`<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Fecha</th><th class="r">Monto</th><th>Estado</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.j}</td><td>${fDate(ds(r.date))}</td><td class="r num">${money(r.amt)}</td><td>${r.date<today()?`<span class="chip bad">vencido</span>`:`<span class="chip">pendiente</span>`}</td></tr>`).join("")}</tbody></table></div>${st.n-st.done>rows.length?`<p class="small muted">y ${st.n-st.done-rows.length} pagos más.</p>`:""}`:`<div class="note good">¡Crédito liquidado!</div>`}
+    <h3>Pagos registrados</h3>
+    ${st.pb?`<p class="small muted">${st.pb} pago(s) hechos antes de registrarlo.</p>`:""}
+    ${st.pays.length?`<div class="list">${st.pays.slice().reverse().map(p=>`<div class="item" style="cursor:default"><span class="thumb" style="background:var(--good-soft);color:var(--good)">$</span><div class="main"><div class="title">Pago ${fDate(p.date)}${p.note?` · ${esc(p.note)}`:""}</div></div><span class="num" style="color:var(--good)">${money(p.amount)}</span><button class="btn sm ghost" data-act="delPay" data-id="${p.id}" aria-label="Borrar pago">✕</button></div>`).join("")}</div>`:`<p class="muted small">Aún no registras pagos aquí.</p>`}`,
+    `<div class="confirm" id="delZone"><button class="btn danger" data-act="askDelete" data-id="${l.id}">Borrar</button></div><div class="row"><button class="btn" data-act="editLoan" data-id="${l.id}">Editar</button>${st.next?`<button class="btn pri" data-act="payLoan" data-id="${l.id}">Registrar pago</button>`:""}</div>`);
+}
+function loanPayForm(id){
+  const loans=all("loan").filter(l=>loanState(l).next); if(!loans.length){ toast("No tienes créditos con pagos pendientes"); return; }
+  id=id&&get(id)?id:loans[0].id;
+  openDialog("Pago de crédito",`
+    <div class="fgrid">
+      <label class="f">Crédito<select id="lpLoan">${loans.map(l=>`<option value="${l.id}" ${l.id===id?"selected":""}>${esc(l.name)}</option>`).join("")}</select></label>
+      <label class="f">Fecha<input type="date" id="lpDate" value="${todayS()}"></label>
+    </div>
+    <div id="lpQuick" class="row"></div>
+    <label class="f">Monto<input type="number" id="lpAmt" step="0.01" inputmode="decimal" placeholder="0.00"></label>
+    <label class="f">Nota (opcional)<input type="text" id="lpNote"></label>
+    <div id="lpPrev"></div><div class="small" id="lpErr" style="color:var(--bad)"></div>`,
+    `<span></span><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="lpSave">Guardar pago</button></div>`);
+  const prev=()=>{ const st=loanState(get($("#lpLoan").value)); const a=+$("#lpAmt").value||0; if(!a){ $("#lpPrev").innerHTML=""; return; }
+    const after=Math.min(st.totalToPay,st.paidAmt+a), done=Math.min(st.n,Math.floor((after+0.01)/st.cuota));
+    $("#lpPrev").innerHTML=`<div class="note good">Con este pago llevas <b>${done} de ${st.n}</b> pagos. Te faltaría <b class="num">${money(Math.max(0,st.totalToPay-after))}</b>.</div>`; };
+  const fill=()=>{ const st=loanState(get($("#lpLoan").value));
+    $("#lpQuick").innerHTML=[["Siguiente pago",st.next.amt],["Liquidar todo",st.remaining]].filter((x,i,a)=>x[1]>0&&(i===0||x[1]!==a[0][1])).map(([t,v])=>`<button type="button" class="btn sm" data-amt="${v}">${t}: ${money(v)}</button>`).join("");
+    $$("#lpQuick [data-amt]").forEach(b=>b.onclick=()=>{ $("#lpAmt").value=b.dataset.amt; prev(); });
+    if(!$("#lpAmt").value) $("#lpAmt").value=st.next.amt; prev(); };
+  $("#lpLoan").onchange=()=>{ $("#lpAmt").value=""; fill(); }; $("#lpAmt").oninput=prev; fill();
+  $("#lpSave").onclick=async()=>{ const a=+$("#lpAmt").value; if(!(a>0)){ $("#lpErr").textContent="Escribe el monto que pagaste."; return; }
+    await put({kind:"loanpay",loanId:$("#lpLoan").value,amount:r2(a),date:$("#lpDate").value||todayS(),note:$("#lpNote").value.trim(),createdAt:Date.now()});
+    closeDialog(); toast("Pago de crédito registrado"); };
+}
 
 /* ---------- Ahorros ---------- */
 function vAhorros(){
@@ -993,7 +1151,7 @@ function cardForm(c){
     <div class="small" id="cErr" style="color:var(--bad)"></div>
     </form>`,
     `<span></span><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="cSave">Guardar</button></div>`);
-  const upd=()=>{ const t=segVal("ctype"); $("#credOnly").hidden=t!=="credito"; $("#initLbl").textContent=t==="credito"?"Deuda actual (sin MSI)":"Saldo actual"; $("#initHelp").textContent=t==="credito"?"Si ya debes algo en esta tarjeta, pon aquí tu saldo normal. Las compras a meses que ya tengas regístralas como gasto con su fecha original.":""; };
+  const upd=()=>{ const t=segVal("ctype"); $("#credOnly").hidden=t!=="credito"; $("#initLbl").textContent=t==="credito"?"Deuda actual (sin MSI)":"Saldo actual"; $("#initHelp").textContent=t==="credito"?"Si ya debes algo en esta tarjeta, pon aquí tu saldo normal. Las compras a meses que ya tengas regístralas como gasto a meses, con cuántas mensualidades ya pagaste.":""; };
   $$('[data-seg="ctype"] button').forEach(b=>b.onclick=()=>{ $$('[data-seg="ctype"] button').forEach(x=>x.classList.remove("on")); b.classList.add("on"); upd(); }); upd();
   $$("#sw button").forEach(b=>b.onclick=()=>{ $$("#sw button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); });
   const drawPh=()=>{ $("#cPh").innerHTML=(photo?`<div class="ph"><img src="${esc(photoSrc(photo))}" alt=""><button type="button" id="rmPh" aria-label="Quitar">×</button></div>`:"")+`<label class="drop">${photo?"Cambiar":"＋ Foto"}<input type="file" accept="image/*" id="cFile" hidden></label>`;
@@ -1028,6 +1186,7 @@ function expForm(e){
     </div>
     <div id="msiBox"><div class="small muted" style="font-weight:600;margin-bottom:6px">Forma de pago</div>
       ${seg("msi",[["0","Una exhibición"],["3","3 MSI"],["6","6 MSI"],["9","9 MSI"],["12","12 MSI"],["18","18"],["24","24"]],String(+e.msi||0))}
+      <label class="f" id="msiPbL" style="margin-top:10px">Mensualidades que ya pagaste<input type="number" id="msiPb" min="0" step="1" inputmode="numeric" value="${+e.msiPaidBefore||0}"></label>
       <div class="small muted" id="msiInfo" style="margin-top:6px"></div></div>
     <div><div class="small muted" style="font-weight:600;margin-bottom:6px">Fotos del ticket o la compra</div><div class="photos" id="ePh"></div></div>
     <label class="f">Notas<textarea id="eNote">${esc(e.notes||"")}</textarea></label>
@@ -1035,9 +1194,14 @@ function expForm(e){
     `<div class="confirm" id="delZone">${isNew?"":`<button class="btn danger" data-act="askDelete" data-id="${e.id}">Borrar</button>`}</div><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="eSave">Guardar</button></div>`);
   const updMsi=()=>{ const c=get($("#eCard").value); const cred=c&&c.type==="credito"; $("#msiBox").hidden=!cred;
     const m=+segVal("msi"), a=+$("#eAmt").value||0;
-    $("#msiInfo").innerHTML = cred&&m>1&&a ? `Pagarás <b class="num">${money(a/m)}</b> al mes durante ${m} meses. Se apartan <b class="num">${money(a)}</b> de tu crédito y cada mensualidad pagada libera ${money(a/m)}.` : cred&&a? `Se suma a tu saldo normal; págalo completo antes de la fecha límite para no generar intereses.`:""; };
+    $("#msiPbL").hidden=!(cred&&m>1);
+    const pb=Math.min(Math.max(0,Math.floor(+$("#msiPb").value||0)),m);
+    $("#msiInfo").innerHTML = cred&&m>1&&a ? (pb>0
+      ? `Llevas <b>${pb} de ${m}</b> mensualidades de <b class="num">${money(a/m)}</b>. Te faltan <b>${m-pb}</b> (<b class="num">${money(a-a/m*pb)}</b>), y eso es lo que sigue apartado de tu crédito. La siguiente se cobra en tu próximo corte.`
+      : `Pagarás <b class="num">${money(a/m)}</b> al mes durante ${m} meses. Se apartan <b class="num">${money(a)}</b> de tu crédito y cada mensualidad pagada libera ${money(a/m)}. Si ya pagaste algunas, escríbelas arriba.`)
+      : cred&&a? `Se suma a tu saldo normal; págalo completo antes de la fecha límite para no generar intereses.`:""; };
   $$('[data-seg="msi"] button').forEach(b=>b.onclick=()=>{ $$('[data-seg="msi"] button').forEach(x=>x.classList.remove("on")); b.classList.add("on"); updMsi(); });
-  $("#eCard").onchange=updMsi; $("#eAmt").oninput=updMsi; updMsi();
+  $("#eCard").onchange=updMsi; $("#eAmt").oninput=updMsi; $("#msiPb").oninput=updMsi; updMsi();
   const drawPh=()=>{ $("#ePh").innerHTML=photos.map((p,i)=>`<div class="ph"><img src="${esc(photoSrc(p))}" data-zoom="${i}" alt="Foto ${i+1}"><button type="button" data-rm="${i}" aria-label="Quitar foto">×</button></div>`).join("")+`<label class="drop">＋ Foto<br>o imagen<input type="file" accept="image/*" multiple id="eFile" hidden></label>`;
     $$("#ePh [data-rm]").forEach(b=>b.onclick=()=>{ photos.splice(+b.dataset.rm,1); drawPh(); });
     $$("#ePh [data-zoom]").forEach(im=>im.onclick=()=>openLightbox(im.src));
@@ -1046,7 +1210,10 @@ function expForm(e){
   $("#eSave").onclick=async()=>{
     const amt=+$("#eAmt").value; if(!(amt>0)){ $("#eErr").textContent="Escribe un monto mayor a cero."; return; }
     const c=get($("#eCard").value); const msi=c&&c.type==="credito"?+segVal("msi"):0;
-    await put({...(e.id?e:{}),kind:"exp",amount:r2(amt),date:$("#eDate").value||todayS(),desc:$("#eDesc").value.trim(),category:$("#eCat").value,cardId:$("#eCard").value,msi,photos,notes:$("#eNote").value.trim(),createdAt:e.createdAt||Date.now()});
+    let pb=msi>1?Math.floor(+$("#msiPb").value||0):0;
+    if(pb<0||pb>msi){ $("#eErr").textContent=`Las mensualidades pagadas deben ser de 0 a ${msi}.`; return; }
+    const asOf = pb>0 ? (pb===(+e.msiPaidBefore||0)&&e.msiAsOf ? e.msiAsOf : todayS()) : "";
+    await put({...(e.id?e:{}),kind:"exp",amount:r2(amt),date:$("#eDate").value||todayS(),desc:$("#eDesc").value.trim(),category:$("#eCat").value,cardId:$("#eCard").value,msi,msiPaidBefore:pb,msiAsOf:asOf,photos,notes:$("#eNote").value.trim(),createdAt:e.createdAt||Date.now()});
     closeDialog(); toast(isNew?"Gasto agregado":"Gasto guardado");
   };
 }
@@ -1055,11 +1222,12 @@ function expDetail(id){
   const c=get(e.cardId); let msiHtml="";
   if(+e.msi>1&&c){ const st=cardState(c); const p=st.plans.find(x=>x.id===id); if(p){
     const n=Math.min(p.months,Math.floor((p.paid+0.01)/p.cuota));
-    const sched=[]; let P=nextPayOnOrAfter(c,addDays(pd(e.date),1));
-    for(let guard=0; guard<p.months+3 && sched.length<p.months; guard++){ const L=lastCutBefore(c,P); const b=billedAmt(p,c,L); if(b>0) sched.push({k:sched.length+1,date:P,paid:p.paid>=b-0.009}); const nx=new Date(P.getFullYear(),P.getMonth()+1,1); P=payDateOf(c,nx.getFullYear(),nx.getMonth()); }
+    const sched=[]; for(let k=1;k<=p.pb;k++) sched.push({k,date:null,paid:true});
+    let P=nextPayOnOrAfter(c,addDays(pd(p.pb>0?(e.msiAsOf||e.date):e.date),1)), lastB=p.pb>0?r2(p.pb*p.cuota):0;
+    for(let guard=0; guard<p.months+3 && sched.length<p.months; guard++){ const L=lastCutBefore(c,P); const b=billedAmt(p,c,L); if(b>lastB+0.009){ sched.push({k:sched.length+1,date:P,paid:p.paid>=b-0.009}); lastB=b; } const nx=new Date(P.getFullYear(),P.getMonth()+1,1); P=payDateOf(c,nx.getFullYear(),nx.getMonth()); }
     msiHtml=`<div class="note acc"><b>${p.months} meses sin intereses</b> · mensualidad <b class="num">${money(p.cuota)}</b><br>Pagado y liberado: <b class="num">${money(p.paid)}</b> (${n} de ${p.months}) · Falta: <b class="num">${money(p.total-p.paid)}</b></div>
       <div class="bar"><i style="width:${p.paid/p.total*100}%"></i></div>
-      <div class="tbl-wrap"><table><thead><tr><th>#</th><th>Fecha límite</th><th class="r">Monto</th><th>Estado</th></tr></thead><tbody>${sched.map(s=>`<tr><td>${s.k}</td><td>${fDate(ds(s.date))}</td><td class="r num">${money(s.k===p.months?p.total-p.cuota*(p.months-1):p.cuota)}</td><td>${s.paid?`<span class="chip good">pagada</span>`:s.date<today()?`<span class="chip bad">vencida</span>`:`<span class="chip">pendiente</span>`}</td></tr>`).join("")}</tbody></table></div>
+      <div class="tbl-wrap"><table><thead><tr><th>#</th><th>Fecha límite</th><th class="r">Monto</th><th>Estado</th></tr></thead><tbody>${sched.map(s=>`<tr><td>${s.k}</td><td>${s.date?fDate(ds(s.date)):`<span class="muted">antes de registrarla</span>`}</td><td class="r num">${money(s.k===p.months?p.total-p.cuota*(p.months-1):p.cuota)}</td><td>${s.paid?`<span class="chip good">pagada</span>`:s.date<today()?`<span class="chip bad">vencida</span>`:`<span class="chip">pendiente</span>`}</td></tr>`).join("")}</tbody></table></div>
       ${p.paid<p.total-0.009?`<button class="btn" data-act="newPay" data-card="${c.id}" data-plan="${p.id}">Pagar o adelantar esta compra</button>`:""}`;
   }}
   openDialog(esc(e.desc||e.category),`
@@ -1075,11 +1243,12 @@ function expDetail(id){
 /* ----- pago ----- */
 function payForm(cardId,planId){
   const cr=all("card").filter(c=>c.type!=="efectivo");
-  if(!cr.length){ toast("Primero agrega una tarjeta"); return; }
+  const lo=all("loan").filter(l=>loanState(l).next);
+  if(!cr.length){ if(lo.length) return loanPayForm(); toast("Primero agrega una tarjeta o un crédito"); return; }
   cardId=cardId||(cr.find(c=>c.type==="credito")||cr[0]).id;
   openDialog("Registrar pago",`
     <div class="fgrid">
-      <label class="f">Tarjeta<select id="pCard">${cr.map(c=>`<option value="${c.id}" ${c.id===cardId?"selected":""}>${esc(c.name)}${c.type==="debito"?" (depósito)":""}</option>`).join("")}</select></label>
+      <label class="f">Tarjeta o crédito<select id="pCard"><optgroup label="Tarjetas">${cr.map(c=>`<option value="${c.id}" ${c.id===cardId?"selected":""}>${esc(c.name)}${c.type==="debito"?" (depósito)":""}</option>`).join("")}</optgroup>${lo.length?`<optgroup label="Créditos y préstamos">${lo.map(l=>`<option value="loan:${l.id}">${esc(l.name)}</option>`).join("")}</optgroup>`:""}</select></label>
       <label class="f">Fecha<input type="date" id="pDate" value="${todayS()}"></label>
     </div>
     <div id="pQuick" class="row"></div>
@@ -1107,7 +1276,7 @@ function payForm(cardId,planId){
     const lbl={mensualidad:"Mensualidad de",adelanto:"Adelanto a",saldo:"Saldo normal",favor:"Saldo a favor"};
     box.innerHTML=`<div class="note good"><b>Este pago libera ${money(amt)} de crédito.</b> Disponible después: <b class="num">${money(st.avail)}</b><div class="alloc" style="color:inherit">${parts.map(a=>{ const pl=st.plans.find(x=>x.id===a.to); return `<span>· ${lbl[a.kind]} ${pl?`<b>${esc(pl.exp.desc||"compra a meses")}</b>`:""}: <span class="num">${money(a.amt)}</span>${pl?` → falta <span class="num">${money(pl.total-pl.paid)}</span> de esa compra (${Math.max(0,pl.months-Math.floor((pl.paid+0.01)/pl.cuota))} mensualidades)`:""}</span>`; }).join("")}</div></div>`;
   };
-  $("#pCard").onchange=()=>{ planId=null; fill(); }; $("#pAmt").oninput=prev; $("#pTgt").onchange=prev; $("#pDate").onchange=prev; fill();
+  $("#pCard").onchange=()=>{ const v=$("#pCard").value; if(v.startsWith("loan:")) return loanPayForm(v.slice(5)); planId=null; fill(); }; $("#pAmt").oninput=prev; $("#pTgt").onchange=prev; $("#pDate").onchange=prev; fill();
   $("#pSave").onclick=async()=>{
     const amt=+$("#pAmt").value; if(!(amt>0)){ $("#pErr").textContent="Escribe el monto que pagaste."; return; }
     const c=get($("#pCard").value);
@@ -1195,17 +1364,22 @@ document.addEventListener("click",async ev=>{
     case "newFlow": flowForm(null,t.dataset.type); break;
     case "editFlow": flowForm(get(id)); break;
     case "newGoal": goalForm(); break;
+    case "newLoan": loanForm(); break;
+    case "editLoan": loanForm(get(id)); break;
+    case "openLoan": loanDetail(id); break;
+    case "payLoan": loanPayForm(id); break;
     case "editGoal": goalForm(get(id)); break;
     case "openGoal": goalDetail(id); break;
     case "zoom": openLightbox(t.src); break;
     case "loadSample": loadSample(); break;
     case "askDelete": {
       const o=get(id); const z=$("#delZone");
-      const extra=o&&o.kind==="card"?` Se borrarán también sus ${all("exp").filter(e=>e.cardId===id).length} gastos y ${all("pay").filter(p=>p.cardId===id).length} pagos.`:"";
+      const extra=o&&o.kind==="loan"?` Se borrarán también sus ${all("loanpay").filter(p=>p.loanId===id).length} pagos registrados.`:o&&o.kind==="card"?` Se borrarán también sus ${all("exp").filter(e=>e.cardId===id).length} gastos y ${all("pay").filter(p=>p.cardId===id).length} pagos.`:"";
       z.innerHTML=`<span class="small">¿Seguro?${extra}</span><button class="btn danger" data-act="doDelete" data-id="${id}">Sí, borrar</button><button class="btn" data-act="cancelDelete" data-id="${id}">No</button>`; break; }
     case "cancelDelete": $("#delZone").innerHTML=`<button class="btn danger" data-act="askDelete" data-id="${id}">Borrar</button>`; break;
     case "doDelete": {
       const o=get(id);
+      if(o&&o.kind==="loan"){ for(const x of all("loanpay").filter(p=>p.loanId===id)) await del(x.id); }
       if(o&&o.kind==="card"){ for(const x of [...all("exp").filter(e=>e.cardId===id),...all("pay").filter(p=>p.cardId===id)]) await del(x.id); }
       if(o&&o.kind==="exp"){ for(const p of all("pay").filter(p=>p.target===id)) await put({...p,target:"auto"}); }
       await del(id); closeDialog(); toast("Borrado"); break; }
@@ -1256,7 +1430,9 @@ async function loadSample(){
   const flows=[{id:"ej-f1",kind:"flow",type:"ingreso",name:"Quincena (ejemplo)",amount:11500,freq:"quincenal",date:d(-60),day:15,active:true},{id:"ej-f2",kind:"flow",type:"fijo",name:"Renta (ejemplo)",amount:7500,freq:"mensual",day:1,date:d(-60),active:true},{id:"ej-f3",kind:"flow",type:"fijo",name:"Internet (ejemplo)",amount:499,freq:"mensual",day:12,date:d(-60),active:true}];
   const goals=[{id:"ej-g1",kind:"goal",name:"Fondo de emergencia (ejemplo)",target:30000,saved:8500,color:"#0e8f7a",deadline:d(300),history:[{date:d(-60),amount:5000},{date:d(-30),amount:2000},{date:d(-5),amount:1500}]},{id:"ej-g2",kind:"goal",name:"Viaje (ejemplo)",target:15000,saved:3200,color:"#d9822b",deadline:d(200),history:[{date:d(-40),amount:2000},{date:d(-10),amount:1200}]}];
   const st={...settings(),id:"settings",kind:"settings",cash:4800,savingsPct:10,horizon:60};
-  for(const o of [c1,c2,c3,...ex,...pays,...flows,...goals,st]) await put(o);
+  ex.find(x=>x.id==="ej-e1").msiPaidBefore=0;
+  const loans=[{id:"ej-l1",kind:"loan",name:"Préstamo personal (ejemplo)",ltype:"Personal",cuota:1850,freq:"quincenal",total:24,paidBefore:9,nextDate:ds(new Date(t.getFullYear(),t.getMonth(),t.getDate()<=15?15:dim(t.getFullYear(),t.getMonth()))),principal:30000,rate:38,color:"#a3292f",createdAt:60}];
+  for(const o of [c1,c2,c3,...ex,...pays,...flows,...goals,...loans,st]) await put(o);
   toast("Datos de ejemplo cargados. Bórralos en Opciones cuando quieras.");
 }
 
