@@ -197,6 +197,29 @@ dialog::backdrop{background:rgba(10,20,18,.55)}
 <dialog id="lightbox"><img id="lbImg" alt="Foto del gasto"></dialog>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script type="module">
+// Firebase: la configuración web no es secreta; lo que protege tus datos son las reglas de seguridad de Firestore y Storage.
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyC2j-keohRRLs8dnQk6hQXGT9eItJXmzik",
+  authDomain: "personal-75acf.firebaseapp.com",
+  projectId: "personal-75acf",
+  storageBucket: "personal-75acf.firebasestorage.app",
+  messagingSenderId: "12344295289",
+  appId: "1:12344295289:web:5b54150483457bb94439a8"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+let db;
+try { db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }); }
+catch (e) { db = initializeFirestore(app, {}); }
+const storage = getStorage(app);
+window.FB = { auth, db, storage, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, collection, doc, setDoc, deleteDoc, onSnapshot, ref, uploadBytes, getDownloadURL, deleteObject };
+window.dispatchEvent(new Event("fb-ready"));
+</script>
 <script>
 "use strict";
 /* ================= helpers ================= */
@@ -239,55 +262,66 @@ async function put(obj){
   obj.updatedAt = Date.now();
   S.items.set(obj.id,obj);
   scheduleRender();
-  if(S.mode==="db"){
+  if(S.mode==="fb"){
     const {id,...body} = obj;
-    try{ await S.col.doc(id).set(body); }
+    try{ await FB.setDoc(FB.doc(FB.db,"users",S.uid,"items",id), body); }
     catch(e){
-      if(e && e.code==="quota_exceeded") toast("Se llenó el espacio de datos. Borra fotos o registros viejos.");
-      else if(e && e.code==="unavailable"){ setTimeout(()=>S.col.doc(id).set(body).catch(()=>toast("No se pudo guardar. Revisa tu conexión.")), 800+Math.random()*800); }
+      if(e && e.code==="invalid-argument") toast("El registro es demasiado grande (muchas fotos). Quita alguna foto e intenta de nuevo.");
+      else if(e && e.code==="permission-denied") toast("Sin permiso para guardar. Revisa las reglas de Firestore o vuelve a iniciar sesión.");
       else toast("No se pudo guardar: "+(e&&e.message||"error"));
     }
   } else localSave();
   return obj;
 }
 async function del(id){
+  const prev=S.items.get(id);
   S.items.delete(id); scheduleRender();
-  if(S.mode==="db"){ try{ await S.col.doc(id).delete(); }catch(e){ toast("No se pudo borrar."); } }
+  if(S.mode==="fb" && prev){ for(const ph of [...(prev.photos||[]), prev.photo].filter(x=>x&&x.path)){ FB.deleteObject(FB.ref(FB.storage,ph.path)).catch(()=>{}); } }
+  if(S.mode==="fb"){ try{ await FB.deleteDoc(FB.doc(FB.db,"users",S.uid,"items",id)); }catch(e){ toast("No se pudo borrar."); } }
   else localSave();
 }
+function hasLocal(){ try{ const a=JSON.parse(localStorage.getItem(LKEY)||"[]"); return Array.isArray(a)&&a.length>0; }catch(e){ return false; } }
 const all = kind => [...S.items.values()].filter(o=>o.kind===kind);
 const get = id => S.items.get(id);
 const settings = () => S.items.get("settings") || {id:"settings",kind:"settings",cash:0,savingsPct:10,horizon:60};
 
+function waitFB(){ return new Promise(res=>{ if(window.FB) return res(true); const t=setTimeout(()=>res(false),12000); window.addEventListener("fb-ready",()=>{ clearTimeout(t); res(true); },{once:true}); }); }
+let unsubData=null;
 async function initStore(){
   const banner = $("#banner");
-  let db=null, user=null, id=null;
-  try{
-    if(window.claude && typeof window.claude.use==="function"){
-      [db,user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
-      if(user) id = await user.id();
-      S.assets = await window.claude.use("assets").catch(()=>null);
-      S.downloads = await window.claude.use("downloads").catch(()=>null);
-    }
-  }catch(e){}
-  if(db && id){
-    S.mode="db";
-    S.col = db.collection("data/users/"+id);
-    const timer = setTimeout(()=>{ if(!S.loaded){ banner.hidden=false; banner.textContent="Todavía no se pueden cargar tus datos. Revisa tu conexión; se mostrarán en cuanto respondan."; } },10000);
-    S.col.onSnapshot(snap=>{
-      if(!snap.metadata.fromCache){ clearTimeout(timer); banner.hidden=true; }
+  const ok = await waitFB();
+  if(!ok){
+    S.mode="local"; localLoad(); S.loaded=true;
+    banner.hidden=false; banner.textContent="No se pudo conectar con Firebase. Modo local: tus datos se guardan solo en este navegador.";
+    scheduleRender(); return;
+  }
+  FB.onAuthStateChanged(FB.auth, user=>{
+    if(unsubData){ unsubData(); unsubData=null; }
+    S.items=new Map(); S.loaded=false;
+    if(!user){ S.mode="signin"; S.uid=null; S.user=null; banner.hidden=true; scheduleRender(); return; }
+    S.mode="fb"; S.uid=user.uid; S.user=user; scheduleRender();
+    const timer=setTimeout(()=>{ if(!S.loaded){ banner.hidden=false; banner.textContent="Todavía no se pueden cargar tus datos. Revisa tu conexión; se mostrarán en cuanto respondan."; } },10000);
+    unsubData = FB.onSnapshot(FB.collection(FB.db,"users",user.uid,"items"), snap=>{
+      clearTimeout(timer);
+      if(navigator.onLine) banner.hidden=true;
+      else { banner.hidden=false; banner.textContent="Sin conexión: los cambios se guardan y se suben al volver el internet."; }
       const next=new Map();
-      snap.docs.forEach(d=>{ const o={...d.data(), id:d.id}; next.set(d.id,o); });
+      snap.docs.forEach(d=>next.set(d.id,{...d.data(),id:d.id}));
       S.items=next; S.loaded=true; scheduleRender();
     }, err=>{
       clearTimeout(timer); S.loaded=true;
-      banner.hidden=false; banner.textContent="No se pudieron cargar tus datos ("+(err&&err.code||"error")+"). Recarga la página más tarde.";
+      banner.hidden=false; banner.textContent= err&&err.code==="permission-denied" ? "Firestore rechazó la lectura. Revisa que pegaste las reglas de seguridad." : "No se pudieron cargar tus datos ("+(err&&err.code||"error")+"). Recarga la página más tarde.";
       scheduleRender();
     });
-  } else {
-    S.mode="local"; localLoad(); S.loaded=true;
-    banner.hidden=false; banner.textContent="Modo local: tus datos se guardan solo en este navegador.";
-    scheduleRender();
+  });
+}
+async function signIn(){
+  const p=new FB.GoogleAuthProvider();
+  try{ await FB.signInWithPopup(FB.auth,p); }
+  catch(e){
+    if(e && (e.code==="auth/popup-blocked"||e.code==="auth/operation-not-supported-in-this-environment")) await FB.signInWithRedirect(FB.auth,p);
+    else if(e && e.code==="auth/unauthorized-domain") toast("Agrega este dominio en Firebase → Authentication → Settings → Authorized domains.");
+    else if(e && e.code!=="auth/popup-closed-by-user" && e.code!=="auth/cancelled-popup-request") toast("No se pudo iniciar sesión: "+(e.code||e.message));
   }
 }
 
@@ -310,19 +344,22 @@ function readImage(file, maxSide, q){
     fr.readAsDataURL(file);
   });
 }
+let storageOff=false;
 async function storePhoto(file){
-  if(S.assets){
+  if(S.mode==="fb" && !storageOff){
     try{
       const c = await readImage(file,1600,.82);
       const blob = await new Promise(r=>c.toBlob(r,"image/jpeg",.82));
-      const up = await S.assets.upload(blob,{contentType:"image/jpeg"});
-      return {id:up.id};
-    }catch(e){ /* cae al respaldo */ }
+      const path = "users/"+S.uid+"/fotos/"+uid()+".jpg";
+      const r = FB.ref(FB.storage,path);
+      await FB.uploadBytes(r,blob,{contentType:"image/jpeg"});
+      return {path, url: await FB.getDownloadURL(r)};
+    }catch(e){ storageOff=true; /* sin Storage (plan gratis): se guarda comprimida dentro de Firestore */ }
   }
   const c = await readImage(file,900,.7);
   return {data:c.toDataURL("image/jpeg",.7)};
 }
-const photoSrc = p => p ? (p.id ? "/_blob/"+p.id : p.data) : "";
+const photoSrc = p => p ? (p.url || p.data || (p.id ? "/_blob/"+p.id : "")) : "";
 function openLightbox(src){ $("#lbImg").src=src; $("#lightbox").showModal(); }
 $("#lightbox").addEventListener("click",()=>$("#lightbox").close());
 
@@ -559,6 +596,7 @@ function render(){
   $$("#tabs a").forEach(a=>a.classList.toggle("on",a.dataset.v===view));
   killCharts();
   const app=$("#app");
+  if(S.mode==="signin"){ app.innerHTML=`<div class="panel empty" style="padding-block:48px"><b>Entra para ver tus finanzas</b><span>Tus tarjetas, gastos y ahorros se guardan en tu cuenta. Solo tú puedes verlos.</span><button class="btn pri" data-act="signIn">Entrar con Google</button></div>`; return; }
   if(!S.loaded){ app.innerHTML=`<div class="panel empty"><b>Cargando tus datos…</b><span>Tus tarjetas, gastos y ahorros aparecerán aquí.</span></div>`; return; }
   const fn={resumen:vResumen,tarjetas:vTarjetas,gastos:vGastos,pagos:vPagos,plan:vPlan,ahorros:vAhorros}[view];
   app.innerHTML=`<section class="view">${fn()}</section>`;
@@ -1127,6 +1165,7 @@ document.addEventListener("click",async ev=>{
   ev.preventDefault();
   switch(a){
     case "close": closeDialog(); break;
+    case "signIn": signIn(); break;
     case "newCard": cardForm(); break;
     case "editCard": cardForm(get(id)); break;
     case "openCard": cardDetail(id); break;
@@ -1154,20 +1193,24 @@ document.addEventListener("click",async ev=>{
       await del(id); closeDialog(); toast("Borrado"); break; }
   }
 });
-$("#fabExp").onclick=()=>expForm();
-$("#fabPay").onclick=()=>payForm();
+$("#fabExp").onclick=()=>{ if(S.mode==="signin") return signIn(); expForm(); };
+$("#fabPay").onclick=()=>{ if(S.mode==="signin") return signIn(); payForm(); };
 $("#btnMenu").onclick=()=>{
   openDialog("Opciones",`
-    <div class="note">${S.mode==="db"?"Tus datos se guardan en tu cuenta y sólo tú puedes verlos, aunque compartas esta página.":"Modo local: los datos viven sólo en este navegador."}</div>
+    <div class="note">${S.mode==="fb"?`Sesión: <b>${esc(S.user&&S.user.email||"")}</b>. Tus datos se guardan en Firebase y solo tú puedes verlos.`:S.mode==="signin"?"No has iniciado sesión.":"Modo local: los datos viven sólo en este navegador."}</div>
+    ${S.mode==="fb"&&hasLocal()?`<div class="note acc">Este navegador tiene datos guardados de antes de Firebase. <button class="btn sm" id="oMig">Subirlos a mi cuenta</button></div>`:""}
     <div class="row"><button class="btn" id="oExp">Descargar respaldo (JSON)</button><button class="btn" id="oCsv">Descargar gastos (CSV)</button></div>
     <div class="row"><label class="btn">Importar respaldo<input type="file" accept="application/json,.json" id="oImp" hidden></label><button class="btn" data-act="loadSample">Cargar datos de ejemplo</button></div>
     <div class="confirm" id="wipeZone"><button class="btn danger" id="oWipe">Borrar todos mis datos</button></div>
+    ${S.mode==="fb"?`<button class="btn" id="oOut">Cerrar sesión</button>`:S.mode==="signin"?`<button class="btn pri" data-act="signIn">Entrar con Google</button>`:""}
     <div class="small muted" id="oMsg"></div>`);
+  $("#oOut") && ($("#oOut").onclick=async()=>{ await FB.signOut(FB.auth); closeDialog(); toast("Sesión cerrada"); });
+  $("#oMig") && ($("#oMig").onclick=async()=>{ let arr=[]; try{ arr=JSON.parse(localStorage.getItem(LKEY)||"[]"); }catch(e){} let n=0; for(const o of arr){ if(o&&o.id&&o.kind){ await put(o); n++; } } try{ localStorage.removeItem(LKEY); }catch(e){} $("#oMsg").textContent=`Subidos ${n} registros a tu cuenta.`; });
   const save=async(name,data)=>{
     if(!S.downloads){ try{ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([data],{type:"application/octet-stream"})); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000); }catch(e){ $("#oMsg").textContent="La descarga no está disponible en esta vista."; } return; }
     try{ await S.downloads.save({filename:name,data}); }catch(e){ $("#oMsg").textContent="No se descargó: "+(e.code||e.message||"cancelado"); }
   };
-  $("#oExp").onclick=()=>save("mi-cartera-respaldo-"+todayS()+".json",JSON.stringify([...S.items.values()].map(o=>({...o,photos:(o.photos||[]).filter(p=>p.id),photo:o.photo&&o.photo.id?o.photo:null})),null,1));
+  $("#oExp").onclick=()=>save("mi-cartera-respaldo-"+todayS()+".json",JSON.stringify([...S.items.values()],null,1));
   $("#oCsv").onclick=()=>{ const rows=[["fecha","descripcion","categoria","tarjeta","monto","meses"]].concat(all("exp").sort((a,b)=>a.date.localeCompare(b.date)).map(e=>[e.date,e.desc,e.category,get(e.cardId)?.name||"Efectivo",e.amount,e.msi||0]));
     save("gastos-"+todayS()+".csv","﻿"+rows.map(r=>r.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\n")); };
   $("#oImp").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ const arr=JSON.parse(await f.text()); if(!Array.isArray(arr)) throw 0; let n=0; for(const o of arr){ if(o&&o.id&&o.kind){ await put(o); n++; } } $("#oMsg").textContent=`Importados ${n} registros.`; }catch(er){ $("#oMsg").textContent="El archivo no es un respaldo válido de Mi Cartera."; } };
