@@ -200,7 +200,7 @@ dialog::backdrop{background:rgba(10,20,18,.55)}
 <script type="module">
 // Firebase: la configuración web no es secreta; lo que protege tus datos son las reglas de seguridad de Firestore y Storage.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 const firebaseConfig = {
@@ -217,7 +217,7 @@ let db;
 try { db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }); }
 catch (e) { db = initializeFirestore(app, {}); }
 const storage = getStorage(app);
-window.FB = { auth, db, storage, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, collection, doc, setDoc, deleteDoc, onSnapshot, ref, uploadBytes, getDownloadURL, deleteObject };
+window.FB = { auth, db, storage, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, collection, doc, setDoc, deleteDoc, onSnapshot, ref, uploadBytes, getDownloadURL, deleteObject };
 window.dispatchEvent(new Event("fb-ready"));
 </script>
 <script>
@@ -295,6 +295,7 @@ async function initStore(){
     banner.hidden=false; banner.textContent="No se pudo conectar con Firebase. Modo local: tus datos se guardan solo en este navegador.";
     scheduleRender(); return;
   }
+  FB.getRedirectResult(FB.auth).catch(authError);
   FB.onAuthStateChanged(FB.auth, user=>{
     if(unsubData){ unsubData(); unsubData=null; }
     S.items=new Map(); S.loaded=false;
@@ -315,13 +316,30 @@ async function initStore(){
     });
   });
 }
+const AUTH_ERR={
+  "auth/unauthorized-domain":"Firebase no tiene autorizado este sitio. En Firebase → Authentication → Settings → Authorized domains agrega: "+location.hostname,
+  "auth/operation-not-allowed":"El inicio de sesión con Google no está activado. En Firebase → Authentication → Sign-in method activa Google y guarda.",
+  "auth/configuration-not-found":"Authentication no está configurado. En Firebase → Authentication dale \"Comenzar\" y activa Google.",
+  "auth/popup-blocked":"Tu navegador bloqueó la ventana de Google. Permite ventanas emergentes para este sitio e intenta de nuevo.",
+  "auth/network-request-failed":"No hay conexión con Google. Revisa tu internet o desactiva el bloqueador de anuncios para este sitio.",
+  "auth/internal-error":"Google respondió con un error interno. Revisa que Google esté activado en Firebase y que tu navegador permita cookies de terceros.",
+  "auth/web-storage-unsupported":"Tu navegador bloquea el almacenamiento que necesita el inicio de sesión. Desactiva el modo privado o permite cookies."
+};
+function inAppBrowser(){ return /FBAN|FBAV|Instagram|Line\/|WhatsApp|TikTok|Snapchat|; wv\)/i.test(navigator.userAgent); }
+function authError(e){
+  const code=(e&&e.code)||"error";
+  if(code==="auth/popup-closed-by-user"||code==="auth/cancelled-popup-request") return;
+  S.authErr=(AUTH_ERR[code]||"No se pudo iniciar sesión.")+" (código: "+code+")";
+  scheduleRender();
+}
 async function signIn(){
-  const p=new FB.GoogleAuthProvider();
+  S.authErr=""; scheduleRender();
+  if(inAppBrowser()){ S.authErr="Estás dentro de otra app (WhatsApp, Instagram, Facebook…). Google no permite entrar desde ahí: abre este enlace en Chrome o Safari."; scheduleRender(); return; }
+  const p=new FB.GoogleAuthProvider(); p.setCustomParameters({prompt:"select_account"});
   try{ await FB.signInWithPopup(FB.auth,p); }
   catch(e){
-    if(e && (e.code==="auth/popup-blocked"||e.code==="auth/operation-not-supported-in-this-environment")) await FB.signInWithRedirect(FB.auth,p);
-    else if(e && e.code==="auth/unauthorized-domain") toast("Agrega este dominio en Firebase → Authentication → Settings → Authorized domains.");
-    else if(e && e.code!=="auth/popup-closed-by-user" && e.code!=="auth/cancelled-popup-request") toast("No se pudo iniciar sesión: "+(e.code||e.message));
+    if(e && e.code==="auth/popup-blocked"){ try{ await FB.signInWithRedirect(FB.auth,p); }catch(e2){ authError(e2); } }
+    else authError(e);
   }
 }
 
@@ -596,7 +614,7 @@ function render(){
   $$("#tabs a").forEach(a=>a.classList.toggle("on",a.dataset.v===view));
   killCharts();
   const app=$("#app");
-  if(S.mode==="signin"){ app.innerHTML=`<div class="panel empty" style="padding-block:48px"><b>Entra para ver tus finanzas</b><span>Tus tarjetas, gastos y ahorros se guardan en tu cuenta. Solo tú puedes verlos.</span><button class="btn pri" data-act="signIn">Entrar con Google</button></div>`; return; }
+  if(S.mode==="signin"){ app.innerHTML=`<div class="panel empty" style="padding-block:48px"><b>Entra para ver tus finanzas</b><span>Tus tarjetas, gastos y ahorros se guardan en tu cuenta. Solo tú puedes verlos.</span><button class="btn pri" data-act="signIn">Entrar con Google</button>${S.authErr?`<div class="note bad" role="alert" style="max-width:520px;text-align:left">${esc(S.authErr)}</div>`:""}</div>`; return; }
   if(!S.loaded){ app.innerHTML=`<div class="panel empty"><b>Cargando tus datos…</b><span>Tus tarjetas, gastos y ahorros aparecerán aquí.</span></div>`; return; }
   const fn={resumen:vResumen,tarjetas:vTarjetas,gastos:vGastos,pagos:vPagos,plan:vPlan,ahorros:vAhorros}[view];
   app.innerHTML=`<section class="view">${fn()}</section>`;
