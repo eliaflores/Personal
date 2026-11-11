@@ -181,6 +181,7 @@ dialog::backdrop{background:rgba(10,20,18,.55)}
       <a href="#pagos" data-v="pagos">Pagos y MSI</a>
       <a href="#plan" data-v="plan">Plan de pagos</a>
       <a href="#creditos" data-v="creditos">Créditos</a>
+      <a href="#futuros" data-v="futuros">Compras futuras</a>
       <a href="#ahorros" data-v="ahorros">Ahorros</a>
     </nav>
     <div class="banner" id="banner" hidden></div>
@@ -383,8 +384,8 @@ function openLightbox(src){ $("#lbImg").src=src; $("#lightbox").showModal(); }
 $("#lightbox").addEventListener("click",()=>$("#lightbox").close());
 
 /* ================= motor de tarjetas y MSI ================= */
-function cutDate(card,y,m){ return new Date(y,m,Math.min(card.cutDay||1,dim(y,m))); }
-function payDateOf(card,y,m){ return new Date(y,m,Math.min(card.payDay||1,dim(y,m))); }
+function cutDate(card,y,m){ const b=new Date(y,m,1); y=b.getFullYear(); m=b.getMonth(); return new Date(y,m,Math.min(card.cutDay||1,dim(y,m))); }
+function payDateOf(card,y,m){ const b=new Date(y,m,1); y=b.getFullYear(); m=b.getMonth(); return new Date(y,m,Math.min(card.payDay||1,dim(y,m))); }
 function lastCutOnOrBefore(card,d){
   const c=cutDate(card,d.getFullYear(),d.getMonth());
   if(c<=d) return c;
@@ -541,6 +542,71 @@ function loanState(l){
     daysToNext:next?daysBetween(today(),next.date):null};
 }
 
+/* ================= apartados e inversiones ================= */
+const INSTS=["Mercado Pago","Openbank","GBM+","Nu","Klar","Hey Banco","Stori","Didi","Cetesdirecto","Banco","Efectivo guardado","Otro"];
+const accAvailable=(a,d)=> a.liquid!==false || !a.availFrom || pd(a.availFrom)<=d;
+
+/* ================= compras futuras: cuándo y con qué pagar ================= */
+function cutOnOrAfter(card,d){ const c=cutDate(card,d.getFullYear(),d.getMonth()); if(c>=d) return c; const n=new Date(d.getFullYear(),d.getMonth()+1,1); return cutDate(card,n.getFullYear(),n.getMonth()); }
+let recoCache=null;
+function recommendFutures(){
+  if(recoCache) return recoCache;
+  const t=today(); const base=buildPlan({noFutures:true,horizon:Math.max(150,+settings().horizon||60)});
+  const bal=base.daily.map(x=>x.bal);
+  const idxOf=d=>Math.max(0,Math.min(bal.length-1,daysBetween(t,d)));
+  const freeAt=d=>{ let m=Infinity; for(let k=idxOf(d);k<bal.length;k++) m=Math.min(m,bal[k]); return m; };
+  const commit=(d,amt)=>{ for(let k=idxOf(d);k<bal.length;k++) bal[k]=r2(bal[k]-amt); };
+  const accs=all("account"); const accLeft={}; accs.forEach(a=>accLeft[a.id]=+a.balance||0);
+  const reserved={};
+  const credit=all("card").filter(c=>c.type==="credito");
+  const futs=all("future").filter(f=>!f.done).sort((a,b)=>(a.by||"9999").localeCompare(b.by||"9999")||(a.createdAt||0)-(b.createdAt||0));
+  const out=[];
+  for(const f of futs){
+    const amt=+f.amount||0;
+    const from=f.from&&pd(f.from)>t?pd(f.from):new Date(t);
+    let by=f.by?pd(f.by):addDays(from,30); if(by<from) by=new Date(from);
+    const savIds=f.allowSavings?((f.savingsIds&&f.savingsIds.length)?f.savingsIds:accs.map(a=>a.id)):[];
+    const savAccs=d=>savIds.map(id=>accs.find(a=>a.id===id)).filter(a=>a&&accAvailable(a,d)).sort((a,b)=>(+a.rate||0)-(+b.rate||0));
+    const savAvail=d=>r2(savAccs(d).reduce((s,a)=>s+Math.max(0,accLeft[a.id]||0),0));
+    const options=[];
+    const pw=f.payWith||"auto";
+    if(pw!=="efectivo") for(const c of credit){
+      if(pw!=="auto"&&pw!=="credito"&&pw!==c.id) continue;
+      const st=cardState(c); const avail=r2(st.avail-(reserved[c.id]||0));
+      if(avail<amt){ options.push({type:"card",card:c,ok:false,why:`Solo tiene ${money(Math.max(0,avail))} disponibles`}); continue; }
+      let best=null;
+      for(let d=new Date(from),i=0;d<=by&&i<200;d=addDays(d,1),i++){ const C=cutOnOrAfter(c,d); const due=nextPayOnOrAfter(c,addDays(C,1)); const fl=daysBetween(d,due); if(!best||fl>best.float) best={date:new Date(d),cut:C,due,float:fl}; }
+      const months=+f.msiMax>1?+f.msiMax:0; const cuota=months?r2(amt/months):amt;
+      const savNeed=Math.max(0,r2(cuota-Math.max(0,freeAt(best.due))));
+      const affordable=savNeed<=0.009||(savIds.length>0&&savAvail(best.due)>=savNeed);
+      const utilAfter=st.limit?(st.debt+(reserved[c.id]||0)+amt)/st.limit:1;
+      const score=best.float+(months?20:0)-(utilAfter>0.7?40:utilAfter>0.3?8:0)-(affordable?0:200)-(savNeed>0?15:0)-(+c.rate||0)/50;
+      options.push({type:"card",card:c,ok:true,...best,months,cuota,utilAfter,affordable,savNeed,score,
+        why:!affordable?`Para el ${fDateS(ds(best.due))} no te alcanzaría para pagarla`:""});
+    }
+    if(pw==="auto"||pw==="efectivo"){
+      let d0=null; for(let d=new Date(from),i=0;d<=by&&i<200;d=addDays(d,1),i++){ if(freeAt(d)>=amt){ d0=new Date(d); break; } }
+      if(d0) options.push({type:"cash",ok:true,date:d0,savNeed:0,affordable:true,score:10});
+      else { const d=new Date(by); const savNeed=r2(amt-Math.max(0,freeAt(d))); const can=savIds.length>0&&savAvail(d)>=savNeed;
+        options.push({type:"cash",ok:can,date:d,savNeed,affordable:can,score:can?0:-300,why:can?"":`Te faltarían ${money(savNeed)}${f.allowSavings?" aun usando tus apartados":""}`}); }
+    }
+    const pick=options.filter(o=>o.ok&&o.affordable).sort((a,b)=>b.score-a.score)[0]||null;
+    const draw=(d,need)=>{ const res=[]; for(const a of savAccs(d)){ if(need<=0.009) break; const take=Math.min(need,Math.max(0,accLeft[a.id]||0)); if(take>0){ accLeft[a.id]=r2(accLeft[a.id]-take); need=r2(need-take); res.push({acc:a,amt:r2(take)}); } } return res; };
+    if(pick){
+      pick.payments=[];
+      const payOn=(d,a)=>{ if(d>base.end){ pick.payments.push({date:d,amount:r2(a),cash:r2(a),fromSav:[],beyond:true}); return; } const cash=Math.min(a,Math.max(0,freeAt(d))); commit(d,cash); const fromSav=a-cash>0.009?draw(d,r2(a-cash)):[]; pick.payments.push({date:d,amount:r2(a),cash:r2(cash),fromSav}); };
+      if(pick.type==="card"){
+        reserved[pick.card.id]=r2((reserved[pick.card.id]||0)+amt);
+        if(pick.months){ for(let k=0;k<pick.months;k++){ const d=payDateOf(pick.card,pick.due.getFullYear(),pick.due.getMonth()+k); const dd=new Date(d.getFullYear(),d.getMonth(),Math.min(+pick.card.payDay||1,dim(d.getFullYear(),d.getMonth()))); payOn(dd,k===pick.months-1?r2(amt-pick.cuota*(pick.months-1)):pick.cuota); } }
+        else payOn(pick.due,amt);
+      } else payOn(pick.date,amt);
+      pick.savTotal=r2(pick.payments.reduce((s,p)=>s+p.fromSav.reduce((x,y)=>x+y.amt,0),0));
+    }
+    out.push({f,pick,options,from,by,savIds});
+  }
+  recoCache=out; return out;
+}
+
 /* ================= ingresos / fijos ================= */
 function occurrences(f,from,to){
   const out=[]; if(f.active===false) return out;
@@ -568,16 +634,22 @@ function occurrences(f,from,to){
 const FREQ = {unico:"Una vez",semanal:"Semanal",catorcenal:"Cada 14 días",quincenal:"Quincenal (15 y fin de mes)",mensual:"Mensual"};
 
 /* ================= plan de pagos ================= */
-function buildPlan(){
+const planCache={};
+function buildPlan(opts={}){
+  const key=opts.noFutures?"base":"full"; if(planCache[key]) return planCache[key];
   const s=settings();
-  const t=today(); const end=addDays(t,+s.horizon||60);
+  const t=today(); const end=addDays(t,opts.horizon||+s.horizon||60);
   const incomes=all("flow").filter(f=>f.type==="ingreso").flatMap(f=>occurrences(f,t,end)).sort((a,b)=>a.date-b.date);
   const fixed=all("flow").filter(f=>f.type==="fijo").flatMap(f=>occurrences(f,t,end));
   const cards=all("card").filter(c=>c.type==="credito");
   const stmts=cards.flatMap(c=>projectStatements(c,end));
   const loanObl=[];
   all("loan").forEach(l=>{ const st=loanState(l); for(let j=st.done+1;j<=st.n;j++){ let d=st.dueOf(j); if(d>end) break; if(d<t) d=new Date(t); const amt=j===st.done+1?st.next.amt:st.cuota; loanObl.push({kind:"prestamo",date:d,amount:amt,must:amt,name:l.name,rate:+l.rate||0,loanJ:j,loanN:st.n}); } });
-  const obligations=[...loanObl,
+  const futObl=[];
+  if(!opts.noFutures) recommendFutures().forEach(r=>{ if(!r.pick) return; r.pick.payments.forEach((p,k)=>{ if(p.date>end) return;
+    const sav=r2(p.fromSav.reduce((x,y)=>x+y.amt,0)); const cashPart=r2(p.amount-sav);
+    futObl.push({kind:"futuro",date:p.date<t?new Date(t):p.date,amount:cashPart,must:cashPart,full:p.amount,fromSav:p.fromSav,name:r.f.name,fut:r.f,pick:r.pick,k,rate:0}); }); });
+  const obligations=[...loanObl,...futObl,
     ...fixed.map(o=>({kind:"fijo",date:o.date,amount:o.amount,name:o.flow.name,must:o.amount,rate:0})),
     ...stmts.map(x=>({kind:"tarjeta",date:x.date,amount:x.total,must:x.msi,name:x.card.name,card:x.card,stmt:x,rate:+x.card.rate||0}))
   ].sort((a,b)=>a.date-b.date);
@@ -633,7 +705,7 @@ function buildPlan(){
   for(let d=new Date(t); d<=end; d=addDays(d,1)){ while(j<ev.length && ev[j].d<=d){ bal=r2(bal+ev[j].v); j++; } daily.push({d:new Date(d),bal}); }
   const incomeTotal=incomes.reduce((s,i)=>s+i.amount,0);
   const oblTotal=obligations.reduce((s,o)=>s+o.amount,0);
-  return {periods,daily,totalShort,totalInt,incomeTotal,oblTotal,end,hasIncome:incomes.length>0,saveTotal:periods.reduce((s,p)=>s+p.save,0)};
+  return (planCache[key]={periods,daily,totalShort,totalInt,incomeTotal,oblTotal,end,hasIncome:incomes.length>0,saveTotal:periods.reduce((s,p)=>s+p.save,0)});
 }
 
 /* ================= render ================= */
@@ -643,15 +715,15 @@ function killCharts(){ Object.keys(charts).forEach(k=>{ try{charts[k].destroy();
 let rq=false;
 function scheduleRender(){ if(rq) return; rq=true; requestAnimationFrame(()=>{ rq=false; render(); }); }
 function render(){
-  cacheState.clear();
+  cacheState.clear(); recoCache=null; delete planCache.base; delete planCache.full;
   const v=(location.hash||"#resumen").slice(1);
-  view=["resumen","tarjetas","gastos","pagos","creditos","plan","ahorros"].includes(v)?v:"resumen";
+  view=["resumen","tarjetas","gastos","pagos","creditos","futuros","plan","ahorros"].includes(v)?v:"resumen";
   $$("#tabs a").forEach(a=>a.classList.toggle("on",a.dataset.v===view));
   killCharts();
   const app=$("#app");
   if(S.mode==="signin"){ app.innerHTML=`<div class="panel empty" style="padding-block:48px"><b>Entra para ver tus finanzas</b><span>Tus tarjetas, gastos y ahorros se guardan en tu cuenta. Solo tú puedes verlos.</span><button class="btn pri" data-act="signIn">Entrar con Google</button>${S.authErr?`<div class="note bad" role="alert" style="max-width:520px;text-align:left">${esc(S.authErr)}</div>`:""}</div>`; return; }
   if(!S.loaded){ app.innerHTML=`<div class="panel empty"><b>Cargando tus datos…</b><span>Tus tarjetas, gastos y ahorros aparecerán aquí.</span></div>`; return; }
-  const fn={resumen:vResumen,tarjetas:vTarjetas,gastos:vGastos,pagos:vPagos,creditos:vCreditos,plan:vPlan,ahorros:vAhorros}[view];
+  const fn={resumen:vResumen,tarjetas:vTarjetas,gastos:vGastos,pagos:vPagos,creditos:vCreditos,futuros:vFuturos,plan:vPlan,ahorros:vAhorros}[view];
   app.innerHTML=`<section class="view">${fn()}</section>`;
   if(!window.Chart){ $$("#app canvas").forEach(c=>{ c.parentElement.innerHTML=`<div class="empty">No se pudo cargar la gráfica. Revisa tu conexión y recarga.</div>`; }); }
   try{ afterRender[view] && afterRender[view](); }catch(e){ console.error(e); }
@@ -696,7 +768,7 @@ function vResumen(){
     <div class="panel kpi"><span class="lbl">Gastado en ${MES[+mk.slice(5)-1]}</span><span class="val num">${money(ms)}</span><span class="sub">${mp?`<span class="chip ${dlt>0.05?"warn":"good"}">${dlt>=0?"+":""}${Math.round(dlt*100)}%</span> vs mes anterior`:"Primer mes registrado"}</span></div>
     <div class="panel kpi"><span class="lbl">Meses sin intereses</span><span class="val num">${money(msiOut)}</span><span class="sub">${money(msiMonth)} al mes en mensualidades</span></div>
     ${lsts.length?`<div class="panel kpi"><span class="lbl">Créditos y préstamos</span><span class="val num">${money(loanRem)}</span><span class="sub">${money(lsts.filter(x=>x.next).reduce((s,x)=>s+x.monthly,0))} al mes</span></div>`:""}
-    <div class="panel kpi"><span class="lbl">Ahorrado</span><span class="val num">${money(saved)}</span><span class="sub">${all("goal").length} meta(s)</span></div>
+    ${all("account").length?`<div class="panel kpi"><span class="lbl">En apartados</span><span class="val num">${money(all("account").reduce((s,a)=>s+(+a.balance||0),0))}</span><span class="sub">${all("account").length} apartado(s)</span></div>`:`<div class="panel kpi"><span class="lbl">Ahorrado</span><span class="val num">${money(saved)}</span><span class="sub">${all("goal").length} meta(s)</span></div>`}
   </div>
   ${lnx?`<div class="note ${lnx.overdue?"bad":"warn"}"><b>Crédito:</b> ${esc(lnx.loan.name)} · pago ${lnx.next.j} de ${lnx.n} por <b class="num">${money(lnx.next.amt)}</b> ${lnx.overdue?`venció el <b>${fDate(ds(lnx.next.date))}</b>`:`vence el <b>${fDate(ds(lnx.next.date))}</b>`}. <a href="#creditos">Ver créditos</a></div>`:""}
   ${nx?`<div class="note ${nx.daysToPay<=3?"bad":nx.daysToPay<=7?"warn":"acc"}"><b>Próximo pago:</b> ${esc(nx.card.name)} vence el <b>${fDate(ds(nx.nextPay))}</b> (${nx.daysToPay===0?"hoy":nx.daysToPay===1?"mañana":"en "+nx.daysToPay+" días"}). Paga <b class="num">${money(nx.noInt)}</b> para no generar intereses${nx.msiDue>0?` (incluye ${money(nx.msiDue)} de mensualidades MSI)`:""}. <a href="#plan">Ver plan de pagos</a></div>`:""}
@@ -945,8 +1017,9 @@ function vPlan(){
     <div class="period-h"><div><b>${p.isCash?"Desde hoy":"Al recibir "+esc(p.label)}</b><div class="small muted">${fDateS(ds(p.start))} – ${fDateS(ds(p.end))}</div></div>
       <div class="num">${p.isCash?"":`<span style="color:var(--good)">+${money(p.income)}</span> · `}disponible ${money(p.availStart)}</div></div>
     <div class="period-b">
-      ${p.lines.length?p.lines.map(l=>`<div class="pline"><div class="what"><b>${l.o.kind==="tarjeta"?"Paga "+esc(l.o.name):l.o.kind==="prestamo"?"Pago de "+esc(l.o.name)+` <span class="chip">${l.o.loanJ} de ${l.o.loanN}</span>`:esc(l.o.name)}</b>
-          <div class="small muted">vence ${fDate(ds(l.o.date))}${l.o.kind==="tarjeta"?` · total para no generar intereses ${money(l.o.amount)}${l.o.stmt.msi?` (MSI ${money(l.o.stmt.msi)})`:""}${l.o.stmt.first?"":" · estimado"}`:""}</div>
+      ${p.lines.length?p.lines.map(l=>`<div class="pline"><div class="what"><b>${l.o.kind==="futuro"?(l.o.pick.type==="card"?`Paga en ${esc(l.o.pick.card.name)}: ${esc(l.o.name)}${l.o.pick.months?` <span class="chip">${l.o.k+1} de ${l.o.pick.months} MSI</span>`:""}`:`Compra: ${esc(l.o.name)}`)+` <span class="chip acc">planeada</span>`:l.o.kind==="tarjeta"?"Paga "+esc(l.o.name):l.o.kind==="prestamo"?"Pago de "+esc(l.o.name)+` <span class="chip">${l.o.loanJ} de ${l.o.loanN}</span>`:esc(l.o.name)}</b>
+          ${l.o.kind==="futuro"&&l.o.fromSav.length?`<div class="small" style="color:var(--accent)">${l.o.fromSav.map(x=>`Toma ${money(x.amt)} de ${esc(x.acc.name)}`).join(" · ")}</div>`:""}
+          <div class="small muted">${l.o.kind==="futuro"&&l.o.pick.type==="cash"?"cómprala el":"vence"} ${fDate(ds(l.o.date))}${l.o.kind==="tarjeta"?` · total para no generar intereses ${money(l.o.amount)}${l.o.stmt.msi?` (MSI ${money(l.o.stmt.msi)})`:""}${l.o.stmt.first?"":" · estimado"}`:""}</div>
           ${l.short>0.009?`<div class="small" style="color:var(--bad)">Faltan ${money(l.short)}${l.shortMust>0.009?` · incluye ${money(l.shortMust)} obligatorio`:""}${l.interest?` · intereses aprox. ${money(l.interest)}`:""}</div>`:""}</div>
         <div class="num" style="text-align:right;white-space:nowrap">${money(l.pay)}${l.short>0.009?`<div class="chip bad">parcial</div>`:`<div class="chip good">completo</div>`}</div></div>`).join("")
       :`<div class="muted small">Sin pagos en este periodo.</div>`}
@@ -1085,11 +1158,142 @@ function loanPayForm(id){
     closeDialog(); toast("Pago de crédito registrado"); };
 }
 
+/* ---------- Compras futuras ---------- */
+function recoText(r){
+  const p=r.pick, f=r.f;
+  if(!p){
+    const why=r.options.filter(o=>o.why).map(o=>`<li>${o.type==="card"?esc(o.card.name):"Efectivo o débito"}: ${esc(o.why)}</li>`).join("");
+    return `<div class="note bad"><b>No te alcanza antes del ${fDate(ds(r.by))}.</b>${why?`<ul style="margin:6px 0 0;padding-left:18px">${why}</ul>`:""}
+      <div class="small" style="margin-top:6px">Prueba con una fecha límite más lejana, a meses sin intereses${f.allowSavings?"":", o permitiendo usar tus apartados"}.</div></div>`;
+  }
+  const sav=p.payments.flatMap(x=>x.fromSav); const savTxt=sav.length?`<div style="margin-top:6px">Para cubrirlo toma <b>${[...new Map(sav.map(x=>[x.acc.id,{acc:x.acc,amt:0}])).values()].map(v=>{ v.amt=sav.filter(x=>x.acc.id===v.acc.id).reduce((s,x)=>s+x.amt,0); return `${money(v.amt)} de ${esc(v.acc.name)}`; }).join(" y ")}</b>.</div>`:"";
+  if(p.type==="card"){ const prevCut=lastCutOnOrBefore(p.card,addDays(p.date,-1)); const right=daysBetween(prevCut,p.date)<=1;
+  return `<div class="note good"><b>Cómprala el ${fDate(ds(p.date))} con ${esc(p.card.name)}${p.months?` a ${p.months} meses sin intereses`:""}.</b>
+    <div style="margin-top:4px">${right?`Es justo después del corte del ${fDateS(ds(prevCut))}: `:""}entra en el corte del ${fDateS(ds(p.cut))} y la pagas hasta el <b>${fDate(ds(p.due))}</b>, ${p.float} días después de comprarla.${p.months?` Pagarás <b class="num">${money(p.cuota)}</b> al mes.`:` Págala completa ese día para no generar intereses.`} La tarjeta quedaría al ${Math.round(p.utilAfter*100)}% de uso.</div>${savTxt}</div>`; }
+  return `<div class="note good"><b>Cómprala el ${fDate(ds(p.date))} con efectivo o débito.</b><div style="margin-top:4px">${p.savNeed>0?"Con tus ingresos no alcanza sin descuadrar tus otros pagos.":"Ese día ya tienes el dinero sin descuadrar tus otros pagos."}</div>${savTxt}</div>`;
+}
+function vFuturos(){
+  const recs=recommendFutures(); const done=all("future").filter(f=>f.done);
+  const accs=all("account");
+  const head=`<div class="spread"><h2>Compras futuras</h2><button class="btn pri" data-act="newFuture">＋ Compra futura</button></div>`;
+  if(!recs.length&&!done.length) return head+`<div class="panel empty"><b>¿Qué tienes que comprar o pagar pronto?</b><span>Agrega gastos que vienen: regalos, seguro, laptop, viaje… Te digo qué día y con qué tarjeta te conviene, si puedes hacerlo a meses y si hace falta tomar dinero de tus apartados.</span><button class="btn pri" data-act="newFuture">＋ Compra futura</button></div>`;
+  const tot=recs.reduce((s,r)=>s+(+r.f.amount||0),0);
+  return head+`<div class="note">Para cada compra busco el día que te da más tiempo para pagar (justo después del corte de la tarjeta), reviso que tengas crédito disponible y que con tus ingresos te alcance para pagarla a tiempo. Si no alcanza y lo permites, uso tus apartados empezando por el que menos rinde.${!accs.length?` <a href="#ahorros">Agrega tus apartados</a> para que pueda usarlos.`:""}</div>
+  <div class="spread"><span class="muted">${recs.length} compra(s) por hacer</span><b class="num">${money(tot)}</b></div>
+  <div class="view" style="gap:12px">${recs.map(r=>{ const f=r.f; const alts=r.options.filter(o=>o!==r.pick);
+    return `<div class="period"><div class="period-h"><div><b>${esc(f.name)}</b> <span class="chip">${esc(f.category||"Otros")}</span><div class="small muted">${f.from&&pd(f.from)>today()?"desde "+fDateS(f.from)+" · ":""}a más tardar ${fDate(ds(r.by))}${f.msiMax>1?` · se puede a ${f.msiMax} MSI`:""}${f.allowSavings?" · puede usar apartados":""}</div></div><span class="num" style="font-size:18px">${money(f.amount)}</span></div>
+      <div class="period-b">${recoText(r)}
+      ${alts.length?`<details><summary class="small muted" style="cursor:pointer">Otras opciones (${alts.length})</summary><div class="tbl-wrap"><table><thead><tr><th>Con</th><th>Comprar el</th><th>Pagas hasta</th><th class="r">Días</th><th>Nota</th></tr></thead><tbody>${alts.map(o=>`<tr><td>${o.type==="card"?esc(o.card.name)+(o.months?` · ${o.months} MSI`:""):"Efectivo o débito"}</td><td>${o.date?fDateS(ds(o.date)):"—"}</td><td>${o.due?fDateS(ds(o.due)):o.date?fDateS(ds(o.date)):"—"}</td><td class="r num">${o.float??"0"}</td><td class="small">${esc(o.why||(o.type==="card"&&o.utilAfter>0.7?"Uso alto de la tarjeta":o.savNeed>0?"Requiere usar apartados":"Buena opción"))}</td></tr>`).join("")}</tbody></table></div></details>`:""}
+      <div class="row" style="justify-content:flex-end"><button class="btn sm" data-act="editFuture" data-id="${f.id}">Editar</button><button class="btn sm pri" data-act="buyFuture" data-id="${f.id}">Ya lo compré</button></div></div></div>`; }).join("")}</div>
+  ${done.length?`<details><summary class="muted small" style="cursor:pointer">${done.length} compra(s) ya hechas</summary>${done.map(f=>`<div class="small" style="padding:4px 0">✓ ${esc(f.name)} · ${money(f.amount)}${f.doneDate?" · "+fDateS(f.doneDate):""} <button class="btn sm ghost" data-act="editFuture" data-id="${f.id}">Ver</button></div>`).join("")}</details>`:""}`;
+}
+function futureForm(f){
+  const isNew=!f; f=f||{category:"Otros",payWith:"auto",msiMax:0,allowSavings:false,savingsIds:[],by:ds(addDays(today(),30))};
+  const cards=all("card").filter(c=>c.type==="credito"); const accs=all("account");
+  openDialog(isNew?"Nueva compra futura":"Editar compra futura",`
+    <div class="fgrid">
+      <label class="f">Qué vas a comprar o pagar<input type="text" id="uName" value="${esc(f.name||"")}" placeholder="Ej. Laptop, regalos, seguro del auto"></label>
+      <label class="f">Monto<input type="number" id="uAmt" step="0.01" inputmode="decimal" value="${f.amount||""}"></label>
+    </div>
+    <div class="fgrid">
+      <label class="f">Lo necesito a partir de (opcional)<input type="date" id="uFrom" value="${f.from||""}"></label>
+      <label class="f">A más tardar<input type="date" id="uBy" value="${f.by||""}"></label>
+      <label class="f">Categoría<select id="uCat">${CATS.map(c=>`<option ${c===f.category?"selected":""}>${c}</option>`).join("")}</select></label>
+    </div>
+    <label class="f">¿Con qué lo puedes pagar?<select id="uPw">
+      <option value="auto" ${f.payWith==="auto"?"selected":""}>Lo que más me convenga</option>
+      <option value="credito" ${f.payWith==="credito"?"selected":""}>Cualquier tarjeta de crédito</option>
+      ${cards.map(c=>`<option value="${c.id}" ${f.payWith===c.id?"selected":""}>Solo ${esc(c.name)}</option>`).join("")}
+      <option value="efectivo" ${f.payWith==="efectivo"?"selected":""}>Efectivo o débito</option></select></label>
+    <div><div class="small muted" style="font-weight:600;margin-bottom:6px">¿La tienda da meses sin intereses?</div>${seg("umsi",[["0","No"],["3","3"],["6","6"],["9","9"],["12","12"],["18","18"],["24","24"]],String(+f.msiMax||0))}</div>
+    <label class="row small"><input type="checkbox" id="uSav" ${f.allowSavings?"checked":""}> Puede tomar dinero de mis apartados si hace falta</label>
+    <div id="uSavBox" class="view" style="gap:6px;padding-left:22px">${accs.length?accs.map(a=>`<label class="row small"><input type="checkbox" class="uAcc" value="${a.id}" ${(f.savingsIds||[]).includes(a.id)?"checked":""}> ${esc(a.name)} · ${money(a.balance)}${a.liquid===false?` <span class="chip">desde ${a.availFrom?fDateS(a.availFrom):"plazo"}</span>`:""}</label>`).join("")+`<span class="small muted">Si no marcas ninguno, puede usar cualquiera.</span>`:`<span class="small muted">Aún no tienes apartados. Agrégalos en la pestaña Ahorros.</span>`}</div>
+    <label class="f">Notas<input type="text" id="uNote" value="${esc(f.notes||"")}"></label>
+    <div class="small" id="uErr" style="color:var(--bad)"></div>`,
+    `<div class="confirm" id="delZone">${isNew?"":`<button class="btn danger" data-act="askDelete" data-id="${f.id}">Borrar</button>`}</div><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="uSave">Guardar</button></div>`);
+  $$('[data-seg="umsi"] button').forEach(b=>b.onclick=()=>{ $$('[data-seg="umsi"] button').forEach(x=>x.classList.remove("on")); b.classList.add("on"); });
+  const upd=()=>$("#uSavBox").hidden=!$("#uSav").checked; $("#uSav").onchange=upd; upd();
+  $("#uSave").onclick=async()=>{
+    const name=$("#uName").value.trim(), amt=+$("#uAmt").value;
+    if(!name||!(amt>0)){ $("#uErr").textContent="Escribe qué es y cuánto cuesta."; return; }
+    if(!$("#uBy").value){ $("#uErr").textContent="Pon la fecha límite para comprarlo o pagarlo."; return; }
+    if($("#uFrom").value&&$("#uFrom").value>$("#uBy").value){ $("#uErr").textContent="La fecha “a partir de” debe ser antes de la fecha límite."; return; }
+    await put({...(f.id?f:{}),kind:"future",name,amount:r2(amt),from:$("#uFrom").value,by:$("#uBy").value,category:$("#uCat").value,payWith:$("#uPw").value,msiMax:+segVal("umsi"),allowSavings:$("#uSav").checked,savingsIds:$$(".uAcc:checked").map(x=>x.value),notes:$("#uNote").value.trim(),done:!!f.done,createdAt:f.createdAt||Date.now()});
+    closeDialog(); toast(isNew?"Compra futura agregada":"Guardado");
+  };
+}
+function buyFuture(id){
+  const f=get(id); if(!f) return; const r=recommendFutures().find(x=>x.f.id===id); const p=r&&r.pick;
+  expForm({fromFuture:id,amount:f.amount,desc:f.name,category:f.category||"Otros",date:todayS(),cardId:p&&p.type==="card"?p.card.id:"",msi:p&&p.type==="card"?p.months:0,photos:[],notes:f.notes||""});
+}
+
+/* ---------- Apartados ---------- */
+function accountForm(a){
+  const isNew=!a; a=a||{inst:"Mercado Pago",liquid:true,color:CAT_COLORS[(all("account").length+2)%CAT_COLORS.length],balance:0,history:[]};
+  openDialog(isNew?"Nuevo apartado":"Editar apartado",`
+    <div class="fgrid">
+      <label class="f">Dónde está<select id="aInst">${INSTS.map(i=>`<option ${i===a.inst?"selected":""}>${i}</option>`).join("")}</select></label>
+      <label class="f">Nombre del apartado<input type="text" id="aName" value="${esc(a.name||"")}" placeholder="Ej. Reserva MP, Cajita Nu"></label>
+    </div>
+    <div class="fgrid">
+      ${isNew?`<label class="f">Saldo actual<input type="number" id="aBal" step="0.01" inputmode="decimal"></label>`:""}
+      <label class="f">Rendimiento anual % (GAT)<input type="number" id="aRate" step="0.01" value="${a.rate||""}" placeholder="Ej. 13"></label>
+    </div>
+    ${seg("aliq",[["1","Lo saco cuando quiera"],["0","Está a plazo"]],a.liquid===false?"0":"1")}
+    <label class="f" id="aFromL">Disponible a partir de<input type="date" id="aFrom" value="${a.availFrom||""}"></label>
+    <div><div class="small muted" style="font-weight:600;margin-bottom:6px">Color</div><div class="swatches" id="asw">${CAT_COLORS.slice(0,10).map(col=>`<button type="button" style="background:${col}" data-col="${col}" class="${col===a.color?"on":""}" aria-label="Color ${col}"></button>`).join("")}</div></div>
+    <div class="small" id="aErr" style="color:var(--bad)"></div>`,
+    `<div class="confirm" id="delZone">${isNew?"":`<button class="btn danger" data-act="askDelete" data-id="${a.id}">Borrar</button>`}</div><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="aSave">Guardar</button></div>`);
+  $$('[data-seg="aliq"] button').forEach(b=>b.onclick=()=>{ $$('[data-seg="aliq"] button').forEach(x=>x.classList.remove("on")); b.classList.add("on"); $("#aFromL").hidden=segVal("aliq")==="1"; });
+  $("#aFromL").hidden=segVal("aliq")==="1";
+  $$("#asw button").forEach(b=>b.onclick=()=>{ $$("#asw button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); });
+  $("#aSave").onclick=async()=>{
+    const inst=$("#aInst").value, name=$("#aName").value.trim()||inst;
+    const o={...a,kind:"account",inst,name,rate:+$("#aRate").value||0,liquid:segVal("aliq")==="1",availFrom:segVal("aliq")==="1"?"":$("#aFrom").value,color:$("#asw .on")?.dataset.col||CAT_COLORS[0]};
+    if(isNew){ const b=+$("#aBal").value||0; o.balance=r2(b); o.history=b?[{date:todayS(),amount:r2(b),type:"inicial"}]:[]; o.createdAt=Date.now(); }
+    await put(o); closeDialog(); toast("Apartado guardado");
+  };
+}
+function accountDetail(id){
+  const a=get(id); if(!a) return;
+  const typ={inicial:"Saldo inicial",deposito:"Depósito",retiro:"Retiro",rendimiento:"Rendimientos / ajuste"};
+  openDialog(esc(a.name),`
+    <div class="spread"><span class="num" style="font-size:26px">${money(a.balance)}</span><span class="chip">${esc(a.inst)}</span></div>
+    <div class="small muted">${a.rate?`Rinde ${a.rate}% anual · aprox. ${money((+a.balance||0)*a.rate/100/12)} al mes antes de impuestos · `:""}${a.liquid===false?`Disponible ${a.availFrom?"desde el "+fDate(a.availFrom):"al vencer el plazo"}`:"Disponible cuando quieras"}</div>
+    <div class="fgrid"><label class="f">Monto<input type="number" id="acAmt" step="0.01" inputmode="decimal"></label><label class="f">Fecha<input type="date" id="acDate" value="${todayS()}"></label></div>
+    <div class="row"><button class="btn pri" id="acDep">＋ Depositar</button><button class="btn" id="acRet">− Retirar</button><button class="btn" id="acSet">Corregir saldo a este monto</button></div>
+    <h3>Movimientos</h3>
+    ${(a.history||[]).length?`<div class="list">${a.history.slice().reverse().map(h=>`<div class="item" style="cursor:default"><div class="main"><div class="title">${typ[h.type]||"Movimiento"}</div><div class="small muted">${fDate(h.date)}</div></div><span class="num" style="color:${h.amount<0?"var(--bad)":"var(--good)"}">${h.amount<0?"":"+"}${money(h.amount)}</span></div>`).join("")}</div>`:`<p class="muted small">Sin movimientos.</p>`}`,
+    `<div class="confirm" id="delZone"><button class="btn danger" data-act="askDelete" data-id="${a.id}">Borrar</button></div><button class="btn" data-act="editAccount" data-id="${a.id}">Editar</button>`);
+  const mv=async(type)=>{ const v=+$("#acAmt").value; if(!(v>=0)||$("#acAmt").value==="") return; let amt=type==="retiro"?-v:type==="rendimiento"?r2(v-(+a.balance||0)):v; if(!amt) return;
+    await put({...a,balance:r2((+a.balance||0)+amt),history:(a.history||[]).concat([{date:$("#acDate").value||todayS(),amount:r2(amt),type}])}); accountDetail(id); toast("Guardado"); };
+  $("#acDep").onclick=()=>mv("deposito"); $("#acRet").onclick=()=>mv("retiro"); $("#acSet").onclick=()=>mv("rendimiento");
+}
+
 /* ---------- Ahorros ---------- */
+function vAccounts(){
+  const accs=all("account");
+  if(!accs.length) return `<div class="spread"><h2>Ahorros</h2></div><div class="panel empty"><b>¿Dónde tienes guardado tu dinero?</b><span>Agrega tus apartados e inversiones: Mercado Pago, Openbank, GBM+, Nu, Klar, Cetes… con su saldo y rendimiento. Así sabes cuánto tienes y la app puede usarlos para tus compras futuras si se lo permites.</span><button class="btn pri" data-act="newAccount">＋ Apartado</button></div>`;
+  const tot=accs.reduce((s,a)=>s+(+a.balance||0),0), liq=accs.filter(a=>accAvailable(a,today())).reduce((s,a)=>s+(+a.balance||0),0);
+  const yieldM=accs.reduce((s,a)=>s+(+a.balance||0)*(+a.rate||0)/100/12,0);
+  return `<div class="spread"><h2>Ahorros</h2><button class="btn pri" data-act="newAccount">＋ Apartado</button></div>
+  <div class="grid g-kpi">
+    <div class="panel kpi"><span class="lbl">En apartados</span><span class="val num">${money(tot)}</span><span class="sub">${accs.length} apartado(s)</span></div>
+    <div class="panel kpi"><span class="lbl">Disponible hoy</span><span class="val num">${money(liq)}</span><span class="sub">${money(tot-liq)} a plazo</span></div>
+    <div class="panel kpi"><span class="lbl">Rendimiento al mes</span><span class="val num" style="color:var(--good)">${money(yieldM)}</span><span class="sub">aprox., antes de impuestos</span></div>
+  </div>
+  <div class="grid g-2">
+    <div class="panel"><div class="list">${accs.slice().sort((a,b)=>(+b.balance||0)-(+a.balance||0)).map(a=>`<div class="item" data-act="openAccount" data-id="${a.id}">
+      <span class="thumb" style="background:${a.color}22;color:${a.color}">${esc(a.inst.slice(0,2))}</span>
+      <div class="main"><div class="title">${esc(a.name)}</div><div class="row small muted" style="gap:6px"><span>${esc(a.inst)}</span>${a.rate?`<span class="chip good">${a.rate}% anual</span>`:""}${accAvailable(a,today())?"":`<span class="chip">desde ${a.availFrom?fDateS(a.availFrom):"plazo"}</span>`}</div></div>
+      <div class="num">${money(a.balance)}</div></div>`).join("")}</div></div>
+    <div class="panel"><div class="panel-h"><h3>Dónde está tu dinero</h3></div><div class="chart-box"><canvas id="chAcc"></canvas></div></div>
+  </div>`;
+}
 function vAhorros(){
   const goals=all("goal");
   const tot=goals.reduce((s,g)=>s+(+g.saved||0),0), tgt=goals.reduce((s,g)=>s+(+g.target||0),0);
-  return `<div class="spread"><h2>Ahorros</h2><button class="btn pri" data-act="newGoal">＋ Meta de ahorro</button></div>
+  return vAccounts()+`<div class="spread"><h2 style="font-size:17px">Metas de ahorro</h2><button class="btn" data-act="newGoal">＋ Meta de ahorro</button></div>
   ${goals.length?`<div class="grid g-kpi"><div class="panel kpi"><span class="lbl">Ahorrado</span><span class="val num">${money(tot)}</span><span class="sub">${tgt?Math.round(tot/tgt*100)+"% de tus metas":""}</span></div>
     <div class="panel kpi"><span class="lbl">Falta para tus metas</span><span class="val num">${money(Math.max(0,tgt-tot))}</span></div></div>
   <div class="grid g-2">
@@ -1103,6 +1307,10 @@ function vAhorros(){
   </div>`:`<div class="panel empty"><b>Crea tu primera meta</b><span>Fondo de emergencia, viaje, enganche… registra cuánto llevas y cuánto quieres juntar.</span><button class="btn pri" data-act="newGoal">＋ Meta de ahorro</button></div>`}`;
 }
 afterRender.ahorros=()=>{
+  const ca=$("#chAcc");
+  if(ca){ const accs=all("account").filter(a=>+a.balance>0); const tot=accs.reduce((s,a)=>s+(+a.balance),0);
+    charts.acc=new Chart(ca,{type:"doughnut",data:{labels:accs.map(a=>a.name),datasets:[{data:accs.map(a=>r2(a.balance)),backgroundColor:accs.map(a=>a.color),borderColor:cssv("--surface"),borderWidth:2}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:"62%",plugins:{legend:{position:"right",labels:{color:cssv("--muted"),boxWidth:10,usePointStyle:true,font:{size:11}}},tooltip:{callbacks:{label:c=>` ${c.label}: ${money(c.parsed)} (${Math.round(c.parsed/(tot||1)*100)}%)`}}}}}); }
   if(!$("#chSave")) return;
   const months=[]; for(let i=5;i>=0;i--){ const d=new Date(today().getFullYear(),today().getMonth()-i,1); months.push(ds(d).slice(0,7)); }
   const goals=all("goal");
@@ -1172,7 +1380,7 @@ function cardForm(c){
 /* ----- gasto ----- */
 function expForm(e){
   const cards=all("card");
-  const isNew=!e; e=e||{date:todayS(),category:"Súper",cardId:(cards[0]||{}).id||"",msi:0,photos:[]};
+  const isNew=!e||!e.id; e=Object.assign({date:todayS(),category:"Súper",cardId:(cards[0]||{}).id||"",msi:0,photos:[]},e||{});
   let photos=(e.photos||[]).slice();
   openDialog(isNew?"Nuevo gasto":"Editar gasto",`
     <div class="fgrid">
@@ -1213,7 +1421,8 @@ function expForm(e){
     let pb=msi>1?Math.floor(+$("#msiPb").value||0):0;
     if(pb<0||pb>msi){ $("#eErr").textContent=`Las mensualidades pagadas deben ser de 0 a ${msi}.`; return; }
     const asOf = pb>0 ? (pb===(+e.msiPaidBefore||0)&&e.msiAsOf ? e.msiAsOf : todayS()) : "";
-    await put({...(e.id?e:{}),kind:"exp",amount:r2(amt),date:$("#eDate").value||todayS(),desc:$("#eDesc").value.trim(),category:$("#eCat").value,cardId:$("#eCard").value,msi,msiPaidBefore:pb,msiAsOf:asOf,photos,notes:$("#eNote").value.trim(),createdAt:e.createdAt||Date.now()});
+    const saved=await put({...(e.id?e:{}),kind:"exp",amount:r2(amt),date:$("#eDate").value||todayS(),desc:$("#eDesc").value.trim(),category:$("#eCat").value,cardId:$("#eCard").value,msi,msiPaidBefore:pb,msiAsOf:asOf,photos,notes:$("#eNote").value.trim(),createdAt:e.createdAt||Date.now()});
+    if(e.fromFuture){ const fu=get(e.fromFuture); if(fu) await put({...fu,done:true,doneDate:saved.date,expId:saved.id}); }
     closeDialog(); toast(isNew?"Gasto agregado":"Gasto guardado");
   };
 }
@@ -1365,6 +1574,12 @@ document.addEventListener("click",async ev=>{
     case "editFlow": flowForm(get(id)); break;
     case "newGoal": goalForm(); break;
     case "newLoan": loanForm(); break;
+    case "newFuture": futureForm(); break;
+    case "editFuture": futureForm(get(id)); break;
+    case "buyFuture": buyFuture(id); break;
+    case "newAccount": accountForm(); break;
+    case "editAccount": accountForm(get(id)); break;
+    case "openAccount": accountDetail(id); break;
     case "editLoan": loanForm(get(id)); break;
     case "openLoan": loanDetail(id); break;
     case "payLoan": loanPayForm(id); break;
@@ -1432,7 +1647,13 @@ async function loadSample(){
   const st={...settings(),id:"settings",kind:"settings",cash:4800,savingsPct:10,horizon:60};
   ex.find(x=>x.id==="ej-e1").msiPaidBefore=0;
   const loans=[{id:"ej-l1",kind:"loan",name:"Préstamo personal (ejemplo)",ltype:"Personal",cuota:1850,freq:"quincenal",total:24,paidBefore:9,nextDate:ds(new Date(t.getFullYear(),t.getMonth(),t.getDate()<=15?15:dim(t.getFullYear(),t.getMonth()))),principal:30000,rate:38,color:"#a3292f",createdAt:60}];
-  for(const o of [c1,c2,c3,...ex,...pays,...flows,...goals,...loans,st]) await put(o);
+  const accsEj=[{id:"ej-a1",kind:"account",inst:"Mercado Pago",name:"Reserva MP (ejemplo)",balance:5200,rate:15,liquid:true,color:"#3aa0c9",history:[{date:d(-30),amount:5200,type:"inicial"}]},
+    {id:"ej-a2",kind:"account",inst:"Openbank",name:"Cuenta Open (ejemplo)",balance:12000,rate:10.5,liquid:true,color:"#d64545",history:[{date:d(-30),amount:12000,type:"inicial"}]},
+    {id:"ej-a3",kind:"account",inst:"GBM+",name:"Smart Cash GBM+ (ejemplo)",balance:8000,rate:10,liquid:false,availFrom:d(20),color:"#2f9e5b",history:[{date:d(-30),amount:8000,type:"inicial"}]}];
+  const futs=[{id:"ej-u1",kind:"future",name:"Laptop (ejemplo)",amount:18000,category:"Tecnología",by:d(45),payWith:"auto",msiMax:12,allowSavings:true,savingsIds:[],createdAt:70},
+    {id:"ej-u2",kind:"future",name:"Regalos de Navidad (ejemplo)",amount:4000,category:"Otros",from:d(10),by:d(40),payWith:"auto",msiMax:0,allowSavings:true,savingsIds:["ej-a1"],createdAt:71},
+    {id:"ej-u3",kind:"future",name:"Seguro del auto (ejemplo)",amount:6500,category:"Transporte",by:d(25),payWith:"efectivo",msiMax:0,allowSavings:false,savingsIds:[],createdAt:72}];
+  for(const o of [c1,c2,c3,...ex,...pays,...flows,...goals,...loans,...accsEj,...futs,st]) await put(o);
   toast("Datos de ejemplo cargados. Bórralos en Opciones cuando quieras.");
 }
 
