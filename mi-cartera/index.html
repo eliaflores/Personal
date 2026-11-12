@@ -1190,7 +1190,7 @@ async function syncReminders(){
   }catch(e){ console.error(e); }
 }
 // clave pública de notificaciones web (Firebase → Cloud Messaging → Web Push)
-const VAPID_KEY="";
+const VAPID_KEY="BBAeJ9V9CTbcTl3AYxrgkdhqwP3SM7l55cJ-TdnDuH2WG11sF5ROXub4S5ZGS7Ys59P5e-ZbdM8_HqGssgGNYBQ";
 function hashStr(x){ let h=0; for(let i=0;i<x.length;i++){ h=(h*31+x.charCodeAt(i))|0; } return (h>>>0).toString(36); }
 async function enablePush(){
   if(S.mode!=="fb"){ toast("Primero inicia sesión con Google"); return; }
