@@ -401,6 +401,21 @@ h2{font-weight:700;letter-spacing:-.01em;text-transform:uppercase;font-size:22px
 .logo-rings{background:#0E0E0E!important;padding:2px}
 .btnRefresh.spin svg{animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+.hero.soft .plist .pr{border-top-color:rgba(31,31,31,.10)}
+.hero.soft .plist .dt{background:rgba(255,255,255,.55)}
+.hero.soft .plist .dt b,.hero.soft .plist .nm,.hero.soft .plist .am{color:#1F1F1F}
+.hero.soft .plist .dt span,.hero.soft .plist .nm small{color:rgba(31,31,31,.6)}
+.hero.soft a{color:#1F1F1F}
+.mdetails{margin-top:14px;position:relative;z-index:1}
+.mdetails summary{cursor:pointer;font-weight:700;font-size:13.5px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.5);list-style:none;display:flex;justify-content:space-between;align-items:center}
+.mdetails summary::-webkit-details-marker{display:none}
+.mdetails summary::after{content:"▾";font-size:14px}
+.mdetails[open] summary::after{content:"▴"}
+.refreshline{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;font-size:12px;color:rgba(31,31,31,.6);position:relative;z-index:1}
+.refreshline .btn{background:rgba(255,255,255,.6);color:#1F1F1F}
+.hdr-logo{width:30px;height:30px;border-radius:10px;flex:none;display:grid;place-items:center}
+@media (min-width:980px){.hdr-logo{display:none}}
 </style>
 
 </head>
@@ -418,7 +433,7 @@ h2{font-weight:700;letter-spacing:-.01em;text-transform:uppercase;font-size:22px
 <header class="top">
   <div class="wrap">
     <div class="top-row">
-      <div class="brand"><button class="iconbtn" id="btnNav" type="button" aria-label="Abrir menú"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button><h1 id="secTitle">Mi Cartera</h1></div>
+      <div class="brand"><button class="iconbtn" id="btnNav" type="button" aria-label="Abrir menú"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button><span class="logo logo-rings hdr-logo"><svg viewBox="0 0 100 100" aria-hidden="true" style="width:100%;height:100%"><circle cx="50" cy="50" r="40" fill="#3B3B3B"/><g fill="none" stroke="#F2EEE3" stroke-width="3.4"><ellipse cx="50" cy="39" rx="28" ry="9"/><ellipse cx="50" cy="50" rx="28" ry="9"/><ellipse cx="50" cy="61" rx="28" ry="9"/></g></svg></span><h1 id="secTitle">Mi Cartera</h1></div>
       <div class="row" style="gap:8px;flex-wrap:nowrap"><button class="iconbtn btnRefresh" type="button" aria-label="Actualizar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button><button class="iconbtn btnMenu" type="button" aria-label="Opciones"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg></button></div>
     </div>
     
@@ -1102,17 +1117,19 @@ function vResumen(){
   const mesN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][t0.getMonth()];
   const kindTxt={tarjeta:"pago total (saldo + MSI del mes)",prestamo:"pago de crédito",fijo:"gasto fijo",futuro:"compra planeada"};
   return `
-  <section class="hero">
+  <section class="hero soft">
     <div class="eyebrow">Te falta pagar en ${mesN}</div>
     <div class="big">${money(monthTot)}</div>
-    <div style="color:var(--ink-muted);margin-top:4px;font-size:13.5px">${monthLines.length?`${monthLines.length} pago(s) de hoy al ${mEnd.getDate()} de ${mesN}`:`No tienes pagos pendientes lo que queda del mes`}</div>
-    ${monthLines.length?`<div class="plist">${monthLines.slice(0,7).map(x=>`<div class="pr"><div class="dt"><b>${x.date.getDate()}</b><span>${MES[x.date.getMonth()]}</span></div><div class="nm">${esc(x.name)}<small>${x.kind==="tarjeta"?`págala este día · vence ${fDateS(ds(x.due))}${x.futs&&x.futs.length?" · incluye compra planeada":""}`:(kindTxt[x.kind]||"")}</small></div><div class="am">${money(x.amt)}</div></div>`).join("")}${monthLines.length>7?`<div class="small" style="color:var(--ink-muted);padding-top:6px">y ${monthLines.length-7} más en el <a href="#plan" style="color:var(--mint)">plan de pagos</a></div>`:""}</div>`:""}
+    <div class="sub2" style="margin-top:4px;font-size:13.5px">${monthLines.length?`${monthLines.length} pago(s) de hoy al ${mEnd.getDate()} de ${mesN}${monthLines[0]?` · el siguiente: ${esc(monthLines[0].name)} el ${fDateS(ds(monthLines[0].date))}`:""}`:`No tienes pagos pendientes lo que queda del mes`}</div>
+    ${monthTot>0?`<div class="meter" title="Cuánto cubres con tu dinero y tus ingresos del mes"><i style="width:${Math.min(100,(cashNow+incTot)/monthTot*100)}%"></i></div><div class="sub2" style="font-size:12px;margin-top:6px">${cashNow+incTot>=monthTot?"Con tu dinero y tus ingresos cubres todo el mes":`Con tu dinero y tus ingresos cubres el ${Math.round((cashNow+incTot)/monthTot*100)}% del mes`}</div>`:""}
     <div class="row-stats">
-      <div class="stat"><span>${nextInc?`Próximo sueldo · ${["dom","lun","mar","mié","jue","vie","sáb"][nextInc.date.getDay()]} ${fDateS(ds(nextInc.date))}`:"Tu sueldo"}</span><b>${nextInc?money(nextInc.amount):`<a href="#" data-act="newSalary" style="color:var(--mint)">Agregar sueldo</a>`}</b></div>
-      <div class="stat"><span>Tienes hoy (débito y efectivo)</span><b>${money(cashNow)}</b></div>
-      <div class="stat"><span>Te llega antes de fin de mes</span><b>${money(incTot)}</b></div>
-      <div class="stat"><span>Te quedaría a fin de mes</span><b style="color:${left<0?"#ff9b93":"#fff"}">${money(left)}</b></div>
+      <div class="stat"><span>${nextInc?`Próximo sueldo · ${["dom","lun","mar","mié","jue","vie","sáb"][nextInc.date.getDay()]} ${fDateS(ds(nextInc.date))}`:"Tu sueldo"}</span><b>${nextInc?money(nextInc.amount):`<a href="#" data-act="newSalary">Agregar sueldo</a>`}</b></div>
+      <div class="stat"><span>Tienes hoy</span><b>${money(cashNow)}</b></div>
+      <div class="stat"><span>Te llega este mes</span><b>${money(incTot)}</b></div>
+      <div class="stat"><span>Te quedaría</span><b style="color:${left<0?"var(--bad)":"#1F1F1F"}">${money(left)}</b></div>
     </div>
+    ${monthLines.length?`<details class="mdetails"><summary>Ver los ${monthLines.length} pagos del mes</summary><div class="plist">${monthLines.map(x=>`<div class="pr"><div class="dt"><b>${x.date.getDate()}</b><span>${MES[x.date.getMonth()]}</span></div><div class="nm">${esc(x.name)}<small>${x.kind==="tarjeta"?`págala este día · vence ${fDateS(ds(x.due))}${x.futs&&x.futs.length?" · incluye compra planeada":""}`:(kindTxt[x.kind]||"")}</small></div><div class="am">${money(x.amt)}</div></div>`).join("")}</div></details>`:""}
+    <div class="refreshline"><span>Actualizado ${(()=>{const d=new Date();return d.getHours()+":"+String(d.getMinutes()).padStart(2,"0");})()}</span><button type="button" class="btn sm btnRefresh2">↻ Actualizar</button></div>
   </section>
   ${!all("flow").some(f=>f.type==="ingreso")?`<div class="note acc"><b>Agrega tu sueldo una sola vez.</b> Dime cuánto te pagan, cada cuándo y la fecha de tu último pago; la app calcula sola tus siguientes pagos y los usa para planear. <a href="#" data-act="newSalary">Agregar sueldo</a></div>`:""}
   <div class="grid g-kpi">
@@ -1124,11 +1141,11 @@ function vResumen(){
   </div>
   ${lnx?`<div class="note ${lnx.overdue?"bad":"warn"}"><b>Crédito:</b> ${esc(lnx.loan.name)} · pago ${lnx.next.j} de ${lnx.n} por <b class="num">${money(lnx.next.amt)}</b> ${lnx.overdue?`venció el <b>${fDate(ds(lnx.next.date))}</b>`:`vence el <b>${fDate(ds(lnx.next.date))}</b>`}. <a href="#creditos">Ver créditos</a></div>`:""}
   ${nx?`<div class="note ${nx.daysToPay<=3?"bad":nx.daysToPay<=7?"warn":"acc"}"><b>Próximo pago:</b> ${esc(nx.card.name)} vence el <b>${fDate(ds(nx.nextPay))}</b>${(()=>{ const co=(plan.cardObl||[]).find(o=>o.card.id===nx.card.id&&+o.due===+nx.nextPay); return co&&+co.payOn!==+co.due?`; te conviene pagarla el <b>${fDate(ds(co.payOn))}</b> (${esc(co.why)})`:""; })()} (${nx.daysToPay===0?"hoy":nx.daysToPay===1?"mañana":"en "+nx.daysToPay+" días"}). Paga el total: <b class="num">${money(nx.payTotal)}</b>${nx.msiDue>0?` (${money(Math.max(0,nx.rev))} de saldo + ${money(nx.msiDue)} de mensualidades del mes)`:""}. <a href="#plan">Ver plan de pagos</a></div>`:""}
-  <section class="hero soft">
+  <section class="hero">
     <div class="eyebrow">Debes en total</div>
     <div class="big">${money(owe)}</div>
-    <div class="sub2" style="margin-top:4px;font-size:13.5px">${money(debt)} en tarjetas${lsts.length?` · ${money(loanRem)} en créditos`:""}</div>
-    ${lim?`<div class="meter" title="Uso de tus tarjetas"><i style="width:${Math.min(100,debt/lim*100)}%"></i></div><div class="sub2" style="font-size:12px;margin-top:6px">Usas el ${Math.round(debt/lim*100)}% de tu línea de crédito</div>`:""}
+    <div style="color:var(--ink-muted);margin-top:4px;font-size:13.5px">${money(debt)} en tarjetas${lsts.length?` · ${money(loanRem)} en créditos`:""}</div>
+    ${lim?`<div class="meter" title="Uso de tus tarjetas"><i style="width:${Math.min(100,debt/lim*100)}%"></i></div><div style="font-size:12px;margin-top:6px;color:var(--ink-muted)">Usas el ${Math.round(debt/lim*100)}% de tu línea de crédito</div>`:""}
     <div class="row-stats">
       <div class="stat"><span>Crédito disponible</span><b>${money(lim-debt)}</b></div>
       <div class="stat"><span>Gastado en ${MES[+mk.slice(5)-1]}</span><b>${money(ms)}</b></div>
@@ -2091,7 +2108,11 @@ const openOptions=()=>{ document.body.classList.remove("nav-open");
 };
 
 $$(".btnMenu:not(.btnRefresh)").forEach(b=>b.onclick=openOptions);
-$$(".btnRefresh").forEach(b=>b.onclick=()=>{ b.classList.add("spin"); toast("Actualizando…"); setTimeout(()=>location.reload(),250); });
+function hardRefresh(b){ if(b) b.classList.add("spin"); toast("Actualizando…"); try{ sessionStorage.setItem("mc-refreshed","1"); }catch(e){}
+  setTimeout(()=>{ const u=new URL(location.href); u.searchParams.set("v",Date.now()); location.replace(u.pathname+u.search+location.hash); },250); }
+$$(".btnRefresh").forEach(b=>b.onclick=()=>hardRefresh(b));
+document.addEventListener("click",e=>{ const b=e.target.closest(".btnRefresh2"); if(b) hardRefresh(b); });
+try{ if(sessionStorage.getItem("mc-refreshed")){ sessionStorage.removeItem("mc-refreshed"); setTimeout(()=>toast("Listo, ya está actualizado"),600); } }catch(e){}
 $("#btnNav").onclick=()=>document.body.classList.add("nav-open");
 $("#scrim").onclick=()=>document.body.classList.remove("nav-open");
 $$(".side .navlinks a").forEach(a=>a.addEventListener("click",()=>document.body.classList.remove("nav-open")));
