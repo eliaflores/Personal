@@ -857,17 +857,27 @@ function recommendFutures(){
       else { const d=new Date(by); const savNeed=r2(amt-Math.max(0,freeAt(d))); const can=savIds.length>0&&savAvail(d)>=savNeed;
         options.push({type:"cash",ok:can,date:d,savNeed,affordable:can,score:can?0:-300,debit:debitCard,cashName,why:can?"":`Te faltarían ${money(savNeed)}${f.allowSavings?" aun usando tus apartados":""}`}); }
     }
-    const pick=options.filter(o=>o.ok&&o.affordable).sort((a,b)=>b.score-a.score)[0]||null;
+    let pick=options.filter(o=>o.ok&&o.affordable).sort((a,b)=>b.score-a.score)[0]||null;
+    if(!pick){
+      // no alcanza completo: igual entra al plan con la mejor opción posible, para que veas cuánto falta
+      pick=options.filter(o=>o.type==="card"&&o.ok).sort((a,b)=>b.score-a.score)[0]||options.find(o=>o.type==="cash")||{type:"cash",ok:false,date:new Date(by),savNeed:amt,cashName:"efectivo o débito"};
+      pick.forced=true;
+      for(let d=addDays(by,1),i=0;d<=base.end&&i<200;d=addDays(d,1),i++){ if(freeAt(d)>=amt){ pick.canOn=new Date(d); break; } }
+    }
     const draw=(d,need)=>{ const res=[]; for(const a of savAccs(d)){ if(need<=0.009) break; const take=Math.min(need,Math.max(0,accLeft[a.id]||0)); if(take>0){ accLeft[a.id]=r2(accLeft[a.id]-take); need=r2(need-take); res.push({acc:a,amt:r2(take)}); } } return res; };
     if(pick){
       pick.payments=[];
-      const payOn=(d,a)=>{ if(d>base.end){ pick.payments.push({date:d,amount:r2(a),cash:r2(a),fromSav:[],beyond:true}); return; } const cash=Math.min(a,Math.max(0,freeAt(d))); commit(d,cash); const fromSav=a-cash>0.009?draw(d,r2(a-cash)):[]; pick.payments.push({date:d,amount:r2(a),cash:r2(cash),fromSav}); };
+      const payOn=(d,a)=>{ if(d>base.end){ pick.payments.push({date:d,amount:r2(a),cash:r2(a),fromSav:[],beyond:true,short:0}); return; }
+        const cash=Math.min(a,Math.max(0,freeAt(d))); const fromSav=a-cash>0.009?draw(d,r2(a-cash)):[]; const drawn=r2(fromSav.reduce((x,y)=>x+y.amt,0));
+        const short=Math.max(0,r2(a-cash-drawn)); const cashPart=r2(a-drawn);
+        commit(d,cashPart); pick.payments.push({date:d,amount:r2(a),cash:cashPart,fromSav,short}); };
       if(pick.type==="card"){
         reserved[pick.card.id]=r2((reserved[pick.card.id]||0)+amt);
         if(pick.months){ for(let k=0;k<pick.months;k++){ const d=payDateOf(pick.card,pick.due.getFullYear(),pick.due.getMonth()+k); const dd=new Date(d.getFullYear(),d.getMonth(),Math.min(+pick.card.payDay||1,dim(d.getFullYear(),d.getMonth()))); payOn(dd,k===pick.months-1?r2(amt-pick.cuota*(pick.months-1)):pick.cuota); } }
         else payOn(pick.due,amt);
       } else payOn(pick.date,amt);
       pick.savTotal=r2(pick.payments.reduce((s,p)=>s+p.fromSav.reduce((x,y)=>x+y.amt,0),0));
+      pick.short=r2(pick.payments.reduce((s,p)=>s+(p.short||0),0));
     }
     out.push({f,pick,options,from,by,savIds});
   }
@@ -1357,6 +1367,10 @@ function vPlan(){
       ${inc.length?`<div class="list">${inc.map(flowRow).join("")}</div><div class="small muted" style="margin-top:6px">Próximos: ${nextIncomes(60).slice(0,4).map(i=>`${fDateS(ds(i.date))} ${money(i.amount)}`).join(" · ")||"—"}</div>`:`<div class="note acc">Agrega tu sueldo una vez y la app calcula sola los siguientes pagos. <button class="btn sm pri" data-act="newSalary">Agregar sueldo</button></div>`}
       <div class="spread" style="margin-top:14px"><h3>Gastos fijos</h3><button class="btn sm" data-act="newFlow" data-type="fijo">＋ Gasto fijo</button></div>
       ${fix.length?`<div class="list">${fix.map(flowRow).join("")}</div>`:`<p class="muted small">Renta, luz, internet, colegiaturas… lo que pagas sí o sí.</p>`}
+      <div class="spread" style="margin-top:14px"><h3>Compras planeadas</h3><button class="btn sm" data-act="newFuture">＋ Compra futura</button></div>
+      ${(()=>{ const rs=recommendFutures(); if(!rs.length) return `<p class="muted small">Lo que tienes que comprar o pagar pronto. También entra a este plan.</p>`;
+        return `<div class="list">${rs.map(r=>{ const pk=r.pick; const when=pk?(pk.type==="card"?`con ${esc(pk.card.name)}${pk.months?` a ${pk.months} MSI`:""} · se paga ${fDateS(ds(pk.due))}`:`${esc(pk.cashName||"efectivo o débito")} · ${fDateS(ds(pk.date))}`):`a más tardar ${fDateS(ds(r.by))}`;
+          return `<div class="item" data-act="editFuture" data-id="${r.f.id}"><span class="thumb" style="background:var(--accent-soft);color:var(--fg)">◷</span><div class="main"><div class="title">${esc(r.f.name)}</div><div class="small muted">${when}${pk&&pk.forced?` · <span style="color:var(--bad)">te faltan ${money(pk.short)}</span>`:""}</div></div><div class="num">${money(r.f.amount)}</div></div>`; }).join("")}</div>`; })()}
     </div>
     <div class="panel"><div class="panel-h"><h3>Saldo proyectado</h3><span class="small muted">siguiendo el plan</span></div>
       <div class="grid g-kpi" style="margin-bottom:12px">
@@ -1549,6 +1563,14 @@ function loanPayForm(id){
 /* ---------- Compras futuras ---------- */
 function recoText(r){
   const p=r.pick, f=r.f;
+  if(p&&p.forced){
+    const why=r.options.filter(o=>o.why).map(o=>`<li>${o.type==="card"?esc(o.card.name):esc(o.cashName||"Efectivo o débito")}: ${esc(o.why)}</li>`).join("");
+    const how=p.type==="card"?`con ${esc(p.card.name)}${p.months?` a ${p.months} MSI`:""} y pagarla hasta el ${fDate(ds(p.due))}`:`con ${esc(p.cashName||"efectivo o débito")} el ${fDate(ds(p.date))}`;
+    return `<div class="note warn"><b>No te alcanza completo antes del ${fDate(ds(r.by))}, pero ya está en tu plan de pagos.</b>
+      <div style="margin-top:4px">Lo puse ${how}.${p.short>0.009?` Con lo que tienes y tus ingresos te faltarían <b class="num">${money(p.short)}</b>.`:""}${p.savTotal>0.009?` Usa <b class="num">${money(p.savTotal)}</b> de tus apartados.`:""}${p.canOn?` Si puedes esperar, te alcanza completo a partir del <b>${fDate(ds(p.canOn))}</b>.`:""}</div>
+      ${why?`<ul style="margin:6px 0 0;padding-left:18px">${why}</ul>`:""}
+      <div class="small" style="margin-top:6px">Para que alcance: mueve la fecha límite, págala a meses sin intereses${f.allowSavings?"":", permite usar tus apartados"} o elige otra tarjeta.</div></div>`;
+  }
   if(!p){
     const why=r.options.filter(o=>o.why).map(o=>`<li>${o.type==="card"?esc(o.card.name):esc(o.cashName||"Efectivo o débito")}: ${esc(o.why)}</li>`).join("");
     return `<div class="note bad"><b>No te alcanza antes del ${fDate(ds(r.by))}.</b>${why?`<ul style="margin:6px 0 0;padding-left:18px">${why}</ul>`:""}
