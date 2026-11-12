@@ -868,8 +868,9 @@ function recommendFutures(){
   const out=[];
   for(const f of futs){
     const amt=+f.amount||0;
-    const from=f.from&&pd(f.from)>t?pd(f.from):new Date(t);
-    let by=f.by?pd(f.by):addDays(from,30); if(by<from) by=new Date(from);
+    // la fecha de la compra es fija: no se mueve, solo se elige con qué pagarla
+    const fixedD=pd(f.by||todayS());
+    const from=fixedD<t?new Date(t):fixedD; const by=new Date(from);
     const savIds=f.allowSavings?((f.savingsIds&&f.savingsIds.length)?f.savingsIds:accs.map(a=>a.id)):[];
     const savAccs=d=>savIds.map(id=>accs.find(a=>a.id===id)).filter(a=>a&&accAvailable(a,d)).sort((a,b)=>(+a.rate||0)-(+b.rate||0));
     const savAvail=d=>r2(savAccs(d).reduce((s,a)=>s+Math.max(0,accLeft[a.id]||0),0));
@@ -1141,7 +1142,7 @@ function vResumen(){
   const accTot=all("account").reduce((s,a)=>s+(+a.balance||0),0);
   const owe=r2(debt+loanRem);
   const t0=today(), mEnd=new Date(t0.getFullYear(),t0.getMonth()+1,0);
-  const monthLines=plan.periods.flatMap(p=>p.lines).filter(l=>!l.o.carried&&l.o.kind!=="compra"&&(l.o.due||l.o.date)<=mEnd).map(l=>({date:l.o.date,due:l.o.due,name:l.o.kind==="tarjeta"?"Tarjeta "+l.o.name:l.o.kind==="futuro"?l.o.name+" (planeada)":l.o.name,amt:r2(l.o.full||l.o.amount),kind:l.o.kind,futs:l.o.futs})).filter(x=>x.amt>0.009).sort((a,b)=>a.date-b.date);
+  const monthLines=plan.periods.flatMap(p=>p.lines).filter(l=>!l.o.carried&&l.o.kind!=="compra"&&(l.o.due||l.o.date)<=mEnd).map(l=>({date:l.o.date,due:l.o.due,name:l.o.kind==="tarjeta"?"Tarjeta "+l.o.name:l.o.kind==="futuro"?l.o.name+" (planeada)":l.o.name,amt:r2(l.o.full||l.o.amount),kind:l.o.kind,futs:l.o.futs,method:l.o.kind==="futuro"?futMethod(l.o.pick):""})).filter(x=>x.amt>0.009).sort((a,b)=>a.date-b.date);
   const monthTot=r2(monthLines.reduce((s,x)=>s+x.amt,0));
   const incMonth=nextIncomes(45).filter(i=>i.date<=mEnd); const incTot=r2(incMonth.reduce((s,i)=>s+i.amount,0));
   const nextInc=nextIncomes(45)[0];
@@ -1160,7 +1161,7 @@ function vResumen(){
       <div class="stat"><span>Te llega este mes</span><b>${money(incTot)}</b></div>
       <div class="stat"><span>Te quedaría</span><b style="color:${left<0?"var(--bad)":"#1F1F1F"}">${money(left)}</b></div>
     </div>
-    ${monthLines.length?`<details class="mdetails"><summary>Ver los ${monthLines.length} pagos del mes</summary><div class="plist">${monthLines.map(x=>`<div class="pr"><div class="dt"><b>${x.date.getDate()}</b><span>${MES[x.date.getMonth()]}</span></div><div class="nm">${esc(x.name)}<small>${x.kind==="tarjeta"?`págala este día · vence ${fDateS(ds(x.due))}${x.futs&&x.futs.length?" · incluye compra planeada":""}`:(kindTxt[x.kind]||"")}</small></div><div class="am">${money(x.amt)}</div></div>`).join("")}</div></details>`:""}
+    ${monthLines.length?`<details class="mdetails"><summary>Ver los ${monthLines.length} pagos del mes</summary><div class="plist">${monthLines.map(x=>`<div class="pr"><div class="dt"><b>${x.date.getDate()}</b><span>${MES[x.date.getMonth()]}</span></div><div class="nm">${esc(x.name)}<small>${x.kind==="tarjeta"?`págala este día · vence ${fDateS(ds(x.due))}${x.futs&&x.futs.length?" · incluye compra planeada":""}`:(kindTxt[x.kind]||"")+(x.method?" · "+esc(x.method):"")}</small></div><div class="am">${money(x.amt)}</div></div>`).join("")}</div></details>`:""}
     <div class="refreshline"><span>Actualizado ${(()=>{const d=new Date();return d.getHours()+":"+String(d.getMinutes()).padStart(2,"0");})()}</span><button type="button" class="btn sm btnRefresh2">↻ Actualizar</button></div>
   </section>
   ${!all("flow").some(f=>f.type==="ingreso")?`<div class="note acc"><b>Agrega tu sueldo una sola vez.</b> Dime cuánto te pagan, cada cuándo y la fecha de tu último pago; la app calcula sola tus siguientes pagos y los usa para planear. <a href="#" data-act="newSalary">Agregar sueldo</a></div>`:""}
@@ -1297,6 +1298,7 @@ function vTarjetas(){
         <div><span>Mensualidades MSI</span><span class="num">${money(st.msiDue)}</span></div>
         <div><span>Saldo normal</span><span class="num">${money(st.rev)}</span></div>
         <div><span>Uso</span><span>${utilChip(st.util)}</span></div>
+        <div style="grid-column:1/-1"><button type="button" class="btn sm" data-act="stmtPaid" data-id="${c.id}">Ya pagué el corte del ${fDateS(ds(st.stmtCut))}</button></div>
         ${st.loanDue>0?`<div><span>Préstamos en esta tarjeta</span><span class="num">${money(st.loanDue)}</span></div><div><span>Total a pagar el ${fDateS(ds(st.nextPay))}</span><span class="num" style="color:var(--accent)">${money(st.payTotal+st.loanDue)}</span></div>`:""}
       </div>`:`<div class="card-meta"><div><span>Saldo capturado (${fDateS(c.initialDate||todayS())})</span><span class="num">${money(+c.initialBalance||0)}</span></div><div><span>Depósitos</span><span class="num">${money(st.dep)}</span></div><div><span>Gastos</span><span class="num">${money(st.spent)}</span></div>${st.paidOut?`<div><span>Pagos de tarjetas</span><span class="num">${money(st.paidOut)}</span></div>`:""}${st.loanOut?`<div><span>Pagos de préstamos</span><span class="num">${money(st.loanOut)}</span></div>`:""}<div><span>Cuenta para tus pagos</span><span class="chip good">sí</span></div></div>`}
     </div>`;}).join("")}</div>`;
@@ -1318,6 +1320,7 @@ function cardDetail(id){
       <div class="kpi"><span class="lbl">Deuda total</span><span class="num">${money(st.debt)}</span></div>
       <div class="kpi"><span class="lbl">Disponible</span><span class="num">${money(st.avail)}</span></div>
       <div class="kpi"><span class="lbl">Bloqueado por MSI</span><span class="num">${money(st.msiOut)}</span></div></div>
+    <div class="row"><button type="button" class="btn sm" data-act="stmtPaid" data-id="${c.id}">Ya pagué el corte del ${fDateS(ds(st.stmtCut))} (vence ${fDateS(ds(st.nextPay))})</button></div>
     <div class="note acc"><b>Pago total antes del ${fDate(ds(st.nextPay))}: <span class="num">${money(st.payTotal)}</span></b><br>
       <span class="num">${money(Math.max(0,st.rev))}</span> de saldo (todas tus compras normales, aunque sean de después del corte) + <span class="num">${money(st.msiDue)}</span> de mensualidades de este mes. Las mensualidades que faltan de tus compras a meses no se incluyen.${st.loanDue>0?`<br>Con tus préstamos en esta tarjeta: <b class="num">${money(st.payTotal+st.loanDue)}</b>.`:""}</div>
     <h3>Compras a meses sin intereses</h3>${plansHtml}`:""}
@@ -1337,6 +1340,27 @@ function fromOptions(sel){
   let last=""; try{ last=localStorage.getItem("mc-from")||""; }catch(e){}
   const def=sel!==undefined?sel:(debs.some(x=>x.c.id===last)?last:(debs[0]?debs[0].c.id:""));
   return debs.map(x=>`<option value="${x.c.id}" ${x.c.id===def?"selected":""}>${esc(x.c.name)} (tienes ${money(x.b)})</option>`).join("")+`<option value="" ${def===""?"selected":""}>Efectivo u otra cuenta</option>`;
+}
+function stmtPaidForm(id){
+  const c=get(id); if(!c) return; const st=cardState(c);
+  const nc=nextCutAfter(c,st.stmtCut); const np=nextPayOnOrAfter(c,addDays(nc,1));
+  openDialog("Ya pagué este corte",`
+    <div class="note">Estado de cuenta del corte <b>${fDate(ds(st.stmtCut))}</b> con fecha límite <b>${fDate(ds(st.nextPay))}</b>. Al guardarlo, tu siguiente pago de ${esc(c.name)} será el del corte <b>${fDate(ds(nc))}</b>, con fecha límite <b>${fDate(ds(np))}</b>.</div>
+    <div class="fgrid">
+      <label class="f">¿Cuánto pagaste?<input type="number" id="spAmt" step="0.01" inputmode="decimal" value="${st.noInt>0?st.noInt:""}" placeholder="0.00"></label>
+      <label class="f">Fecha del pago<input type="date" id="spDate" value="${todayS()}"></label>
+      <label class="f">Pagado desde<select id="spFrom">${fromOptions()}</select></label>
+    </div>
+    <label class="row small"><input type="checkbox" id="spAlready"> Ya lo registré antes (solo mover al siguiente corte)</label>
+    <div class="small muted">Puedes cambiar la fecha límite del siguiente corte después en Editar si tu banco te dio otra.</div>`,
+    `<span></span><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="spSave">Guardar</button></div>`);
+  $("#spAlready").onchange=()=>{ $("#spAmt").disabled=$("#spAlready").checked; };
+  $("#spSave").onclick=async()=>{
+    const amt=+$("#spAmt").value||0;
+    if(!$("#spAlready").checked&&amt>0) await put({kind:"pay",cardId:c.id,amount:r2(amt),date:$("#spDate").value||todayS(),fromId:$("#spFrom").value,target:"auto",note:`Pago del corte ${fDateS(ds(st.stmtCut))}`,createdAt:Date.now()});
+    await put({...get(c.id),cycleCut:ds(nc),cyclePay:ds(np)});
+    closeDialog(); toast(`Listo: tu siguiente pago de ${c.name} es el ${fDateS(ds(np))}`);
+  };
 }
 function attachDebitUpdate(c){
   const b=$("#dbSet"); if(!b) return;
@@ -1409,8 +1433,8 @@ function vPagos(){
 
 /* ---------- Plan de pagos ---------- */
 function planLineTitle(o){
-  if(o.kind==="compra") return `Compra ${esc(o.name)} con ${esc(o.pick.card.name)}${o.pick.months?` a ${o.pick.months} MSI`:""} <span class="chip acc">planeada</span>`;
-  if(o.kind==="futuro") return `Compra ${esc(o.name)} <span class="chip acc">planeada</span>`;
+  if(o.kind==="compra") return `Compra ${esc(o.name)} ${esc(futMethod(o.pick))} <span class="chip acc">planeada</span>`;
+  if(o.kind==="futuro") return `Compra ${esc(o.name)} ${esc(futMethod(o.pick))} <span class="chip acc">planeada</span>`;
   if(o.kind==="tarjeta") return "Paga "+esc(o.name);
   if(o.kind==="prestamo") return "Pago de "+esc(o.name)+` <span class="chip">pago fijo · ${o.loanJ} de ${o.loanN}</span>`;
   if(o.kind==="fijo") return esc(o.name)+` <span class="chip">pago fijo</span>`;
@@ -1445,7 +1469,7 @@ function vPlan(){
         if(o.carried) info=`<div class="small muted">Resto que no alcanzaste a pagar antes</div>`;
         else if(o.kind==="tarjeta") info=`<div class="small"><b style="color:var(--accent)">Págala el ${fDate(ds(o.date))}</b>${o.why?` · ${esc(o.why)}`:""}</div>
           <div class="small muted">Puedes pagarla del ${fDateS(ds(o.window?o.window.from:o.date))} al ${fDate(ds(o.due))} (fecha límite) · pago total ${money(o.amount)}${o.stmt&&o.stmt.msi?` (incluye ${money(o.stmt.msi)} de MSI del mes)`:""}${o.stmt&&o.stmt.first?"":" · estimado"}</div>
-          ${(o.futs||[]).map(fu=>`<div class="small" style="color:var(--accent)">Incluye ${esc(fu.name)} <span class="chip acc">planeada</span>${fu.months?` ${fu.k+1} de ${fu.months} MSI`:""}: ${money(fu.amt)}${fu.fromSav.length?` · toma ${fu.fromSav.map(x=>`${money(x.amt)} de ${esc(x.acc.name)}`).join(" y ")}`:""}</div>`).join("")}`;
+          ${(o.futs||[]).map(fu=>`<div class="small" style="color:var(--accent)">Incluye ${esc(fu.name)} (compra ${esc(futMethod({type:"card",card:o.card,months:fu.months}))}) <span class="chip acc">planeada</span>${fu.months?` ${fu.k+1} de ${fu.months} MSI`:""}: ${money(fu.amt)}${fu.fromSav.length?` · toma ${fu.fromSav.map(x=>`${money(x.amt)} de ${esc(x.acc.name)}`).join(" y ")}`:""}</div>`).join("")}`;
         else info=`<div class="small muted">${o.kind==="futuro"?"cómprala el":"vence"} ${fDate(ds(o.date))}</div>${o.kind==="futuro"&&o.fromSav&&o.fromSav.length?`<div class="small" style="color:var(--accent)">${o.fromSav.map(x=>`Toma ${money(x.amt)} de ${esc(x.acc.name)}`).join(" · ")}</div>`:""}`;
         const shortTxt=l.short>0.009?(l.carriedTo?`<div class="small" style="color:var(--warn)">Pagas ${money(l.pay)} ahora y el resto (${money(l.short)}) lo completas el ${fDateS(ds(l.carriedTo))}${l.interest?` · intereses aprox. ${money(l.interest)}`:""}</div>`:`<div class="small" style="color:var(--bad)">Faltan ${money(l.short)} al final del plan${l.interest?` · intereses aprox. ${money(l.interest)}`:""}</div>`):"";
         return `<div class="pline"><div class="what"><b>${title}</b>${info}${shortTxt}</div>
@@ -1648,6 +1672,10 @@ function loanPayForm(id){
 }
 
 /* ---------- Compras futuras ---------- */
+function futMethod(pk){
+  if(!pk) return "";
+  return pk.type==="card"?`con ${pk.card.name}${pk.months?` a ${pk.months} MSI`:""}`:`con ${pk.cashName||"efectivo o débito"}`;
+}
 function futPlanStatus(fid){
   const plan=buildPlan(); const lines=plan.periods.flatMap(p=>p.lines);
   const cash=lines.find(l=>l.o.kind==="futuro"&&!l.o.carried&&l.o.fut&&l.o.fut.id===fid&&l.o.k===0);
@@ -1671,23 +1699,22 @@ function recoText(r){
   const p=r.pick, f=r.f;
   if(p&&p.forced){
     const why=r.options.filter(o=>o.why).map(o=>`<li>${o.type==="card"?esc(o.card.name):esc(o.cashName||"Efectivo o débito")}: ${esc(o.why)}</li>`).join("");
-    const how=p.type==="card"?`con ${esc(p.card.name)}${p.months?` a ${p.months} MSI`:""} y pagarla hasta el ${fDate(ds(p.due))}`:`con ${esc(p.cashName||"efectivo o débito")} el ${fDate(ds(p.date))}`;
-    return `<div class="note warn"><b>No te alcanza completo antes del ${fDate(ds(r.by))}, pero ya está en tu plan de pagos.</b>
-      <div style="margin-top:4px">Lo puse ${how}.${p.savTotal>0.009?` Usa <b class="num">${money(p.savTotal)}</b> de tus apartados.`:""}${p.canOn?` Si puedes esperar, te alcanza completo a partir del <b>${fDate(ds(p.canOn))}</b>.`:""}</div>
+    const how=p.type==="card"?`${esc(futMethod(p))} el ${fDate(ds(p.date))} y se paga hasta el ${fDate(ds(p.due))}`:`${esc(futMethod(p))} el ${fDate(ds(p.date))}`;
+    return `<div class="note warn"><b>No te alcanza completo el ${fDate(ds(r.by))}, pero ya está en tu plan de pagos.</b>
+      <div style="margin-top:4px">Lo puse ${how}.${p.savTotal>0.009?` Usa <b class="num">${money(p.savTotal)}</b> de tus apartados.`:""}</div>
       ${planStatusHtml(r)}
-      ${why?`<ul style="margin:6px 0 0;padding-left:18px">${why}</ul>`:""}
-      <div class="small" style="margin-top:6px">Para que alcance: mueve la fecha límite, págala a meses sin intereses${f.allowSavings?"":", permite usar tus apartados"} o elige otra tarjeta.</div></div>`;
+      <div class="small" style="margin-top:6px">Para que alcance: cambia la fecha, págala a meses sin intereses${f.allowSavings?"":", permite usar tus apartados"} o elige otra tarjeta.</div></div>`;
   }
   if(!p){
     const why=r.options.filter(o=>o.why).map(o=>`<li>${o.type==="card"?esc(o.card.name):esc(o.cashName||"Efectivo o débito")}: ${esc(o.why)}</li>`).join("");
-    return `<div class="note bad"><b>No te alcanza antes del ${fDate(ds(r.by))}.</b>${why?`<ul style="margin:6px 0 0;padding-left:18px">${why}</ul>`:""}
+    return `<div class="note bad"><b>No te alcanza el ${fDate(ds(r.by))}.</b>${why?`<ul style="margin:6px 0 0;padding-left:18px">${why}</ul>`:""}
       <div class="small" style="margin-top:6px">Prueba con una fecha límite más lejana, a meses sin intereses${f.allowSavings?"":", o permitiendo usar tus apartados"}.</div></div>`;
   }
   const sav=p.payments.flatMap(x=>x.fromSav); const savTxt=sav.length?`<div style="margin-top:6px">Para cubrirlo toma <b>${[...new Map(sav.map(x=>[x.acc.id,{acc:x.acc,amt:0}])).values()].map(v=>{ v.amt=sav.filter(x=>x.acc.id===v.acc.id).reduce((s,x)=>s+x.amt,0); return `${money(v.amt)} de ${esc(v.acc.name)}`; }).join(" y ")}</b>.</div>`:"";
   if(p.type==="card"){ const prevCut=lastCutOnOrBefore(p.card,addDays(p.date,-1)); const right=daysBetween(prevCut,p.date)<=1;
-  return `<div class="note good"><b>Cómprala el ${fDate(ds(p.date))} con ${esc(p.card.name)}${p.months?` a ${p.months} meses sin intereses`:""}.</b>
+  return `<div class="note good"><b>Compra el ${fDate(ds(p.date))} ${esc(futMethod(p))}.</b>
     <div style="margin-top:4px">${right?`Es justo después del corte del ${fDateS(ds(prevCut))}: `:""}entra en el corte del ${fDateS(ds(p.cut))} y la pagas hasta el <b>${fDate(ds(p.due))}</b>, ${p.float} días después de comprarla.${p.months?` Pagarás <b class="num">${money(p.cuota)}</b> al mes.`:` Págala completa ese día para no generar intereses.`} La tarjeta quedaría al ${Math.round(p.utilAfter*100)}% de uso.</div>${savTxt}${planStatusHtml(r)}</div>`; }
-  return `<div class="note good"><b>Cómprala el ${fDate(ds(p.date))} con ${esc(p.cashName||"efectivo o débito")}.</b><div style="margin-top:4px">${p.savNeed>0?"Con tus ingresos no alcanza sin descuadrar tus otros pagos.":"Ese día ya tienes el dinero sin descuadrar tus otros pagos."}</div>${savTxt}${planStatusHtml(r)}</div>`;
+  return `<div class="note good"><b>Compra el ${fDate(ds(p.date))} ${esc(futMethod(p))}.</b><div style="margin-top:4px">${p.savNeed>0?"Con tus ingresos no alcanza sin descuadrar tus otros pagos.":"Ese día ya tienes el dinero sin descuadrar tus otros pagos."}</div>${savTxt}${planStatusHtml(r)}</div>`;
 }
 function vFuturos(){
   const recs=recommendFutures(); const done=all("future").filter(f=>f.done);
@@ -1695,10 +1722,10 @@ function vFuturos(){
   const head=`<div class="spread"><h2>Compras futuras</h2><button class="btn pri" data-act="newFuture">＋ Compra futura</button></div>`;
   if(!recs.length&&!done.length) return head+`<div class="panel empty"><b>¿Qué tienes que comprar o pagar pronto?</b><span>Agrega gastos que vienen: regalos, seguro, laptop, viaje… Te digo qué día y con qué tarjeta te conviene, si puedes hacerlo a meses y si hace falta tomar dinero de tus apartados.</span><button class="btn pri" data-act="newFuture">＋ Compra futura</button></div>`;
   const tot=recs.reduce((s,r)=>s+(+r.f.amount||0),0);
-  return head+`<div class="note">Para cada compra busco el día que te da más tiempo para pagar (justo después del corte de la tarjeta), reviso que tengas crédito disponible y que con tus ingresos te alcance para pagarla a tiempo. Si no alcanza y lo permites, uso tus apartados empezando por el que menos rinde.${!accs.length?` <a href="#ahorros">Agrega tus apartados</a> para que pueda usarlos.`:""}</div>
+  return head+`<div class="note">Cada compra se hace en la fecha que pusiste; esa fecha no se mueve. Elijo con qué pagarla entre las opciones que marcaste: reviso que la tarjeta tenga crédito y que con tus ingresos te alcance para pagarla a tiempo. Lo que dice aquí es lo mismo que sale en tu plan de pagos.${!accs.length?` <a href="#ahorros">Agrega tus apartados</a> para que pueda usarlos.`:""}</div>
   <div class="spread"><span class="muted">${recs.length} compra(s) por hacer</span><b class="num">${money(tot)}</b></div>
   <div class="view" style="gap:12px">${recs.map(r=>{ const f=r.f; const alts=r.options.filter(o=>o!==r.pick);
-    return `<div class="period"><div class="period-h"><div><b>${esc(f.name)}</b> <span class="chip">${esc(f.category||"Otros")}</span><div class="small muted">${f.from&&pd(f.from)>today()?"desde "+fDateS(f.from)+" · ":""}a más tardar ${fDate(ds(r.by))}${f.msiMax>1?` · se puede a ${f.msiMax} MSI`:""}${f.allowSavings?" · puede usar apartados":""}</div></div><span class="num" style="font-size:18px">${money(f.amount)}</span></div>
+    return `<div class="period"><div class="period-h"><div><b>${esc(f.name)}</b> <span class="chip">${esc(f.category||"Otros")}</span><div class="small muted">el ${fDate(ds(r.by))} <span class="chip">fecha fija</span>${f.msiMax>1?` · se puede a ${f.msiMax} MSI`:""}${f.allowSavings?" · puede usar apartados":""}</div></div><span class="num" style="font-size:18px">${money(f.amount)}</span></div>
       <div class="period-b">${recoText(r)}
       ${alts.length?`<details><summary class="small muted" style="cursor:pointer">Otras opciones (${alts.length})</summary><div class="tbl-wrap"><table><thead><tr><th>Con</th><th>Comprar el</th><th>Pagas hasta</th><th class="r">Días</th><th>Nota</th></tr></thead><tbody>${alts.map(o=>`<tr><td>${o.type==="card"?esc(o.card.name)+(o.months?` · ${o.months} MSI`:""):esc(o.cashName||"Efectivo o débito")}</td><td>${o.date?fDateS(ds(o.date)):"—"}</td><td>${o.due?fDateS(ds(o.due)):o.date?fDateS(ds(o.date)):"—"}</td><td class="r num">${o.float??"0"}</td><td class="small">${esc(o.why||(o.type==="card"&&o.utilAfter>0.7?"Uso alto de la tarjeta":o.savNeed>0?"Requiere usar apartados":"Buena opción"))}</td></tr>`).join("")}</tbody></table></div></details>`:""}
       <div class="row" style="justify-content:flex-end"><button class="btn sm" data-act="editFuture" data-id="${f.id}">Editar</button><button class="btn sm pri" data-act="buyFuture" data-id="${f.id}">Ya lo compré</button></div></div></div>`; }).join("")}</div>
@@ -1715,8 +1742,7 @@ function futureForm(f){
       <label class="f">Monto<input type="number" id="uAmt" step="0.01" inputmode="decimal" value="${f.amount||""}"></label>
     </div>
     <div class="fgrid">
-      <label class="f">Lo necesito a partir de (opcional)<input type="date" id="uFrom" value="${f.from||""}"></label>
-      <label class="f">A más tardar<input type="date" id="uBy" value="${f.by||""}"></label>
+      <label class="f">Fecha de la compra o pago (fija)<input type="date" id="uBy" value="${f.by||""}"></label>
       <label class="f">Categoría<select id="uCat">${CATS.map(c=>`<option ${c===f.category?"selected":""}>${c}</option>`).join("")}</select></label>
     </div>
     <div><div class="small muted" style="font-weight:700;margin-bottom:8px">¿Con qué lo puedes pagar?</div>
@@ -1733,9 +1759,8 @@ function futureForm(f){
   $("#uSave").onclick=async()=>{
     const name=$("#uName").value.trim(), amt=+$("#uAmt").value;
     if(!name||!(amt>0)){ $("#uErr").textContent="Escribe qué es y cuánto cuesta."; return; }
-    if(!$("#uBy").value){ $("#uErr").textContent="Pon la fecha límite para comprarlo o pagarlo."; return; }
-    if($("#uFrom").value&&$("#uFrom").value>$("#uBy").value){ $("#uErr").textContent="La fecha “a partir de” debe ser antes de la fecha límite."; return; }
-    await put({...(f.id?f:{}),kind:"future",name,amount:r2(amt),from:$("#uFrom").value,by:$("#uBy").value,category:$("#uCat").value,payCards:$$(".uPay:checked").map(x=>x.value),payWith:$$(".uPay:checked").length?"lista":"auto",msiMax:+segVal("umsi"),allowSavings:$("#uSav").checked,savingsIds:$$(".uAcc:checked").map(x=>x.value),notes:$("#uNote").value.trim(),done:!!f.done,createdAt:f.createdAt||Date.now()});
+    if(!$("#uBy").value){ $("#uErr").textContent="Pon la fecha en que vas a comprarlo o pagarlo."; return; }
+    await put({...(f.id?f:{}),kind:"future",name,amount:r2(amt),from:"",by:$("#uBy").value,category:$("#uCat").value,payCards:$$(".uPay:checked").map(x=>x.value),payWith:$$(".uPay:checked").length?"lista":"auto",msiMax:+segVal("umsi"),allowSavings:$("#uSav").checked,savingsIds:$$(".uAcc:checked").map(x=>x.value),notes:$("#uNote").value.trim(),done:!!f.done,createdAt:f.createdAt||Date.now()});
     closeDialog(); toast(isNew?"Compra futura agregada":"Guardado");
   };
 }
@@ -2135,6 +2160,7 @@ document.addEventListener("click",async ev=>{
     case "newLoan": loanForm(); break;
     case "newFuture": futureForm(); break;
     case "planAdd": planAddMenu(); break;
+    case "stmtPaid": stmtPaidForm(id); break;
     case "planSettings": planSettingsForm(); break;
     case "editFuture": futureForm(get(id)); break;
     case "buyFuture": buyFuture(id); break;
