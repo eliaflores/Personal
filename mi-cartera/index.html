@@ -282,23 +282,72 @@ dialog::backdrop{background:rgba(6,16,14,.55);backdrop-filter:blur(3px)}
   .item{padding:9px 6px}
 }
 @media (max-width:560px){h2{font-size:21px}.kpi .val{font-size:20px}.fab .btn span.lbl{display:none}.fab .btn{padding:14px 16px}.panel{padding:16px}.hero{padding:20px}}
+
+/* ---------- menú lateral (también en el celular) ---------- */
+.side{display:flex;flex-direction:column;gap:6px;width:var(--side);padding:22px 14px;background:var(--ink);color:var(--ink-fg)}
+.side .brand{padding:4px 10px 18px}
+.side .brand h1{color:#fff}
+.side .logo{background:rgba(255,255,255,.08);box-shadow:none}
+.side .navlinks{display:flex;flex-direction:column;overflow:visible;padding:0;gap:2px}
+.side .navlinks a{display:flex;align-items:center;gap:10px;background:transparent;box-shadow:none;color:var(--ink-muted);border-radius:12px;padding:12px;font-size:14.5px;font-weight:600;text-decoration:none}
+.side .navlinks a:hover{background:rgba(255,255,255,.06);color:#fff}
+.side .navlinks a.on{background:color-mix(in srgb,var(--mint) 18%,transparent);color:#fff}
+.side .navlinks a.on svg.i{color:var(--mint)}
+.side .grow{flex:1}
+.side .btnMenu{display:flex;align-items:center;gap:10px;border:0;background:rgba(255,255,255,.06);color:var(--ink-fg);padding:12px;border-radius:12px;cursor:pointer;font-weight:600}
+.scrim{display:none}
+#btnNav{display:none}
+.subtabs{display:flex;gap:4px;padding:4px;background:var(--surface);border-radius:14px;box-shadow:var(--shadow);width:fit-content;max-width:100%;overflow-x:auto;scrollbar-width:none}
+.subtabs a{padding:8px 16px;border-radius:10px;text-decoration:none;color:var(--muted);font-weight:700;white-space:nowrap;font-size:13.5px}
+.subtabs a.on{background:var(--ink);color:#fff}
+@media (min-width:980px){ .side{position:sticky;top:0;height:100vh;flex:none} }
+@media (max-width:979px){
+  .side{position:fixed;top:0;bottom:0;left:0;z-index:40;width:min(290px,84vw);padding-top:calc(22px + env(safe-area-inset-top,0px));padding-bottom:calc(18px + env(safe-area-inset-bottom,0px));padding-left:max(14px,env(safe-area-inset-left,0px));transform:translateX(-105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);box-shadow:var(--shadow-lg);overflow-y:auto}
+  body.nav-open .side{transform:none}
+  .scrim{display:block;position:fixed;inset:0;background:rgba(6,8,20,.5);z-index:39;opacity:0;pointer-events:none;transition:opacity .2s}
+  body.nav-open .scrim{opacity:1;pointer-events:auto}
+  #btnNav{display:grid}
+  header.top .brand h1{font-size:19px}
+  .top-row{padding-block:12px}
+}
+/* ---------- inicio: lo que pagas este mes ---------- */
+.plist{display:flex;flex-direction:column;gap:2px;margin-top:16px;position:relative;z-index:1}
+.plist .pr{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid rgba(255,255,255,.08)}
+.plist .pr:first-child{border-top:0}
+.plist .dt{flex:none;width:46px;text-align:center;border-radius:10px;background:rgba(255,255,255,.08);padding:4px 0;line-height:1.1}
+.plist .dt b{display:block;font-size:16px;color:#fff}
+.plist .dt span{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-muted);font-weight:700}
+.plist .nm{flex:1;min-width:0;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plist .nm small{display:block;color:var(--ink-muted);font-weight:500;font-size:12px}
+.plist .am{font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
+.hero.soft{background:var(--surface);color:var(--fg)}
+.hero.soft::after{border-color:color-mix(in srgb,var(--accent) 8%,transparent)}
+.hero.soft .eyebrow,.hero.soft .sub2{color:var(--muted)}
+.hero.soft .big{color:var(--fg)}
+.hero.soft .stat{background:var(--surface-2)}
+.hero.soft .stat span{color:var(--muted)}
+.hero.soft .stat b{color:var(--fg)}
+.hero.soft .meter{background:var(--surface-2)}
+.hero.soft .meter i{background:var(--accent)}
+
 </style>
 
 <div class="shell">
 <aside class="side">
   <div class="brand"><span class="logo"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg></span><h1>Mi Cartera</h1></div>
-  <nav class="navlinks" aria-label="Secciones"><a href="#resumen" data-v="resumen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Resumen</span></a><a href="#tarjetas" data-v="tarjetas"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20M6 15h4"/></svg><span>Tarjetas</span></a><a href="#gastos" data-v="gastos"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 2v20l2.3-1.5L9.6 22l2.4-1.5 2.4 1.5 2.3-1.5L19 22V2l-2.3 1.5L14.4 2 12 3.5 9.6 2 7.3 3.5Z"/><path d="M15 8H9M15 12H9"/></svg><span>Gastos</span></a><a href="#pagos" data-v="pagos"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg><span>Pagos y MSI</span></a><a href="#creditos" data-v="creditos"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 18v-7M9.5 18v-7M14.5 18v-7M19 18v-7M12 3l9 5H3Z"/></svg><span>Créditos</span></a><a href="#futuros" data-v="futuros"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg><span>Compras futuras</span></a><a href="#plan" data-v="plan"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3 6 1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17"/></svg><span>Plan de pagos</span></a><a href="#ahorros" data-v="ahorros"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9.5c.6.6 1 1.4 1 2.5h1.5v3H19a6 6 0 0 1-2 2V20h-3v-2h-4v2H7v-3c-1.7-1.2-3-3-3-5.5C4 7.5 7.5 6 11 6h3l3-2v3.5c.8.5 1.5 1.2 2 2Z"/><path d="M15 11h.01"/></svg><span>Ahorros</span></a></nav>
+  <nav class="navlinks" aria-label="Secciones"><a href="#resumen" data-v="resumen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></svg><span>Inicio</span></a><a href="#tarjetas" data-v="tarjetas"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20M6 15h4"/></svg><span>Tarjetas y pagos</span></a><a href="#gastos" data-v="gastos"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 2v20l2.3-1.5L9.6 22l2.4-1.5 2.4 1.5 2.3-1.5L19 22V2l-2.3 1.5L14.4 2 12 3.5 9.6 2 7.3 3.5Z"/><path d="M15 8H9M15 12H9"/></svg><span>Gastos</span></a><a href="#creditos" data-v="creditos"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 18v-7M9.5 18v-7M14.5 18v-7M19 18v-7M12 3l9 5H3Z"/></svg><span>Créditos</span></a><a href="#plan" data-v="plan"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg><span>Planear</span></a><a href="#ahorros" data-v="ahorros"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9.5c.6.6 1 1.4 1 2.5h1.5v3H19a6 6 0 0 1-2 2V20h-3v-2h-4v2H7v-3c-1.7-1.2-3-3-3-5.5C4 7.5 7.5 6 11 6h3l3-2v3.5c.8.5 1.5 1.2 2 2Z"/><path d="M15 11h.01"/></svg><span>Ahorros</span></a></nav>
   <div class="grow"></div>
   <button class="btnMenu" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg><span>Opciones</span></button>
 </aside>
+<div class="scrim" id="scrim"></div>
 <div class="content">
 <header class="top">
   <div class="wrap">
     <div class="top-row">
-      <div class="brand"><span class="logo"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg></span><h1>Mi Cartera</h1></div>
+      <div class="brand"><button class="iconbtn" id="btnNav" type="button" aria-label="Abrir menú"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button><h1 id="secTitle">Mi Cartera</h1></div>
       <button class="iconbtn btnMenu" type="button" aria-label="Opciones"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg></button>
     </div>
-    <nav class="navlinks" aria-label="Secciones"><a href="#resumen" data-v="resumen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Resumen</span></a><a href="#tarjetas" data-v="tarjetas"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20M6 15h4"/></svg><span>Tarjetas</span></a><a href="#gastos" data-v="gastos"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 2v20l2.3-1.5L9.6 22l2.4-1.5 2.4 1.5 2.3-1.5L19 22V2l-2.3 1.5L14.4 2 12 3.5 9.6 2 7.3 3.5Z"/><path d="M15 8H9M15 12H9"/></svg><span>Gastos</span></a><a href="#pagos" data-v="pagos"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg><span>Pagos y MSI</span></a><a href="#creditos" data-v="creditos"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 18v-7M9.5 18v-7M14.5 18v-7M19 18v-7M12 3l9 5H3Z"/></svg><span>Créditos</span></a><a href="#futuros" data-v="futuros"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg><span>Compras futuras</span></a><a href="#plan" data-v="plan"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3 6 1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17"/></svg><span>Plan de pagos</span></a><a href="#ahorros" data-v="ahorros"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9.5c.6.6 1 1.4 1 2.5h1.5v3H19a6 6 0 0 1-2 2V20h-3v-2h-4v2H7v-3c-1.7-1.2-3-3-3-5.5C4 7.5 7.5 6 11 6h3l3-2v3.5c.8.5 1.5 1.2 2 2Z"/><path d="M15 11h.01"/></svg><span>Ahorros</span></a></nav>
+    
   </div>
 </header>
 <div class="wrap"><div class="banner" id="banner" hidden></div></div>
@@ -595,13 +644,18 @@ function cardState(card){
     const revDue=Math.max(0,r2(init*(initDate<=ds(L)?1:0)+regular.filter(e=>pd(e.date)<=L).reduce((s,e)=>s+(+e.amount||0),0)-revPaid));
     const msiDue=r2(plans.reduce((s,p)=>s+Math.max(0,billedAmt(p,card,L)-p.paid),0));
     const nextCut=nextCutAfter(card,addDays(t,-1));
+    const linked=all("loan").filter(l=>l.payCardId===card.id).map(loanState).filter(x=>x.next);
+    const loanItems=[]; linked.forEach(x=>{ let amt=0; for(let j=x.done+1;j<=x.n;j++){ if(x.dueOf(j)>P) break; amt=r2(amt+(j===x.done+1?x.next.amt:x.amtOf(j))); } if(amt>0) loanItems.push({loan:x.loan,amt,st:x}); });
+    const loanDue=r2(loanItems.reduce((s,x)=>s+x.amt,0));
     Object.assign(st,{rev,msiOut,debt,limit,avail:r2(limit-debt),util:limit?debt/limit:0,
-      nextPay:P,stmtCut:L,revDue,msiDue,noInt:r2(revDue+msiDue),nextCut,
+      nextPay:P,stmtCut:L,revDue,msiDue,noInt:r2(revDue+msiDue),nextCut,loanItems,loanDue,
       daysToPay:daysBetween(t,P)});
   } else {
     const spent=r2(exps.reduce((s,e)=>s+(+e.amount||0),0));
     const dep=r2(pays.reduce((s,p)=>s+(+p.amount||0),0));
-    Object.assign(st,{spent,dep,balance:r2(init+dep-spent)});
+    const lids=new Set(all("loan").filter(l=>l.payCardId===card.id).map(l=>l.id));
+    const loanOut=r2(all("loanpay").filter(p=>lids.has(p.loanId)).reduce((s,p)=>s+(+p.amount||0),0));
+    Object.assign(st,{spent,dep,loanOut,balance:r2(init+dep-spent-loanOut)});
   }
   cacheState.set(card.id,st);
   return st;
@@ -760,6 +814,8 @@ function occurrences(f,from,to){
 }
 const FREQ = {unico:"Una vez",semanal:"Semanal",catorcenal:"Cada 14 días",quincenal:"Quincenal (15 y fin de mes)",mensual:"Mensual"};
 
+function nextIncomes(days){ const t=today(); return all("flow").filter(f=>f.type==="ingreso").flatMap(f=>occurrences(f,t,addDays(t,days))).sort((a,b)=>a.date-b.date); }
+
 /* ================= plan de pagos ================= */
 const planCache={};
 function buildPlan(opts={}){
@@ -771,7 +827,7 @@ function buildPlan(opts={}){
   const cards=all("card").filter(c=>c.type==="credito");
   const stmts=cards.flatMap(c=>projectStatements(c,end));
   const loanObl=[];
-  all("loan").forEach(l=>{ const st=loanState(l); for(let j=st.done+1;j<=st.n;j++){ let d=st.dueOf(j); if(d>end) break; if(d<t) d=new Date(t); const amt=j===st.done+1?st.next.amt:st.amtOf(j); loanObl.push({kind:"prestamo",date:d,amount:amt,must:amt,name:l.name,rate:+l.rate||0,loanJ:j,loanN:st.n}); } });
+  all("loan").forEach(l=>{ const st=loanState(l); for(let j=st.done+1;j<=st.n;j++){ let d=st.dueOf(j); if(d>end) break; if(d<t) d=new Date(t); const amt=j===st.done+1?st.next.amt:st.amtOf(j); loanObl.push({kind:"prestamo",date:d,amount:amt,must:amt,name:l.name+(get(l.payCardId)?` (con ${get(l.payCardId).name})`:""),rate:+l.rate||0,loanJ:j,loanN:st.n}); } });
   const futObl=[];
   if(!opts.noFutures) recommendFutures().forEach(r=>{ if(!r.pick) return; r.pick.payments.forEach((p,k)=>{ if(p.date>end) return;
     const sav=r2(p.fromSav.reduce((x,y)=>x+y.amt,0)); const cashPart=r2(p.amount-sav);
@@ -846,13 +902,18 @@ function render(){
   cacheState.clear(); recoCache=null; delete planCache.base; delete planCache.full;
   const v=(location.hash||"#resumen").slice(1);
   view=["resumen","tarjetas","gastos","pagos","creditos","futuros","plan","ahorros"].includes(v)?v:"resumen";
-  $$(".navlinks a").forEach(a=>a.classList.toggle("on",a.dataset.v===view));
+  const PARENT={pagos:"tarjetas",futuros:"plan"}; const TITLES={resumen:"Inicio",tarjetas:"Tarjetas",pagos:"Pagos y MSI",gastos:"Gastos",creditos:"Créditos",plan:"Plan de pagos",futuros:"Compras futuras",ahorros:"Ahorros"};
+  $$(".navlinks a").forEach(a=>a.classList.toggle("on",a.dataset.v===(PARENT[view]||view)));
+  const stt=$("#secTitle"); if(stt) stt.textContent=TITLES[view]||"Mi Cartera";
+  document.body.classList.remove("nav-open");
   killCharts();
   const app=$("#app");
   if(S.mode==="signin"){ app.innerHTML=`<div class="panel empty" style="padding-block:48px"><b>Entra para ver tus finanzas</b><span>Tus tarjetas, gastos y ahorros se guardan en tu cuenta. Solo tú puedes verlos.</span><button class="btn pri" data-act="signIn">Entrar con Google</button>${S.authErr?`<div class="note bad" role="alert" style="max-width:520px;text-align:left">${esc(S.authErr)}</div>`:""}</div>`; return; }
   if(!S.loaded){ app.innerHTML=`<div class="panel empty"><b>Cargando tus datos…</b><span>Tus tarjetas, gastos y ahorros aparecerán aquí.</span></div>`; return; }
   const fn={resumen:vResumen,tarjetas:vTarjetas,gastos:vGastos,pagos:vPagos,creditos:vCreditos,futuros:vFuturos,plan:vPlan,ahorros:vAhorros}[view];
-  app.innerHTML=`<section class="view">${fn()}</section>`;
+  const SUB={tarjetas:[["tarjetas","Mis tarjetas"],["pagos","Pagos y MSI"]],pagos:[["tarjetas","Mis tarjetas"],["pagos","Pagos y MSI"]],plan:[["plan","Plan de pagos"],["futuros","Compras futuras"]],futuros:[["plan","Plan de pagos"],["futuros","Compras futuras"]]};
+  const sub=SUB[view]?`<div class="subtabs">${SUB[view].map(([k,l])=>`<a href="#${k}" class="${k===view?"on":""}">${l}</a>`).join("")}</div>`:"";
+  app.innerHTML=`<section class="view">${sub}${fn()}</section>`;
   if(!window.Chart){ $$("#app canvas").forEach(c=>{ c.parentElement.innerHTML=`<div class="empty">No se pudo cargar la gráfica. Revisa tu conexión y recarga.</div>`; }); }
   decorateKpis();
   try{ afterRender[view] && afterRender[view](); }catch(e){ console.error(e); }
@@ -913,19 +974,27 @@ function vResumen(){
   const lnx=lsts.filter(x=>x.next&&(x.overdue||x.daysToNext<=10)).sort((a,b)=>a.next.date-b.next.date)[0];
   const accTot=all("account").reduce((s,a)=>s+(+a.balance||0),0);
   const owe=r2(debt+loanRem);
+  const t0=today(), mEnd=new Date(t0.getFullYear(),t0.getMonth()+1,0);
+  const monthLines=plan.periods.flatMap(p=>p.lines).filter(l=>l.o.date<=mEnd).map(l=>({date:l.o.date,name:l.o.kind==="tarjeta"?"Tarjeta "+l.o.name:l.o.kind==="futuro"?l.o.name+" (planeada)":l.o.name,amt:r2(l.o.full||l.o.amount),kind:l.o.kind})).filter(x=>x.amt>0.009).sort((a,b)=>a.date-b.date);
+  const monthTot=r2(monthLines.reduce((s,x)=>s+x.amt,0));
+  const incMonth=nextIncomes(45).filter(i=>i.date<=mEnd); const incTot=r2(incMonth.reduce((s,i)=>s+i.amount,0));
+  const nextInc=nextIncomes(45)[0];
+  const cashNow=+settings().cash||0; const left=r2(cashNow+incTot-monthTot);
+  const mesN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][t0.getMonth()];
+  const kindTxt={tarjeta:"para no generar intereses",prestamo:"pago de crédito",fijo:"gasto fijo",futuro:"compra planeada"};
   return `
   <section class="hero">
-    <div class="eyebrow">Debes en total</div>
-    <div class="big">${money(owe)}</div>
-    <div style="color:var(--ink-muted);margin-top:4px;font-size:13.5px">${money(debt)} en tarjetas${lsts.length?` · ${money(loanRem)} en créditos`:""}</div>
-    ${lim?`<div class="meter" title="Uso de tus tarjetas"><i style="width:${Math.min(100,debt/lim*100)}%"></i></div><div style="font-size:12px;color:var(--ink-muted);margin-top:6px">Usas el ${Math.round(debt/lim*100)}% de tu línea de crédito</div>`:""}
+    <div class="eyebrow">Te falta pagar en ${mesN}</div>
+    <div class="big">${money(monthTot)}</div>
+    <div style="color:var(--ink-muted);margin-top:4px;font-size:13.5px">${monthLines.length?`${monthLines.length} pago(s) de hoy al ${mEnd.getDate()} de ${mesN}`:`No tienes pagos pendientes lo que queda del mes`}</div>
+    ${monthLines.length?`<div class="plist">${monthLines.slice(0,7).map(x=>`<div class="pr"><div class="dt"><b>${x.date.getDate()}</b><span>${MES[x.date.getMonth()]}</span></div><div class="nm">${esc(x.name)}<small>${kindTxt[x.kind]||""}</small></div><div class="am">${money(x.amt)}</div></div>`).join("")}${monthLines.length>7?`<div class="small" style="color:var(--ink-muted);padding-top:6px">y ${monthLines.length-7} más en el <a href="#plan" style="color:var(--mint)">plan de pagos</a></div>`:""}</div>`:""}
     <div class="row-stats">
-      <div class="stat"><span>Crédito disponible</span><b>${money(lim-debt)}</b></div>
-      <div class="stat"><span>Gastado en ${MES[+mk.slice(5)-1]}</span><b>${money(ms)}</b></div>
-      <div class="stat"><span>${all("account").length?"En apartados":"Ahorrado"}</span><b>${money(all("account").length?accTot:saved)}</b></div>
-      ${nx?`<div class="stat"><span>Próximo pago · ${fDateS(ds(nx.nextPay))}</span><b>${money(nx.noInt)}</b></div>`:""}
+      <div class="stat"><span>${nextInc?`Próximo sueldo · ${["dom","lun","mar","mié","jue","vie","sáb"][nextInc.date.getDay()]} ${fDateS(ds(nextInc.date))}`:"Tu sueldo"}</span><b>${nextInc?money(nextInc.amount):`<a href="#" data-act="newSalary" style="color:var(--mint)">Agregar sueldo</a>`}</b></div>
+      <div class="stat"><span>Te llega antes de fin de mes</span><b>${money(incTot)}</b></div>
+      <div class="stat"><span>Te quedaría a fin de mes</span><b style="color:${left<0?"#ff9b93":"#fff"}">${money(left)}</b></div>
     </div>
   </section>
+  ${!all("flow").some(f=>f.type==="ingreso")?`<div class="note acc"><b>Agrega tu sueldo una sola vez.</b> Dime cuánto te pagan, cada cuándo y la fecha de tu último pago; la app calcula sola tus siguientes pagos y los usa para planear. <a href="#" data-act="newSalary">Agregar sueldo</a></div>`:""}
   <div class="grid g-kpi">
     <div class="panel kpi"><span class="lbl">Deuda en tarjetas</span><span class="val num">${money(debt)}</span><span class="sub">${lim?Math.round(debt/lim*100)+"% de tu línea total":"Sin tarjetas de crédito"}</span></div>
     <div class="panel kpi"><span class="lbl">Gastado en ${MES[+mk.slice(5)-1]}</span><span class="val num">${money(ms)}</span><span class="sub">${mp?`<span class="chip ${dlt>0.05?"warn":"good"}">${dlt>=0?"+":""}${Math.round(dlt*100)}%</span> vs mes anterior`:"Primer mes registrado"}</span></div>
@@ -935,6 +1004,17 @@ function vResumen(){
   </div>
   ${lnx?`<div class="note ${lnx.overdue?"bad":"warn"}"><b>Crédito:</b> ${esc(lnx.loan.name)} · pago ${lnx.next.j} de ${lnx.n} por <b class="num">${money(lnx.next.amt)}</b> ${lnx.overdue?`venció el <b>${fDate(ds(lnx.next.date))}</b>`:`vence el <b>${fDate(ds(lnx.next.date))}</b>`}. <a href="#creditos">Ver créditos</a></div>`:""}
   ${nx?`<div class="note ${nx.daysToPay<=3?"bad":nx.daysToPay<=7?"warn":"acc"}"><b>Próximo pago:</b> ${esc(nx.card.name)} vence el <b>${fDate(ds(nx.nextPay))}</b> (${nx.daysToPay===0?"hoy":nx.daysToPay===1?"mañana":"en "+nx.daysToPay+" días"}). Paga <b class="num">${money(nx.noInt)}</b> para no generar intereses${nx.msiDue>0?` (incluye ${money(nx.msiDue)} de mensualidades MSI)`:""}. <a href="#plan">Ver plan de pagos</a></div>`:""}
+  <section class="hero soft">
+    <div class="eyebrow">Debes en total</div>
+    <div class="big">${money(owe)}</div>
+    <div class="sub2" style="margin-top:4px;font-size:13.5px">${money(debt)} en tarjetas${lsts.length?` · ${money(loanRem)} en créditos`:""}</div>
+    ${lim?`<div class="meter" title="Uso de tus tarjetas"><i style="width:${Math.min(100,debt/lim*100)}%"></i></div><div class="sub2" style="font-size:12px;margin-top:6px">Usas el ${Math.round(debt/lim*100)}% de tu línea de crédito</div>`:""}
+    <div class="row-stats">
+      <div class="stat"><span>Crédito disponible</span><b>${money(lim-debt)}</b></div>
+      <div class="stat"><span>Gastado en ${MES[+mk.slice(5)-1]}</span><b>${money(ms)}</b></div>
+      <div class="stat"><span>${all("account").length?"En apartados":"Ahorrado"}</span><b>${money(all("account").length?accTot:saved)}</b></div>
+    </div>
+  </section>
   ${plan.totalShort>0?`<div class="note bad">Con los ingresos que registraste te faltarían <b class="num">${money(plan.totalShort)}</b> en los próximos ${settings().horizon||60} días. <a href="#plan">Ver qué pagar primero</a></div>`:""}
   <div class="grid g-2">
     <div class="panel"><div class="panel-h"><h3>¿En qué se va tu dinero?</h3>
@@ -1047,7 +1127,8 @@ function vTarjetas(){
         <div><span>Mensualidades MSI</span><span class="num">${money(st.msiDue)}</span></div>
         <div><span>Saldo normal</span><span class="num">${money(st.rev)}</span></div>
         <div><span>Uso</span><span>${utilChip(st.util)}</span></div>
-      </div>`:`<div class="card-meta"><div><span>Depósitos</span><span class="num">${money(st.dep)}</span></div><div><span>Gastos</span><span class="num">${money(st.spent)}</span></div></div>`}
+        ${st.loanDue>0?`<div><span>Préstamos en esta tarjeta</span><span class="num">${money(st.loanDue)}</span></div><div><span>Total a pagar el ${fDateS(ds(st.nextPay))}</span><span class="num" style="color:var(--accent)">${money(st.noInt+st.loanDue)}</span></div>`:""}
+      </div>`:`<div class="card-meta"><div><span>Depósitos</span><span class="num">${money(st.dep)}</span></div><div><span>Gastos</span><span class="num">${money(st.spent)}</span></div>${st.loanOut?`<div><span>Pagos de préstamos</span><span class="num">${money(st.loanOut)}</span></div>`:""}</div>`}
     </div>`;}).join("")}</div>`;
 }
 function cardDetail(id){
@@ -1160,7 +1241,7 @@ function vPlan(){
         <label class="f">Planear a<select id="sHor">${[30,60,90].map(d=>`<option value="${d}" ${(+s.horizon||60)===d?"selected":""}>${d} días</option>`).join("")}</select></label>
       </div>
       <div class="spread" style="margin-top:14px"><h3>Ingresos</h3><button class="btn sm" data-act="newFlow" data-type="ingreso">＋ Ingreso</button></div>
-      ${inc.length?`<div class="list">${inc.map(flowRow).join("")}</div>`:`<p class="muted small">Agrega tu sueldo o quincena para que te diga cuánto pagar y cuándo.</p>`}
+      ${inc.length?`<div class="list">${inc.map(flowRow).join("")}</div><div class="small muted" style="margin-top:6px">Próximos: ${nextIncomes(60).slice(0,4).map(i=>`${fDateS(ds(i.date))} ${money(i.amount)}`).join(" · ")||"—"}</div>`:`<div class="note acc">Agrega tu sueldo una vez y la app calcula sola los siguientes pagos. <button class="btn sm pri" data-act="newSalary">Agregar sueldo</button></div>`}
       <div class="spread" style="margin-top:14px"><h3>Gastos fijos</h3><button class="btn sm" data-act="newFlow" data-type="fijo">＋ Gasto fijo</button></div>
       ${fix.length?`<div class="list">${fix.map(flowRow).join("")}</div>`:`<p class="muted small">Renta, luz, internet, colegiaturas… lo que pagas sí o sí.</p>`}
     </div>
@@ -1223,7 +1304,7 @@ function vCreditos(){
   </div>
   <div class="grid g-2">
     <div class="panel"><div class="list">${sts.map(x=>`<div class="item" data-act="openLoan" data-id="${x.loan.id}" style="flex-direction:column;align-items:stretch;gap:6px">
-      <div class="spread"><b><span class="dot" style="background:${x.loan.color};margin-right:6px"></span>${esc(x.loan.name)} <span class="chip">${esc(x.loan.ltype||"")}</span></b>${loanChip(x)}</div>
+      <div class="spread"><b><span class="dot" style="background:${x.loan.color};margin-right:6px"></span>${esc(x.loan.name)} <span class="chip">${esc(x.loan.ltype||"")}</span>${get(x.loan.payCardId)?` <span class="chip acc">${esc(get(x.loan.payCardId).name)}</span>`:""}</b>${loanChip(x)}</div>
       <div class="bar"><i style="width:${x.paidAmt/(x.totalToPay||1)*100}%;background:${x.loan.color}"></i></div>
       <div class="spread small muted"><span>${x.done} de ${x.n} pagos · ${x.variable?`pago variable${x.next?`, el siguiente ${money(x.amtOf(x.next.j))}`:""}`:`${money(x.cuota)} ${(LOAN_FREQ[x.loan.freq]||"").toLowerCase()}`}</span><span>falta <b class="num" style="color:var(--fg)">${money(x.remaining)}</b></span></div></div>`).join("")}</div></div>
     <div class="panel"><div class="panel-h"><h3>Todo lo que debes</h3><span class="small muted">tarjetas y créditos</span></div><div class="chart-box"><canvas id="chDebt"></canvas></div></div>
@@ -1243,6 +1324,7 @@ function loanForm(l){
     <div class="fgrid">
       <label class="f">Nombre<input type="text" id="lName" value="${esc(l.name||"")}" placeholder="Ej. Préstamo Banorte"></label>
       <label class="f">Tipo<select id="lType">${LOAN_TYPES.map(t=>`<option ${t===l.ltype?"selected":""}>${t}</option>`).join("")}</select></label>
+      <label class="f">Se paga con<select id="lCard"><option value="">Efectivo u otra cuenta</option>${all("card").filter(c=>c.type!=="efectivo").map(c=>`<option value="${c.id}" ${c.id===l.payCardId?"selected":""}>${esc(c.name)} (${c.type==="credito"?"crédito":"débito"})</option>`).join("")}</select></label>
     </div>
     <div class="fgrid">
       <label class="f"><span id="lCuotaT">Pago de cada vez</span><input type="number" id="lCuota" step="0.01" inputmode="decimal" value="${l.cuota||""}" placeholder="0.00"></label>
@@ -1294,7 +1376,7 @@ function loanForm(l){
     if(o.pb>o.n){ $("#lErr").textContent=`Los pagos que ya hiciste deben ser de 0 a ${o.n}.`; return; }
     const schedule=o.v?Array.from({length:o.n},(_,i)=>r2(sch[i+1]||0)):[];
     const base=o.c>0?o.c:(schedule.find(x=>x>0)||0);
-    await put({...(l.id?l:{}),kind:"loan",name,ltype:$("#lType").value,cuota:r2(base),variable:o.v,schedule,freq:$("#lFreq").value,total:o.n,paidBefore:o.pb,nextDate:$("#lNext").value||todayS(),principal:o.pr,rate:+$("#lRate").value||0,color:$("#lsw .on")?.dataset.col||CARD_COLORS[0],createdAt:l.createdAt||Date.now()});
+    await put({...(l.id?l:{}),kind:"loan",name,ltype:$("#lType").value,payCardId:$("#lCard").value,cuota:r2(base),variable:o.v,schedule,freq:$("#lFreq").value,total:o.n,paidBefore:o.pb,nextDate:$("#lNext").value||todayS(),principal:o.pr,rate:+$("#lRate").value||0,color:$("#lsw .on")?.dataset.col||CARD_COLORS[0],createdAt:l.createdAt||Date.now()});
     closeDialog(); toast(isNew?"Crédito agregado":"Crédito guardado");
   };
 }
@@ -1309,6 +1391,7 @@ function loanDetail(id){
       <div class="kpi"><span class="lbl">${st.variable?"Siguiente pago (variable)":"Pago "+(LOAN_FREQ[l.freq]||"").toLowerCase()}</span><span class="num">${money(st.next?st.amtOf(st.next.j):st.cuota)}</span></div>
     </div>
     <div class="bar"><i style="width:${st.paidAmt/(st.totalToPay||1)*100}%;background:${l.color}"></i></div>
+    ${get(l.payCardId)?`<div class="note acc">Se paga con <b>${esc(get(l.payCardId).name)}</b>${get(l.payCardId).type==="credito"?". Su pago se suma a lo que tienes que pagar de esa tarjeta.":". Cada pago se descuenta del saldo de esa cuenta."}</div>`:""}
     ${st.principal?`<div class="note">Te prestaron <b class="num">${money(st.principal)}</b> y pagarás en total <b class="num">${money(st.totalToPay)}</b>: <b class="num">${money(st.interest)}</b> son intereses y comisiones${l.rate?` (tasa anual ${l.rate}%)`:""}.</div>`:""}
     ${st.overdue?`<div class="note bad">Tienes <b>${st.overdue}</b> pago(s) con fecha vencida. Si ya los pagaste, regístralos con “Registrar pago”.</div>`:""}
     <h3>Pagos que faltan</h3>
@@ -1515,12 +1598,18 @@ function openDialog(title,body,foot){
 }
 function addCustomSwatch(box){
   const sel=box.dataset.sel||""; const known=[...box.querySelectorAll("button")].some(b=>b.dataset.col===sel);
-  const b=document.createElement("button"); b.type="button"; b.className="custom"+(sel&&!known?" on":""); b.title="Otro color"; b.setAttribute("aria-label","Elegir otro color");
-  b.dataset.col=sel&&!known?sel:"#ff7a59"; if(sel&&!known) b.style.boxShadow=`0 0 0 2.5px var(--fg), inset 0 0 0 9px ${sel}`;
-  const inp=document.createElement("input"); inp.type="color"; inp.value=/^#[0-9a-f]{6}$/i.test(b.dataset.col)?b.dataset.col:"#ff7a59"; inp.hidden=true;
-  b.addEventListener("click",()=>inp.click());
-  inp.addEventListener("input",()=>{ box.querySelectorAll("button").forEach(x=>{ x.classList.remove("on"); if(x!==b) x.style.boxShadow=""; }); b.dataset.col=inp.value; b.classList.add("on"); b.style.boxShadow=`0 0 0 2.5px var(--fg), inset 0 0 0 9px ${inp.value}`; });
-  box.appendChild(b); box.appendChild(inp);
+  const wrap=document.createElement("span"); wrap.style.cssText="position:relative;display:inline-block;width:30px;height:30px";
+  const b=document.createElement("button"); b.type="button"; b.tabIndex=-1; b.className="custom"+(sel&&!known?" on":""); b.setAttribute("aria-hidden","true");
+  b.dataset.col=sel&&!known?sel:"#ff7a59";
+  const paint=c=>{ b.style.boxShadow=`0 0 0 2.5px var(--fg), inset 0 0 0 9px ${c}`; };
+  if(sel&&!known) paint(sel);
+  const inp=document.createElement("input"); inp.type="color"; inp.setAttribute("aria-label","Elegir otro color");
+  inp.value=/^#[0-9a-f]{6}$/i.test(b.dataset.col)?b.dataset.col:"#ff7a59";
+  inp.style.cssText="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0;margin:0;-webkit-appearance:none;appearance:none";
+  const pick=()=>{ box.querySelectorAll("button").forEach(x=>{ x.classList.remove("on"); if(x!==b) x.style.boxShadow=""; }); b.dataset.col=inp.value; b.classList.add("on"); paint(inp.value); };
+  inp.addEventListener("input",pick); inp.addEventListener("change",pick);
+  box.querySelectorAll("button").forEach(x=>{ if(x!==b) x.addEventListener("click",()=>{ b.classList.remove("on"); b.style.boxShadow=""; }); });
+  wrap.appendChild(b); wrap.appendChild(inp); box.appendChild(wrap);
 }
 function closeDialog(){ if(dlg.open) dlg.close(); }
 dlg.addEventListener("click",e=>{ if(e.target===dlg) closeDialog(); });
@@ -1658,41 +1747,51 @@ function payForm(cardId,planId){
     </div>
     <div id="pQuick" class="row"></div>
     <label class="f">Monto<input type="number" id="pAmt" step="0.01" inputmode="decimal" placeholder="0.00"></label>
+    <div id="pLoans" class="view" style="gap:6px"></div>
     <label class="f" id="pTgtL">Aplicar a<select id="pTgt"></select></label>
     <label class="f">Nota (opcional)<input type="text" id="pNote" placeholder="Ej. pago quincena"></label>
     <div id="pPrev"></div><div class="small" id="pErr" style="color:var(--bad)"></div>`,
     `<span></span><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="pSave">Guardar pago</button></div>`);
   const fill=()=>{
     const c=get($("#pCard").value); const st=cardState(c);
-    $("#pTgtL").hidden=!st.isCredit; $("#pQuick").hidden=!st.isCredit;
+    $("#pTgtL").hidden=!st.isCredit; $("#pQuick").hidden=!st.isCredit; $("#pLoans").innerHTML="";
     if(st.isCredit){
       const act=st.plans.filter(p=>p.paid<p.total-0.009);
       $("#pTgt").innerHTML=`<option value="auto">Automático: mensualidades vencidas y luego saldo</option>`+act.map(p=>`<option value="${p.id}" ${p.id===planId?"selected":""}>Adelantar: ${esc(p.exp.desc||p.exp.category)} (falta ${money(p.total-p.paid)})</option>`).join("");
-      $("#pQuick").innerHTML=[["Para no generar intereses",st.noInt],["Sólo mensualidades MSI",st.msiDue],["Deuda total",st.debt]].filter(x=>x[1]>0).map(([l,v])=>`<button type="button" class="btn sm" data-amt="${v}">${l}: ${money(v)}</button>`).join("");
-      $$("#pQuick [data-amt]").forEach(b=>b.onclick=()=>{ $("#pAmt").value=b.dataset.amt; prev(); });
+      $("#pLoans").innerHTML=st.loanItems.map(x=>`<label class="row small" style="font-weight:600"><input type="checkbox" class="pLoan" value="${x.loan.id}" data-amt="${x.amt}"> Incluye el pago de ${esc(x.loan.name)} (${money(x.amt)})</label>`).join("");
+      $$(".pLoan").forEach(cb=>cb.onchange=()=>{ const v=+$("#pAmt").value||0, a=+cb.dataset.amt; $("#pAmt").value=r2(Math.max(0,cb.checked?v+a:v-a))||""; prev(); });
+      $("#pQuick").innerHTML=[...(st.loanDue>0?[["Tarjeta + préstamos",r2(st.noInt+st.loanDue),"all"]]:[]),["Para no generar intereses",st.noInt],["Sólo mensualidades MSI",st.msiDue],["Deuda total",st.debt]].filter(x=>x[1]>0).map(([l,v])=>`<button type="button" class="btn sm" data-amt="${v}">${l}: ${money(v)}</button>`).join("");
+      $$("#pQuick [data-amt]").forEach((b,i)=>b.onclick=()=>{ $$(".pLoan").forEach(cb=>cb.checked=(st.loanDue>0&&i===0)); $("#pAmt").value=b.dataset.amt; prev(); });
     }
     prev();
   };
   const prev=()=>{
-    const c=get($("#pCard").value); const amt=+$("#pAmt").value||0; const box=$("#pPrev");
-    if(!amt||c.type!=="credito"){ box.innerHTML=""; return; }
+    const c=get($("#pCard").value); const total=+$("#pAmt").value||0; const box=$("#pPrev");
+    const loanAmt=r2($$(".pLoan:checked").reduce((s,cb)=>s+(+cb.dataset.amt),0)); const amt=r2(total-loanAmt);
+    if(!total||c.type!=="credito"){ box.innerHTML=""; return; }
+    if(amt<0){ box.innerHTML=`<div class="note bad">El monto no alcanza para el pago del préstamo (${money(loanAmt)}).</div>`; return; }
+    if(amt<0.01){ box.innerHTML=`<div class="note good">Todo el pago (${money(loanAmt)}) se registra como pago de tu préstamo.</div>`; return; }
     const tmp={id:"__preview",kind:"pay",cardId:c.id,amount:amt,date:$("#pDate").value||todayS(),target:$("#pTgt").value,createdAt:Date.now()};
     S.items.set(tmp.id,tmp); cacheState.clear(); const st=cardState(c); S.items.delete(tmp.id); const parts=st.allocs[tmp.id]||[]; cacheState.clear();
     const lbl={mensualidad:"Mensualidad de",adelanto:"Adelanto a",saldo:"Saldo normal",favor:"Saldo a favor"};
-    box.innerHTML=`<div class="note good"><b>Este pago libera ${money(amt)} de crédito.</b> Disponible después: <b class="num">${money(st.avail)}</b><div class="alloc" style="color:inherit">${parts.map(a=>{ const pl=st.plans.find(x=>x.id===a.to); return `<span>· ${lbl[a.kind]} ${pl?`<b>${esc(pl.exp.desc||"compra a meses")}</b>`:""}: <span class="num">${money(a.amt)}</span>${pl?` → falta <span class="num">${money(pl.total-pl.paid)}</span> de esa compra (${Math.max(0,pl.months-Math.floor((pl.paid+0.01)/pl.cuota))} mensualidades)`:""}</span>`; }).join("")}</div></div>`;
+    box.innerHTML=`<div class="note good">${loanAmt?`De tu pago, <b class="num">${money(loanAmt)}</b> van al préstamo y <b class="num">${money(amt)}</b> a la tarjeta.<br>`:""}<b>Este pago libera ${money(amt)} de crédito.</b> Disponible después: <b class="num">${money(st.avail)}</b><div class="alloc" style="color:inherit">${parts.map(a=>{ const pl=st.plans.find(x=>x.id===a.to); return `<span>· ${lbl[a.kind]} ${pl?`<b>${esc(pl.exp.desc||"compra a meses")}</b>`:""}: <span class="num">${money(a.amt)}</span>${pl?` → falta <span class="num">${money(pl.total-pl.paid)}</span> de esa compra (${Math.max(0,pl.months-Math.floor((pl.paid+0.01)/pl.cuota))} mensualidades)`:""}</span>`; }).join("")}</div></div>`;
   };
   $("#pCard").onchange=()=>{ const v=$("#pCard").value; if(v.startsWith("loan:")) return loanPayForm(v.slice(5)); planId=null; fill(); }; $("#pAmt").oninput=prev; $("#pTgt").onchange=prev; $("#pDate").onchange=prev; fill();
   $("#pSave").onclick=async()=>{
-    const amt=+$("#pAmt").value; if(!(amt>0)){ $("#pErr").textContent="Escribe el monto que pagaste."; return; }
-    const c=get($("#pCard").value);
-    await put({kind:"pay",cardId:c.id,amount:r2(amt),date:$("#pDate").value||todayS(),target:c.type==="credito"?$("#pTgt").value:"auto",note:$("#pNote").value.trim(),createdAt:Date.now()});
-    closeDialog(); toast(`Pago registrado: liberaste ${money(amt)}`);
+    const total=+$("#pAmt").value; if(!(total>0)){ $("#pErr").textContent="Escribe el monto que pagaste."; return; }
+    const c=get($("#pCard").value); const date=$("#pDate").value||todayS();
+    const loans=c.type==="credito"?$$(".pLoan:checked").map(cb=>({id:cb.value,amt:+cb.dataset.amt})):[];
+    const loanAmt=r2(loans.reduce((s,x)=>s+x.amt,0)); const amt=r2(total-loanAmt);
+    if(amt<0){ $("#pErr").textContent="El monto no alcanza para el pago del préstamo."; return; }
+    for(const x of loans) await put({kind:"loanpay",loanId:x.id,amount:r2(x.amt),date,note:"Pagado con "+c.name,createdAt:Date.now()});
+    if(amt>0.009) await put({kind:"pay",cardId:c.id,amount:amt,date,target:c.type==="credito"?$("#pTgt").value:"auto",note:$("#pNote").value.trim(),createdAt:Date.now()});
+    closeDialog(); toast(loans.length?`Pago registrado: ${money(amt)} a la tarjeta y ${money(loanAmt)} al préstamo`:`Pago registrado: liberaste ${money(amt)}`);
   };
 }
 
 /* ----- ingreso / gasto fijo ----- */
 function flowForm(f,type){
-  const isNew=!f; f=f||{type,freq:type==="ingreso"?"quincenal":"mensual",day:1,date:todayS(),active:true};
+  const isNew=!f||!f.id; f=Object.assign({type,freq:type==="ingreso"?"catorcenal":"mensual",day:1,date:todayS(),active:true},f||{});
   openDialog(isNew?(f.type==="ingreso"?"Nuevo ingreso":"Nuevo gasto fijo"):"Editar",`
     <div class="fgrid">
       <label class="f">Nombre<input type="text" id="fName" value="${esc(f.name||"")}" placeholder="${f.type==="ingreso"?"Ej. Sueldo":"Ej. Renta"}"></label>
@@ -1703,10 +1802,11 @@ function flowForm(f,type){
       <label class="f" id="fDayL">Día del mes<input type="number" id="fDay" min="1" max="31" value="${f.day||1}"></label>
       <label class="f" id="fDateL"><span id="fDateT">Fecha</span><input type="date" id="fDate" value="${f.date||todayS()}"></label>
     </div>
+    ${f.type==="ingreso"?`<div class="small muted">Con la fecha de un pago y cada cuánto te pagan, la app calcula sola tus siguientes pagos. Solo cuenta los que vienen; no da por hecho que ya tienes ese dinero.</div>`:""}
     <label class="row small"><input type="checkbox" id="fAct" ${f.active!==false?"checked":""}> Activo</label>
     <div class="small" id="fErr" style="color:var(--bad)"></div>`,
     `<div class="confirm" id="delZone">${isNew?"":`<button class="btn danger" data-act="askDelete" data-id="${f.id}">Borrar</button>`}</div><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="fSave">Guardar</button></div>`);
-  const upd=()=>{ const q=$("#fFreq").value; $("#fDayL").hidden=q!=="mensual"; $("#fDateL").hidden=q==="mensual"||q==="quincenal"; $("#fDateT").textContent=q==="unico"?"Fecha":"Primera fecha"; };
+  const upd=()=>{ const q=$("#fFreq").value; $("#fDayL").hidden=q!=="mensual"; $("#fDateL").hidden=q==="mensual"||q==="quincenal"; $("#fDateT").textContent=q==="unico"?"Fecha":(f.type==="ingreso"?"Fecha de tu último pago (o del siguiente)":"Primera fecha"); };
   $("#fFreq").onchange=upd; upd();
   $("#fSave").onclick=async()=>{
     const amt=+$("#fAmt").value, name=$("#fName").value.trim();
@@ -1753,7 +1853,7 @@ function goalDetail(id){
 document.addEventListener("click",async ev=>{
   const t=ev.target.closest("[data-act]"); if(!t) return;
   const a=t.dataset.act, id=t.dataset.id;
-  if(t.tagName==="A") return;
+  if(t.tagName==="A" && t.getAttribute("href")!=="#") return;
   ev.preventDefault();
   switch(a){
     case "close": closeDialog(); break;
@@ -1767,6 +1867,7 @@ document.addEventListener("click",async ev=>{
     case "newPay": payForm(t.dataset.card,t.dataset.plan); break;
     case "delPay": { if(t.dataset.sure){ await del(id); toast("Pago borrado"); closeDialog(); } else { t.dataset.sure="1"; t.textContent="¿Borrar?"; t.classList.add("danger"); } break; }
     case "newFlow": flowForm(null,t.dataset.type); break;
+    case "newSalary": flowForm({type:"ingreso",name:"Sueldo",freq:"catorcenal",date:todayS(),active:true},"ingreso"); break;
     case "editFlow": flowForm(get(id)); break;
     case "newGoal": goalForm(); break;
     case "newLoan": loanForm(); break;
@@ -1798,7 +1899,7 @@ document.addEventListener("click",async ev=>{
 });
 $("#fabExp").onclick=()=>{ if(S.mode==="signin") return signIn(); expForm(); };
 $("#fabPay").onclick=()=>{ if(S.mode==="signin") return signIn(); payForm(); };
-const openOptions=()=>{
+const openOptions=()=>{ document.body.classList.remove("nav-open");
   openDialog("Opciones",`
     <div class="note">${S.mode==="fb"?`Sesión: <b>${esc(S.user&&S.user.email||"")}</b>. Tus datos se guardan en Firebase y solo tú puedes verlos.`:S.mode==="signin"?"No has iniciado sesión.":"Modo local: los datos viven sólo en este navegador."}</div>
     ${S.mode==="fb"&&hasLocal()?`<div class="note acc">Este navegador tiene datos guardados de antes de Firebase. <button class="btn sm" id="oMig">Subirlos a mi cuenta</button></div>`:""}
@@ -1826,6 +1927,9 @@ const openOptions=()=>{
 };
 
 $$(".btnMenu").forEach(b=>b.onclick=openOptions);
+$("#btnNav").onclick=()=>document.body.classList.add("nav-open");
+$("#scrim").onclick=()=>document.body.classList.remove("nav-open");
+$$(".side .navlinks a").forEach(a=>a.addEventListener("click",()=>document.body.classList.remove("nav-open")));
 let toastT;
 function toast(msg){ let el=$(".toast"); if(!el){ el=document.createElement("div"); el.className="toast"; el.setAttribute("role","status"); document.body.appendChild(el); } el.textContent=msg; el.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>el.hidden=true,2600); }
 
