@@ -447,6 +447,10 @@ h2{font-weight:700;letter-spacing:-.01em;text-transform:uppercase;font-size:22px
 
 .stopline{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:13px;font-weight:600;position:relative;z-index:1;cursor:pointer}
 .stopline input{width:18px;height:18px;flex:none}
+
+.pstop{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
+.pstop input{width:16px;height:16px;flex:none}
+.linkbtn{border:0;background:transparent;color:var(--accent);font-weight:800;cursor:pointer;padding:0 2px;font-size:13px}
 </style>
 
 </head>
@@ -1694,6 +1698,9 @@ function vPlan(){
   const ni=nextIncomes(60)[0];
   const chip=(label,val,act)=>`<button type="button" class="pchip" data-act="${act}"><span>${label}</span><b>${val}</b></button>`;
   return `<div class="spread"><h2>Plan de pagos</h2><button class="btn pri plusbtn" data-act="planAdd" aria-label="Agregar">＋</button></div>
+  ${(()=>{ const st=settings(); const off=[...(st.fundStop?[{l:"Fondo de ahorro",k:"fund",key:"fundStop"}]:[]),...(st.invStop?[{l:"Fondo de inversión",k:"fund",key:"invStop"}]:[]),
+      ...all("account").filter(a=>a.noMore).map(a=>({l:a.name,k:"acc",id:a.id})),...all("goal").filter(g=>g.noMore).map(g=>({l:g.name,k:"goal",id:g.id}))];
+    return off.length?`<div class="note small"><b>No se les aparta dinero:</b> ${off.map(o=>`<span class="chip" style="margin:2px">${esc(o.l)} <button type="button" class="linkbtn" data-act="unstop" data-kind="${o.k}" ${o.id?`data-id="${o.id}"`:`data-k="${o.key}"`} aria-label="Volver a apartar a ${esc(o.l)}">↺</button></span>`).join("")} <span class="muted">Toca ↺ para que vuelva a recibir.</span></div>`:""; })()}
   <div class="pchips">
     ${chip("Disponible hoy",money(ca.total),"planSettings")}
     ${chip(inc.length?"Próximo ingreso":"Ingresos",inc.length&&ni?`${money(ni.amount)} · ${fDateS(ds(ni.date))}`:"Agregar","planSettings")}
@@ -1746,12 +1753,14 @@ function fundLine(p,purpose,sv){
   const title=purpose==="ahorro"?"Aparta para tu fondo de ahorro":"Aparta para tu fondo de inversión";
   const canNow=p.start<=today();
   const right=doneAmt>0?`${money(doneAmt)}<div class="chip good">apartado</div>`:`${money(amt)}${canNow?`<div><button type="button" class="btn sm" data-act="didSave" data-purpose="${purpose}" data-amt="${amt}" data-per="${ds(p.start)}" style="margin-top:4px">Ya lo aparté</button></div>`:`<div class="chip">${fDateS(ds(p.start))}</div>`}`;
-  return `<div class="pline"><div class="what"><b>${title}</b><div class="small muted">${acc?`a ${esc(acc.name)}`:(purpose==="ahorro"?"crea tu fondo en Ahorros":"por ejemplo en GBM+ o Cetes")}${purpose==="ahorro"&&p.saveWhy?` · ${esc(p.saveWhy)}`:""}</div></div><div class="num" style="text-align:right;white-space:nowrap;color:${purpose==="ahorro"?"var(--good)":"var(--accent)"}">${right}</div></div>`;
+  const stopBox=doneAmt>0?"":(acc?`<label class="pstop"><input type="checkbox" data-act="stopTarget" data-kind="acc" data-id="${acc.id}"> Ya está completo: no apartar más a ${esc(acc.name)}</label>`:`<label class="pstop"><input type="checkbox" data-act="stopTarget" data-kind="fund" data-k="${purpose==="ahorro"?"fundStop":"invStop"}"> No apartar más a este fondo</label>`);
+  return `<div class="pline"><div class="what"><b>${title}</b><div class="small muted">${acc?`a ${esc(acc.name)}`:(purpose==="ahorro"?"crea tu fondo en Ahorros":"por ejemplo en GBM+ o Cetes")}${purpose==="ahorro"&&p.saveWhy?` · ${esc(p.saveWhy)}`:""}</div>${stopBox}</div><div class="num" style="text-align:right;white-space:nowrap;color:${purpose==="ahorro"?"var(--good)":"var(--accent)"}">${right}</div></div>`;
 }
 function goalLine(p,g,amt,doneAmt,acc){
   const canNow=p.start<=today();
   const right=doneAmt>0?`${money(doneAmt)}<div class="chip good">apartado</div>`:`${money(amt)}${canNow?`<div><button type="button" class="btn sm" data-act="didSave" data-purpose="meta" data-goal="${g.id}" data-amt="${amt}" data-per="${ds(p.start)}" style="margin-top:4px">Ya lo aparté</button></div>`:`<div class="chip">${fDateS(ds(p.start))}</div>`}`;
-  return `<div class="pline"><div class="what"><b>Aparta para tu meta ${esc(g.name)}</b><div class="small muted">${acc?`a ${esc(acc.name)} · `:""}llevas ${money(goalSaved(g))} de ${money(g.target)}</div></div><div class="num" style="text-align:right;white-space:nowrap;color:${esc(g.color||"var(--accent)")}">${right}</div></div>`;
+  const stopBox=doneAmt>0?"":`<label class="pstop"><input type="checkbox" data-act="stopTarget" data-kind="goal" data-id="${g.id}"> Ya no apartar más a esta meta</label>`;
+  return `<div class="pline"><div class="what"><b>Aparta para tu meta ${esc(g.name)}</b><div class="small muted">${acc?`a ${esc(acc.name)} · `:""}llevas ${money(goalSaved(g))} de ${money(g.target)}</div>${stopBox}</div><div class="num" style="text-align:right;white-space:nowrap;color:${esc(g.color||"var(--accent)")}">${right}</div></div>`;
 }
 function fundAccount(purpose){
   const sv=saveConfig(); return purpose==="ahorro"?sv.saveAcc:sv.invAcc;
@@ -2525,6 +2534,18 @@ document.addEventListener("click",async ev=>{
     case "newLoan": loanForm(); break;
     case "newFuture": futureForm(); break;
     case "planAdd": planAddMenu(); break;
+    case "stopTarget": {
+      const k=t.dataset.kind; let name="";
+      if(k==="acc"){ const a=get(id); if(a){ await put({...a,noMore:true}); name=a.name; } }
+      else if(k==="goal"){ const g=get(id); if(g){ await put({...g,noMore:true}); name=g.name; } }
+      else { const st=settings(); await put({...st,id:"settings",kind:"settings",[t.dataset.k]:true}); name=t.dataset.k==="fundStop"?"tu fondo de ahorro":"tu fondo de inversión"; }
+      toast(`Listo: ya no se aparta dinero a ${name}`); break; }
+    case "unstop": {
+      const k=t.dataset.kind;
+      if(k==="acc"){ const a=get(id); if(a) await put({...a,noMore:false}); }
+      else if(k==="goal"){ const g=get(id); if(g) await put({...g,noMore:false}); }
+      else { const st=settings(); await put({...st,id:"settings",kind:"settings",[t.dataset.k]:false}); }
+      toast("Vuelve a recibir dinero"); break; }
     case "toggleStop": { const k=t.dataset.k; const st=settings(); await put({...st,id:"settings",kind:"settings",[k]:!st[k]}); toast(!st[k]?"Listo: ya no se aparta más dinero a ese fondo":"Ese fondo vuelve a recibir dinero"); break; }
     case "openAlerts": openAlerts(); break;
     case "goAlert": closeDialog(); if(t.dataset.to==="newExp") expForm(); else location.hash=t.dataset.to; break;
