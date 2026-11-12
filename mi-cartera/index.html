@@ -451,6 +451,22 @@ h2{font-weight:700;letter-spacing:-.01em;text-transform:uppercase;font-size:22px
 .pstop{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
 .pstop input{width:16px;height:16px;flex:none}
 .linkbtn{border:0;background:transparent;color:var(--accent);font-weight:800;cursor:pointer;padding:0 2px;font-size:13px}
+
+.mini3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:10px}
+.mini3>div{background:var(--surface-2);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.mini3 span{font-size:12px;color:var(--muted);font-weight:600}
+.mini3 b{font-size:19px;font-weight:800}
+.mini3 small{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.catrows{display:flex;flex-direction:column;gap:8px}
+.catrow{display:grid;grid-template-columns:10px minmax(80px,1fr) 2fr auto;align-items:center;gap:10px;font-size:13.5px}
+.catrow .cn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.catrow .cb{height:8px;background:var(--surface-2);border-radius:99px;overflow:hidden}
+.catrow .cb i{display:block;height:100%;border-radius:99px}
+.hbar{height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden;margin-top:4px;max-width:180px}
+.hbar i{display:block;height:100%;background:var(--accent);border-radius:99px}
+@media (max-width:560px){.catrow{grid-template-columns:10px minmax(70px,1fr) 1fr auto;gap:8px;font-size:13px}}
+
+@media (max-width:560px){.hide-sm{display:none}}
 </style>
 
 </head>
@@ -1437,6 +1453,7 @@ function vResumen(){
     </div>
   </section>
   ${plan.totalShort>0?`<div class="note bad">Con los ingresos que registraste te faltarían <b class="num">${money(plan.totalShort)}</b> en los próximos ${settings().horizon||60} días. <a href="#plan">Ver qué pagar primero</a></div>`:""}
+  ${spendHistoryHtml()}
   <div class="grid g-2">
     <div class="panel"><div class="panel-h"><h3>¿En qué se va tu dinero?</h3>
       <select id="catRange" style="width:auto"><option value="1">Este mes</option><option value="3">Últimos 3 meses</option><option value="12">Último año</option></select></div>
@@ -1502,6 +1519,53 @@ afterRender.resumen=()=>{
       options:baseChartOpts({scales:{x:{stacked:true,ticks:{color:cssv("--muted")},grid:{display:false}},y:{stacked:true,ticks:{color:cssv("--muted"),callback:v=>moneyK(v)},grid:{color:cssv("--line")},border:{display:false}}}})});
   } else $("#chMsi").parentElement.innerHTML=`<div class="empty">No tienes compras a meses pendientes.</div>`;
 };
+
+/* ---------- desglose y historial de gastos por mes ---------- */
+const MESES=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+function monthlySpend(){
+  const exps=all("exp"); if(!exps.length) return null;
+  const by={}; exps.forEach(e=>{ const k=monthKey(e.date); const m=by[k]||(by[k]={total:0,count:0,cats:{},msi:0}); const a=+e.amount||0; m.total+=a; m.count++; const c=e.category||"Otros"; m.cats[c]=(m.cats[c]||0)+a; if(+e.msi>1) m.msi+=a; });
+  const t=today(); const nowK=ds(t).slice(0,7);
+  const first=Object.keys(by).sort()[0];
+  // meses desde el primero con datos hasta hoy (máximo 12), incluidos los que no tuvieron gastos
+  const months=[]; for(let i=0;i<12;i++){ const d=new Date(t.getFullYear(),t.getMonth()-i,1); const k=ds(d).slice(0,7); if(k<first) break; months.push(k); }
+  const full=months.filter(k=>k<nowK).slice(0,6);
+  const base=full.length?full:[nowK];
+  const tot=k=>by[k]?by[k].total:0;
+  const avg=r2(base.reduce((x,k)=>x+tot(k),0)/base.length);
+  const catAvg={}; base.forEach(k=>Object.entries((by[k]||{cats:{}}).cats).forEach(([c,v])=>catAvg[c]=(catAvg[c]||0)+v/base.length));
+  const cur=by[nowK]||{total:0,count:0,cats:{}}; const day=t.getDate(), dm=dim(t.getFullYear(),t.getMonth());
+  const proj=r2(cur.total/day*dm);
+  return {by,months,full,avg,catAvg,cur,proj,nowK,day,dm,baseN:base.length};
+}
+function spendHistoryHtml(){
+  const m=monthlySpend(); if(!m) return "";
+  const label=k=>{ const [y,mo]=k.split("-").map(Number); return MESES[mo-1]+(y!==today().getFullYear()?" "+y:""); };
+  const cats=Object.entries(m.catAvg).sort((a,b)=>b[1]-a[1]);
+  const maxCat=cats.length?cats[0][1]:1;
+  const maxMonth=Math.max(1,...m.months.map(k=>m.by[k]?m.by[k].total:0));
+  const diff=m.avg?((m.proj-m.avg)/m.avg):0;
+  const note=m.full.length>=3?`promedio de tus últimos ${m.full.length} meses completos`:m.full.length?`con ${m.full.length} mes${m.full.length>1?"es":""} completo${m.full.length>1?"s":""}; se afina conforme registres más`:"con lo de este mes; se afina conforme registres más";
+  return `<div class="panel"><div class="panel-h"><h3>Tus gastos por mes</h3><span class="small muted">${note}</span></div>
+    <div class="mini3">
+      <div><span>Gastas aprox. al mes</span><b class="num">${money(m.avg)}</b></div>
+      <div><span>En ${MESES[+m.nowK.slice(5)-1]} llevas</span><b class="num">${money(m.cur.total)}</b><small>${m.cur.count} gasto(s) · día ${m.day} de ${m.dm}</small></div>
+      <div><span>Al ritmo de este mes cerrarías en</span><b class="num">${money(m.proj)}</b>${m.full.length&&m.avg?`<small><span class="chip ${diff>0.1?"warn":diff<-0.1?"good":""}">${diff>=0?"+":""}${Math.round(diff*100)}%</span> vs lo normal</small>`:""}</div>
+    </div>
+    <h3 style="margin:18px 0 8px;font-size:14px">Aproximado por categoría al mes</h3>
+    <div class="catrows">${cats.slice(0,8).map(([c,v])=>`<div class="catrow"><span class="dot" style="background:${catColor(c)}"></span><span class="cn">${esc(c)}</span><span class="cb"><i style="width:${v/maxCat*100}%;background:${catColor(c)}"></i></span><b class="num">${money(v)}</b></div>`).join("")}
+      ${cats.length>8?`<div class="small muted">y ${cats.length-8} categorías más: ${money(cats.slice(8).reduce((x,c)=>x+c[1],0))}</div>`:""}</div>
+    <h3 style="margin:18px 0 8px;font-size:14px">Historial</h3>
+    <div class="tbl-wrap"><table><thead><tr><th>Mes</th><th>Gastado</th><th class="r">vs normal</th><th class="r hide-sm">Gastos</th></tr></thead><tbody>
+      ${m.months.map(k=>{ const d=m.by[k]; const tt=d?d.total:0; const top=d?Object.entries(d.cats).sort((a,b)=>b[1]-a[1])[0]:null; const cur=k===m.nowK; const vs=m.avg&&!cur?(tt-m.avg)/m.avg:null;
+        return `<tr><td><b>${esc(label(k))}</b>${cur?` <span class="chip acc">en curso</span>`:""}${top?`<div class="small muted">más en ${esc(top[0])} · ${money(top[1])}</div>`:""}</td>
+          <td style="min-width:110px"><div class="num" style="font-weight:700">${money(tt)}</div><div class="hbar"><i style="width:${tt/maxMonth*100}%"></i></div></td>
+          <td class="r">${vs==null?"—":`<span class="chip ${vs>0.1?"warn":vs<-0.1?"good":""}">${vs>=0?"+":""}${Math.round(vs*100)}%</span>`}</td>
+          <td class="r num hide-sm">${d?d.count:0}</td></tr>`; }).join("")}
+    </tbody></table></div>
+    <div class="small muted" style="margin-top:8px">Las compras a meses cuentan completas en el mes en que las hiciste.</div>
+  </div>`;
+}
 
 /* ---------- lista de gastos ---------- */
 function expList(list){
