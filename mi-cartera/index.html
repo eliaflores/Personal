@@ -648,7 +648,7 @@ function cardState(card){
     const loanItems=[]; linked.forEach(x=>{ let amt=0; for(let j=x.done+1;j<=x.n;j++){ if(x.dueOf(j)>P) break; amt=r2(amt+(j===x.done+1?x.next.amt:x.amtOf(j))); } if(amt>0) loanItems.push({loan:x.loan,amt,st:x}); });
     const loanDue=r2(loanItems.reduce((s,x)=>s+x.amt,0));
     Object.assign(st,{rev,msiOut,debt,limit,avail:r2(limit-debt),util:limit?debt/limit:0,
-      nextPay:P,stmtCut:L,revDue,msiDue,noInt:r2(revDue+msiDue),nextCut,loanItems,loanDue,
+      nextPay:P,stmtCut:L,revDue,msiDue,noInt:r2(revDue+msiDue),payTotal:r2(Math.max(0,rev)+msiDue),nextCut,loanItems,loanDue,
       daysToPay:daysBetween(t,P)});
   } else {
     const spent=r2(exps.reduce((s,e)=>s+(+e.amount||0),0));
@@ -669,8 +669,8 @@ function projectStatements(card,horizonEnd){
   for(let i=0;i<6 && P<=horizonEnd;i++){
     let rev, msi=0;
     const msiItems=[];
-    if(i===0){ rev=st.revDue; }
-    else rev=r2(st.exps.filter(e=>!(+e.msi>1)&&pd(e.date)>prevL&&pd(e.date)<=L).reduce((s,e)=>s+(+e.amount||0),0));
+    if(i===0){ rev=Math.max(0,st.rev); }
+    else rev=r2(st.exps.filter(e=>!(+e.msi>1)&&pd(e.date)>prevL&&pd(e.date)>today()&&pd(e.date)<=L).reduce((s,e)=>s+(+e.amount||0),0));
     for(const p of st.plans){
       const due=Math.max(0,r2(billedAmt(p,card,L)-paidSim.get(p.id)));
       if(due>0){ msi=r2(msi+due); msiItems.push({plan:p,amt:due}); paidSim.set(p.id,r2(paidSim.get(p.id)+due)); }
@@ -965,7 +965,7 @@ function vResumen(){
   const prev=(()=>{const d=today(); d.setDate(1); d.setMonth(d.getMonth()-1); return ds(d).slice(0,7);})();
   const ms=monthSpend(mk), mp=monthSpend(prev);
   const saved=all("goal").reduce((s,g)=>s+(+g.saved||0),0);
-  const upcoming=credit.filter(c=>c.noInt>0).sort((a,b)=>a.nextPay-b.nextPay);
+  const upcoming=credit.filter(c=>c.payTotal>0).sort((a,b)=>a.nextPay-b.nextPay);
   const nx=upcoming[0];
   const plan=buildPlan();
   const msiMonth=credit.reduce((s,c)=>s+c.plans.filter(p=>p.paid<p.total-0.009).reduce((x,p)=>x+p.cuota,0),0);
@@ -981,7 +981,7 @@ function vResumen(){
   const nextInc=nextIncomes(45)[0];
   const cashNow=+settings().cash||0; const left=r2(cashNow+incTot-monthTot);
   const mesN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][t0.getMonth()];
-  const kindTxt={tarjeta:"para no generar intereses",prestamo:"pago de crédito",fijo:"gasto fijo",futuro:"compra planeada"};
+  const kindTxt={tarjeta:"pago total (saldo + MSI del mes)",prestamo:"pago de crédito",fijo:"gasto fijo",futuro:"compra planeada"};
   return `
   <section class="hero">
     <div class="eyebrow">Te falta pagar en ${mesN}</div>
@@ -1003,7 +1003,7 @@ function vResumen(){
     ${all("account").length?`<div class="panel kpi"><span class="lbl">En apartados</span><span class="val num">${money(all("account").reduce((s,a)=>s+(+a.balance||0),0))}</span><span class="sub">${all("account").length} apartado(s)</span></div>`:`<div class="panel kpi"><span class="lbl">Ahorrado</span><span class="val num">${money(saved)}</span><span class="sub">${all("goal").length} meta(s)</span></div>`}
   </div>
   ${lnx?`<div class="note ${lnx.overdue?"bad":"warn"}"><b>Crédito:</b> ${esc(lnx.loan.name)} · pago ${lnx.next.j} de ${lnx.n} por <b class="num">${money(lnx.next.amt)}</b> ${lnx.overdue?`venció el <b>${fDate(ds(lnx.next.date))}</b>`:`vence el <b>${fDate(ds(lnx.next.date))}</b>`}. <a href="#creditos">Ver créditos</a></div>`:""}
-  ${nx?`<div class="note ${nx.daysToPay<=3?"bad":nx.daysToPay<=7?"warn":"acc"}"><b>Próximo pago:</b> ${esc(nx.card.name)} vence el <b>${fDate(ds(nx.nextPay))}</b> (${nx.daysToPay===0?"hoy":nx.daysToPay===1?"mañana":"en "+nx.daysToPay+" días"}). Paga <b class="num">${money(nx.noInt)}</b> para no generar intereses${nx.msiDue>0?` (incluye ${money(nx.msiDue)} de mensualidades MSI)`:""}. <a href="#plan">Ver plan de pagos</a></div>`:""}
+  ${nx?`<div class="note ${nx.daysToPay<=3?"bad":nx.daysToPay<=7?"warn":"acc"}"><b>Próximo pago:</b> ${esc(nx.card.name)} vence el <b>${fDate(ds(nx.nextPay))}</b> (${nx.daysToPay===0?"hoy":nx.daysToPay===1?"mañana":"en "+nx.daysToPay+" días"}). Paga el total: <b class="num">${money(nx.payTotal)}</b>${nx.msiDue>0?` (${money(Math.max(0,nx.rev))} de saldo + ${money(nx.msiDue)} de mensualidades del mes)`:""}. <a href="#plan">Ver plan de pagos</a></div>`:""}
   <section class="hero soft">
     <div class="eyebrow">Debes en total</div>
     <div class="big">${money(owe)}</div>
@@ -1122,12 +1122,12 @@ function vTarjetas(){
     return `<div class="panel" style="padding:12px;display:flex;flex-direction:column;gap:0">${ccTile(c)}
       ${st.isCredit?`<div class="card-meta">
         <div><span>Corte</span><span>día ${c.cutDay} · próximo ${fDateS(ds(st.nextCut))}</span></div>
-        <div><span>Fecha límite de pago</span><span>${fDateS(ds(st.nextPay))} ${st.daysToPay<=5&&st.noInt>0?`<span class="chip bad">${st.daysToPay} días</span>`:""}</span></div>
-        <div><span>Para no generar intereses</span><span class="num">${money(st.noInt)}</span></div>
+        <div><span>Fecha límite de pago</span><span>${fDateS(ds(st.nextPay))} ${st.daysToPay<=5&&st.payTotal>0?`<span class="chip bad">${st.daysToPay} días</span>`:""}</span></div>
+        <div><span>Pago total del mes</span><span class="num" style="color:var(--accent)">${money(st.payTotal)}</span></div>
         <div><span>Mensualidades MSI</span><span class="num">${money(st.msiDue)}</span></div>
         <div><span>Saldo normal</span><span class="num">${money(st.rev)}</span></div>
         <div><span>Uso</span><span>${utilChip(st.util)}</span></div>
-        ${st.loanDue>0?`<div><span>Préstamos en esta tarjeta</span><span class="num">${money(st.loanDue)}</span></div><div><span>Total a pagar el ${fDateS(ds(st.nextPay))}</span><span class="num" style="color:var(--accent)">${money(st.noInt+st.loanDue)}</span></div>`:""}
+        ${st.loanDue>0?`<div><span>Préstamos en esta tarjeta</span><span class="num">${money(st.loanDue)}</span></div><div><span>Total a pagar el ${fDateS(ds(st.nextPay))}</span><span class="num" style="color:var(--accent)">${money(st.payTotal+st.loanDue)}</span></div>`:""}
       </div>`:`<div class="card-meta"><div><span>Depósitos</span><span class="num">${money(st.dep)}</span></div><div><span>Gastos</span><span class="num">${money(st.spent)}</span></div>${st.loanOut?`<div><span>Pagos de préstamos</span><span class="num">${money(st.loanOut)}</span></div>`:""}</div>`}
     </div>`;}).join("")}</div>`;
 }
@@ -1148,8 +1148,8 @@ function cardDetail(id){
       <div class="kpi"><span class="lbl">Deuda total</span><span class="num">${money(st.debt)}</span></div>
       <div class="kpi"><span class="lbl">Disponible</span><span class="num">${money(st.avail)}</span></div>
       <div class="kpi"><span class="lbl">Bloqueado por MSI</span><span class="num">${money(st.msiOut)}</span></div></div>
-    <div class="note acc">Estado de cuenta del corte <b>${fDate(ds(st.stmtCut))}</b> · paga antes del <b>${fDate(ds(st.nextPay))}</b>:<br>
-      <span class="num">${money(st.revDue)}</span> de compras normales + <span class="num">${money(st.msiDue)}</span> de mensualidades = <b class="num">${money(st.noInt)}</b> para no generar intereses.${c.rate?` Tasa anual ${c.rate}%: si no pagas el saldo normal pagarías aprox. <b class="num">${money(st.revDue*c.rate/100/12*1.16)}</b> de intereses + IVA.`:""}</div>
+    <div class="note acc"><b>Pago total antes del ${fDate(ds(st.nextPay))}: <span class="num">${money(st.payTotal)}</span></b><br>
+      <span class="num">${money(Math.max(0,st.rev))}</span> de saldo (todas tus compras normales, aunque sean de después del corte) + <span class="num">${money(st.msiDue)}</span> de mensualidades de este mes. Las mensualidades que faltan de tus compras a meses no se incluyen.${st.loanDue>0?`<br>Con tus préstamos en esta tarjeta: <b class="num">${money(st.payTotal+st.loanDue)}</b>.`:""}</div>
     <h3>Compras a meses sin intereses</h3>${plansHtml}`:""}
     <h3>Pagos ${st.isCredit?"":"y depósitos"}</h3>
     ${pays.length?`<div class="list">${pays.map(p=>payRow(p,st)).join("")}</div>`:`<p class="muted">Sin pagos registrados.</p>`}
@@ -1263,7 +1263,7 @@ function vPlan(){
     <div class="period-b">
       ${p.lines.length?p.lines.map(l=>`<div class="pline"><div class="what"><b>${l.o.kind==="futuro"?(l.o.pick.type==="card"?`Paga en ${esc(l.o.pick.card.name)}: ${esc(l.o.name)}${l.o.pick.months?` <span class="chip">${l.o.k+1} de ${l.o.pick.months} MSI</span>`:""}`:`Compra: ${esc(l.o.name)}`)+` <span class="chip acc">planeada</span>`:l.o.kind==="tarjeta"?"Paga "+esc(l.o.name):l.o.kind==="prestamo"?"Pago de "+esc(l.o.name)+` <span class="chip">${l.o.loanJ} de ${l.o.loanN}</span>`:esc(l.o.name)}</b>
           ${l.o.kind==="futuro"&&l.o.fromSav.length?`<div class="small" style="color:var(--accent)">${l.o.fromSav.map(x=>`Toma ${money(x.amt)} de ${esc(x.acc.name)}`).join(" · ")}</div>`:""}
-          <div class="small muted">${l.o.kind==="futuro"&&l.o.pick.type==="cash"?"cómprala el":"vence"} ${fDate(ds(l.o.date))}${l.o.kind==="tarjeta"?` · total para no generar intereses ${money(l.o.amount)}${l.o.stmt.msi?` (MSI ${money(l.o.stmt.msi)})`:""}${l.o.stmt.first?"":" · estimado"}`:""}</div>
+          <div class="small muted">${l.o.kind==="futuro"&&l.o.pick.type==="cash"?"cómprala el":"vence"} ${fDate(ds(l.o.date))}${l.o.kind==="tarjeta"?` · pago total ${money(l.o.amount)}${l.o.stmt.msi?` (incluye ${money(l.o.stmt.msi)} de MSI del mes)`:""}${l.o.stmt.first?"":" · estimado"}`:""}</div>
           ${l.short>0.009?`<div class="small" style="color:var(--bad)">Faltan ${money(l.short)}${l.shortMust>0.009?` · incluye ${money(l.shortMust)} obligatorio`:""}${l.interest?` · intereses aprox. ${money(l.interest)}`:""}</div>`:""}</div>
         <div class="num" style="text-align:right;white-space:nowrap">${money(l.pay)}${l.short>0.009?`<div class="chip bad">parcial</div>`:`<div class="chip good">completo</div>`}</div></div>`).join("")
       :`<div class="muted small">Sin pagos en este periodo.</div>`}
@@ -1692,7 +1692,7 @@ function expForm(e){
     $("#msiInfo").innerHTML = cred&&m>1&&a ? (pb>0
       ? `Llevas <b>${pb} de ${m}</b> mensualidades de <b class="num">${money(a/m)}</b>. Te faltan <b>${m-pb}</b> (<b class="num">${money(a-a/m*pb)}</b>), y eso es lo que sigue apartado de tu crédito. La siguiente se cobra en tu próximo corte.`
       : `Pagarás <b class="num">${money(a/m)}</b> al mes durante ${m} meses. Se apartan <b class="num">${money(a)}</b> de tu crédito y cada mensualidad pagada libera ${money(a/m)}. Si ya pagaste algunas, escríbelas arriba.`)
-      : cred&&a? `Se suma a tu saldo normal; págalo completo antes de la fecha límite para no generar intereses.`:""; };
+      : cred&&a? `Se suma a tu saldo y entra completo en tu próximo pago total.`:""; };
   $$('[data-seg="msi"] button').forEach(b=>b.onclick=()=>{ $$('[data-seg="msi"] button').forEach(x=>x.classList.remove("on")); b.classList.add("on"); updMsi(); });
   $("#eCard").onchange=updMsi; $("#eAmt").oninput=updMsi; $("#msiPb").oninput=updMsi; updMsi();
   const drawPh=()=>{ $("#ePh").innerHTML=photos.map((p,i)=>`<div class="ph"><img src="${esc(photoSrc(p))}" data-zoom="${i}" alt="Foto ${i+1}"><button type="button" data-rm="${i}" aria-label="Quitar foto">×</button></div>`).join("")+`<label class="drop">＋ Foto<br>o imagen<input type="file" accept="image/*" multiple id="eFile" hidden></label>`;
@@ -1760,8 +1760,9 @@ function payForm(cardId,planId){
       $("#pTgt").innerHTML=`<option value="auto">Automático: mensualidades vencidas y luego saldo</option>`+act.map(p=>`<option value="${p.id}" ${p.id===planId?"selected":""}>Adelantar: ${esc(p.exp.desc||p.exp.category)} (falta ${money(p.total-p.paid)})</option>`).join("");
       $("#pLoans").innerHTML=st.loanItems.map(x=>`<label class="row small" style="font-weight:600"><input type="checkbox" class="pLoan" value="${x.loan.id}" data-amt="${x.amt}"> Incluye el pago de ${esc(x.loan.name)} (${money(x.amt)})</label>`).join("");
       $$(".pLoan").forEach(cb=>cb.onchange=()=>{ const v=+$("#pAmt").value||0, a=+cb.dataset.amt; $("#pAmt").value=r2(Math.max(0,cb.checked?v+a:v-a))||""; prev(); });
-      $("#pQuick").innerHTML=[...(st.loanDue>0?[["Tarjeta + préstamos",r2(st.noInt+st.loanDue),"all"]]:[]),["Para no generar intereses",st.noInt],["Sólo mensualidades MSI",st.msiDue],["Deuda total",st.debt]].filter(x=>x[1]>0).map(([l,v])=>`<button type="button" class="btn sm" data-amt="${v}">${l}: ${money(v)}</button>`).join("");
+      $("#pQuick").innerHTML=[...(st.loanDue>0?[["Total + préstamos",r2(st.payTotal+st.loanDue),"all"]]:[]),["Pago total",st.payTotal],["Sólo mensualidades MSI",st.msiDue],["Liquidar todo (incluye MSI que faltan)",st.debt]].filter(x=>x[1]>0).map(([l,v])=>`<button type="button" class="btn sm" data-amt="${v}">${l}: ${money(v)}</button>`).join("");
       $$("#pQuick [data-amt]").forEach((b,i)=>b.onclick=()=>{ $$(".pLoan").forEach(cb=>cb.checked=(st.loanDue>0&&i===0)); $("#pAmt").value=b.dataset.amt; prev(); });
+      if(st.payTotal>0 && !planId){ $("#pAmt").value=st.payTotal; }
     }
     prev();
   };
