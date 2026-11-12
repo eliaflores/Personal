@@ -444,6 +444,9 @@ h2{font-weight:700;letter-spacing:-.01em;text-transform:uppercase;font-size:22px
 .alertstrip div{flex:1;min-width:0;display:flex;flex-direction:column}
 .alertstrip div span{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .alertstrip .chev{font-size:22px;color:var(--muted)}
+
+.stopline{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:13px;font-weight:600;position:relative;z-index:1;cursor:pointer}
+.stopline input{width:18px;height:18px;flex:none}
 </style>
 
 </head>
@@ -1001,7 +1004,7 @@ function saveConfig(){
   const fixedMonthly=fixedPayments().monthly;
   const goals=all("goal").map(g=>{ const saved=goalSaved(g), target=+g.target||0, remaining=Math.max(0,r2(target-saved));
     const months=g.deadline?Math.max(1,(pd(g.deadline).getFullYear()-t.getFullYear())*12+pd(g.deadline).getMonth()-t.getMonth()):6;
-    return {g,saved,target,remaining,monthly:r2(remaining/months),acc:goalAccounts(g)[0]||null}; }).filter(x=>x.remaining>0.009);
+    return {g,saved,target,remaining,monthly:r2(remaining/months),acc:goalAccounts(g)[0]||null}; }).filter(x=>x.remaining>0.009&&!x.g.noMore&&!goalAccounts(x.g).some(a=>a.noMore));
   const accs=all("account");
   const saveAccs=accs.filter(a=>accPurpose(a)==="ahorro"), invAccs=accs.filter(a=>accPurpose(a)==="inversion");
   const fundNow=r2(saveAccs.reduce((x,a)=>x+(+a.balance||0),0));
@@ -1010,8 +1013,11 @@ function saveConfig(){
   const fundTarget=+s.fundGoal>0?+s.fundGoal:r2(Math.max(monthlyNeed*3,10000));
   const invTarget=+s.invGoal>0?+s.invGoal:0;
   const invYield=r2(invAccs.reduce((x,a)=>x+(+a.balance||0)*(+a.rate||0)/100/12,0));
-  const best=list=>list.slice().sort((a,b)=>(+b.rate||0)-(+a.rate||0))[0]||null;
-  return {goals,goalPct:(s.goalPct??5)/100,invTarget,invYield,fundAuto:!(+s.fundGoal>0),mode:s.saveMode||"auto",savePct:(s.savePct??s.savingsPct??10)/100,invPct:(s.invPct??5)/100,spendMonthly,fixedMonthly,fundNow,invNow,fundTarget,monthlyNeed,saveAcc:best(saveAccs),invAcc:best(invAccs)};
+  const best=list=>list.filter(a=>!a.noMore).sort((a,b)=>(+b.rate||0)-(+a.rate||0))[0]||null;
+  // un fondo deja de recibir dinero si lo marcaste completo, o si todos sus apartados están marcados como completos
+  const fundStop=!!s.fundStop||(saveAccs.length>0&&saveAccs.every(a=>a.noMore));
+  const invStop=!!s.invStop||(invAccs.length>0&&invAccs.every(a=>a.noMore));
+  return {fundStop,invStop,goals,goalPct:(s.goalPct??5)/100,invTarget,invYield,fundAuto:!(+s.fundGoal>0),mode:s.saveMode||"auto",savePct:(s.savePct??s.savingsPct??10)/100,invPct:(s.invPct??5)/100,spendMonthly,fixedMonthly,fundNow,invNow,fundTarget,monthlyNeed,saveAcc:best(saveAccs),invAcc:best(invAccs)};
 }
 function cashAvailable(){
   const debits=all("card").filter(c=>c.type!=="credito").map(c=>({card:c,bal:cardState(c).balance}));
@@ -1090,7 +1096,7 @@ function buildPlan(opts={}){
             left=r2(left-used); }
           return {res,left}; };
         const hasGoals=sv.goals.some(x=>(goalSim[x.g.id]||0)<x.remaining-0.01);
-        if(sv.mode==="fijo"){ save=Math.min(r2(base*sv.savePct),sobrante); inv=Math.min(r2(base*sv.invPct),r2(sobrante-save));
+        if(sv.mode==="fijo"){ save=sv.fundStop?0:Math.min(r2(base*sv.savePct),sobrante); inv=sv.invStop?0:Math.min(r2(base*sv.invPct),r2(sobrante-save));
           if(hasGoals){ const d=distGoals(Math.min(r2(base*sv.goalPct),Math.max(0,r2(sobrante-save-inv)))); goalsAlloc=d.res; }
           why=`${Math.round(sv.savePct*100)}% y ${Math.round(sv.invPct*100)}% de este ingreso`; }
         else {
@@ -1100,11 +1106,13 @@ function buildPlan(opts={}){
           let total=libre>0?Math.max(r2(base*0.05),r2(libre*0.6)):r2(base*0.03);
           total=Math.max(0,Math.min(total,sobrante));
           const needFund=fundSim<sv.fundTarget;
-          const sh=needFund?(hasGoals?[0.45,0.40]:[0.7,0]):(hasGoals?[0.1,0.6]:[0.3,0]);
-          save=r2(total*sh[0]); let gAmt=r2(total*sh[1]);
-          if(gAmt>0){ const d=distGoals(gAmt); goalsAlloc=d.res; save=r2(save+d.left); }
-          inv=Math.max(0,r2(total-save-goalsAlloc.reduce((a,x)=>a+x.amt,0)));
-          why=libre>0?(hasGoals?"primero tus metas y tu fondo":needFund?"tu fondo de ahorro aún no llega a su meta":"tu fondo de ahorro ya está completo; más a inversión"):"este periodo sobra poco, se aparta un mínimo";
+          let sh=needFund?(hasGoals?[0.45,0.40,0.15]:[0.7,0,0.3]):(hasGoals?[0.1,0.6,0.3]:[0.3,0,0.7]);
+          if(sv.fundStop) sh[0]=0; if(sv.invStop) sh[2]=0; if(!hasGoals) sh[1]=0;
+          const shs=sh[0]+sh[1]+sh[2];
+          if(shs<=0){ total=0; sh=[0,0,0]; } else sh=sh.map(x=>x/shs);
+          save=r2(total*sh[0]); let gAmt=r2(total*sh[1]); inv=r2(total*sh[2]);
+          if(gAmt>0){ const d=distGoals(gAmt); goalsAlloc=d.res; if(d.left>0.009){ if(!sv.fundStop) save=r2(save+d.left); else if(!sv.invStop) inv=r2(inv+d.left); } }
+          why=shs<=0?"todo está marcado como completo; lo que sobra se queda para ti":libre>0?(hasGoals?"primero tus metas y tu fondo":sv.fundStop?"tu fondo está marcado como completo":needFund?"tu fondo de ahorro aún no llega a su meta":"tu fondo de ahorro ya está completo; más a inversión"):"este periodo sobra poco, se aparta un mínimo";
         }
         // lo que ya apartaste este día no se vuelve a pedir
         if(per.saveDone) save=0; if(per.invDone) inv=0;
@@ -2092,6 +2100,7 @@ function accountForm(a){
       <label class="f" id="aGoalTgtL">Monto de la meta<input type="number" id="aGoalTgt" step="0.01" inputmode="decimal" placeholder="Ej. 3000"></label>
     </div>
     <div class="small muted" id="aPurHelp"></div>
+    <label class="row small" style="font-weight:600"><input type="checkbox" id="aNoMore" ${a.noMore?"checked":""}> Ya está completo: no apartar más dinero aquí</label>
     <label class="row small" style="font-weight:600"><input type="checkbox" id="aUsable" ${accUsable(a)?"checked":""}> Contar este dinero como disponible para mis pagos</label>
     ${seg("aliq",[["1","Lo saco cuando quiera"],["0","Está a plazo"]],a.liquid===false?"0":"1")}
     <label class="f" id="aFromL">Disponible a partir de<input type="date" id="aFrom" value="${a.availFrom||""}"></label>
@@ -2109,7 +2118,7 @@ function accountForm(a){
     const inst=$("#aInst").value, name=$("#aName").value.trim()||inst;
     const pur=segVal("apur")||"ahorro"; let goalId="";
     if(pur==="meta"){ if($("#aGoal").value==="__new"){ const tg=+$("#aGoalTgt").value; if(!(tg>0)){ $("#aErr").textContent="Escribe el monto de la meta."; return; } const g=await put({kind:"goal",name,target:r2(tg),saved:0,history:[],color:$("#asw .on")?.dataset.col||CAT_COLORS[0],deadline:""}); goalId=g.id; } else goalId=$("#aGoal").value; }
-    const o={...a,kind:"account",inst,name,purpose:pur,goalId,usable:$("#aUsable").checked,rate:+$("#aRate").value||0,liquid:segVal("aliq")==="1",availFrom:segVal("aliq")==="1"?"":$("#aFrom").value,color:$("#asw .on")?.dataset.col||CAT_COLORS[0]};
+    const o={...a,kind:"account",inst,name,purpose:pur,goalId,usable:$("#aUsable").checked,noMore:$("#aNoMore").checked,rate:+$("#aRate").value||0,liquid:segVal("aliq")==="1",availFrom:segVal("aliq")==="1"?"":$("#aFrom").value,color:$("#asw .on")?.dataset.col||CAT_COLORS[0]};
     if(isNew){ const b=+$("#aBal").value||0; o.balance=r2(b); o.history=b?[{date:todayS(),amount:r2(b),type:"inicial"}]:[]; o.createdAt=Date.now(); }
     await put(o); closeDialog(); toast("Apartado guardado");
   };
@@ -2145,11 +2154,13 @@ function fundsHtml(){
       <div class="sub2" style="margin-top:4px;font-size:13px">Meta ${money(sv.fundTarget)}${sv.fundAuto?" (3 meses de tus pagos y gastos)":""} · para emergencias, lo puedes sacar cuando quieras</div>
       <div class="meter"><i style="width:${pctF}%"></i></div><div class="sub2" style="font-size:12px;margin-top:6px">${pctF>=100?"¡Meta cumplida!":`Llevas el ${Math.round(pctF)}% · faltan ${money(Math.max(0,sv.fundTarget-sv.fundNow))}`}</div>
       <div class="row-stats"><div class="stat"><span>Siguiente apartado</span><b>${ns?`${money(ns.amt)} · ${fDateS(ds(ns.date))}`:"—"}</b></div><div class="stat"><span>El plan aparta</span><b>${money(pl.saveTotal)}</b></div></div>
+      <label class="stopline"><input type="checkbox" data-act="toggleStop" data-k="fundStop" ${settings().fundStop?"checked":""}> Fondo completo: ya no apartar más dinero aquí</label>
       <div class="refreshline"><span>${names("ahorro")||"Aún no tiene cuenta"}</span><button type="button" class="btn sm" data-act="fundDeposit" data-purpose="ahorro">＋ Apartar</button></div></section>
     <section class="hero"><div class="eyebrow">Fondo de inversión</div><div class="big">${money(sv.invNow)}</div>
       <div style="color:var(--ink-muted);margin-top:4px;font-size:13px">${sv.invTarget?`Meta ${money(sv.invTarget)} · `:""}rinde aprox. ${money(sv.invYield)} al mes · para hacer crecer tu dinero a largo plazo</div>
       ${pctI!=null?`<div class="meter"><i style="width:${pctI}%"></i></div><div style="font-size:12px;margin-top:6px;color:var(--ink-muted)">Llevas el ${Math.round(pctI)}%</div>`:""}
       <div class="row-stats"><div class="stat"><span>Siguiente apartado</span><b>${ni?`${money(ni.amt)} · ${fDateS(ds(ni.date))}`:"—"}</b></div><div class="stat"><span>El plan aparta</span><b>${money(pl.invTotal)}</b></div></div>
+      <label class="stopline" style="color:var(--ink-fg)"><input type="checkbox" data-act="toggleStop" data-k="invStop" ${settings().invStop?"checked":""}> Fondo completo: ya no apartar más dinero aquí</label>
       <div class="refreshline" style="color:var(--ink-muted)"><span>${names("inversion")||"Aún no tiene cuenta"}</span><button type="button" class="btn sm" data-act="fundDeposit" data-purpose="inversion" style="background:rgba(255,255,255,.12);color:#fff">＋ Apartar</button></div></section>
   </div>`;
 }
@@ -2168,7 +2179,7 @@ function vAccounts(){
   <div class="grid g-2">
     <div class="panel"><div class="list">${accs.slice().sort((a,b)=>(+b.balance||0)-(+a.balance||0)).map(a=>`<div class="item" data-act="openAccount" data-id="${a.id}">
       <span class="thumb" style="background:${a.color}22;color:${a.color}">${esc(a.inst.slice(0,2))}</span>
-      <div class="main"><div class="title">${esc(a.name)}</div><div class="row small muted" style="gap:6px"><span>${esc(a.inst)}</span><span class="chip">${esc(purposeLabel(a))}</span>${accUsable(a)?`<span class="chip acc">cuenta para pagos</span>`:""}${a.rate?`<span class="chip good">${a.rate}% anual</span>`:""}${accAvailable(a,today())?"":`<span class="chip">desde ${a.availFrom?fDateS(a.availFrom):"plazo"}</span>`}</div></div>
+      <div class="main"><div class="title">${esc(a.name)}</div><div class="row small muted" style="gap:6px"><span>${esc(a.inst)}</span><span class="chip">${esc(purposeLabel(a))}</span>${accUsable(a)?`<span class="chip acc">cuenta para pagos</span>`:""}${a.noMore?`<span class="chip good">completo</span>`:""}${a.rate?`<span class="chip good">${a.rate}% anual</span>`:""}${accAvailable(a,today())?"":`<span class="chip">desde ${a.availFrom?fDateS(a.availFrom):"plazo"}</span>`}</div></div>
       <div class="num">${money(a.balance)}</div></div>`).join("")}</div></div>
     <div class="panel"><div class="panel-h"><h3>Dónde está tu dinero</h3></div><div class="chart-box"><canvas id="chAcc"></canvas></div></div>
   </div>`;
@@ -2186,7 +2197,7 @@ function vAhorros(){
       if(pf.first) per=(per?per+" · ":"")+`el plan le aparta ${money(pf.first.amt)} el ${fDateS(ds(pf.first.date))}`;
       if(ac.length) per=(per?per+" · ":"")+`en ${ac.map(a=>esc(a.name)).join(", ")}`;
       return `<div class="item" data-act="openGoal" data-id="${g.id}" style="flex-direction:column;align-items:stretch;gap:6px">
-        <div class="spread"><b><span class="dot" style="background:${g.color};margin-right:6px"></span>${esc(g.name)}</b><span class="num">${money(sv_)} <span class="muted">/ ${money(g.target)}</span></span></div>
+        <div class="spread"><b><span class="dot" style="background:${g.color};margin-right:6px"></span>${esc(g.name)}${g.noMore?` <span class="chip good">no apartar más</span>`:""}</b><span class="num">${money(sv_)} <span class="muted">/ ${money(g.target)}</span></span></div>
         <div class="bar"><i style="width:${pct*100}%;background:${g.color}"></i></div>
         <div class="spread small muted"><span>${per||(pct>=1?"¡Meta cumplida!":"")}</span><span>${Math.round(pct*100)}%</span></div></div>`;}).join("")}</div></div>
     <div class="panel"><div class="panel-h"><h3>Aportes por mes</h3></div><div class="chart-box"><canvas id="chSave"></canvas></div></div>
@@ -2457,13 +2468,14 @@ function goalForm(g){
       ${isNew?`<label class="f">Ya llevo<input type="number" id="gSaved" step="0.01" value=""></label>`:""}
       <label class="f">Fecha objetivo (opcional)<input type="date" id="gDl" value="${g.deadline||""}"></label>
     </div>
+    <label class="row small" style="font-weight:600"><input type="checkbox" id="gNoMore" ${g.noMore?"checked":""}> Meta completa o en pausa: no apartar más dinero aquí</label>
     <label class="f">¿Dónde guardas este dinero?<select id="gAcc"><option value="">En ningún apartado (lo registro aquí)</option>${all("account").map(a=>`<option value="${a.id}" ${a.goalId&&a.goalId===g.id&&accPurpose(a)==="meta"?"selected":""}>${esc(a.name)} · ${money(a.balance)}${accPurpose(a)!=="meta"?` (hoy: ${esc(purposeLabel(a))})`:""}</option>`).join("")}</select></label>
     <div class="small muted">Si eliges un apartado, su saldo es lo que llevas en la meta y deja de contar para tu fondo de ahorro. El plan le da prioridad a tus metas al apartar.</div>
     <div class="small" id="gErr" style="color:var(--bad)"></div>`,
     `<span></span><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="gSave">Guardar</button></div>`);
   $("#gSave").onclick=async()=>{
     const name=$("#gName").value.trim(), tgt=+$("#gTgt").value; if(!name||!(tgt>0)){ $("#gErr").textContent="Escribe nombre y monto de la meta."; return; }
-    const o={...g,kind:"goal",name,target:r2(tgt),deadline:$("#gDl").value||""};
+    const o={...g,kind:"goal",name,target:r2(tgt),deadline:$("#gDl").value||"",noMore:$("#gNoMore").checked};
     if(isNew){ const s0=+$("#gSaved").value||0; o.saved=r2(s0); o.history=s0?[{date:todayS(),amount:r2(s0)}]:[]; }
     const saved=await put(o); const accId=$("#gAcc").value;
     for(const a of all("account").filter(a=>a.goalId===saved.id&&a.id!==accId)) await put({...a,goalId:"",purpose:"ahorro"});
@@ -2513,6 +2525,7 @@ document.addEventListener("click",async ev=>{
     case "newLoan": loanForm(); break;
     case "newFuture": futureForm(); break;
     case "planAdd": planAddMenu(); break;
+    case "toggleStop": { const k=t.dataset.k; const st=settings(); await put({...st,id:"settings",kind:"settings",[k]:!st[k]}); toast(!st[k]?"Listo: ya no se aparta más dinero a ese fondo":"Ese fondo vuelve a recibir dinero"); break; }
     case "openAlerts": openAlerts(); break;
     case "goAlert": closeDialog(); if(t.dataset.to==="newExp") expForm(); else location.hash=t.dataset.to; break;
     case "didSave": fundDepositForm(t.dataset.purpose,+t.dataset.amt,t.dataset.per,t.dataset.goal); break;
