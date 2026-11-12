@@ -330,6 +330,13 @@ dialog::backdrop{background:rgba(6,16,14,.55);backdrop-filter:blur(3px)}
 .hero.soft .meter{background:var(--surface-2)}
 .hero.soft .meter i{background:var(--accent)}
 
+
+.paychips{display:flex;flex-wrap:wrap;gap:8px}
+.paychips label{display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border-radius:12px;background:var(--surface-2);font-weight:600;font-size:13.5px;cursor:pointer;border:1.5px solid transparent;max-width:100%}
+.paychips label:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.paychips input{width:16px;height:16px;flex:none}
+input[type=date]{min-width:0;max-width:100%;display:block;-webkit-appearance:none;appearance:none;min-height:46px;text-align:left}
+input[type=date]::-webkit-date-and-time-value{text-align:left}
 </style>
 
 <div class="shell">
@@ -729,6 +736,20 @@ const accAvailable=(a,d)=> a.liquid!==false || !a.availFrom || pd(a.availFrom)<=
 
 /* ================= compras futuras: cuándo y con qué pagar ================= */
 function cutOnOrAfter(card,d){ const c=cutDate(card,d.getFullYear(),d.getMonth()); if(c>=d) return c; const n=new Date(d.getFullYear(),d.getMonth()+1,1); return cutDate(card,n.getFullYear(),n.getMonth()); }
+function futPayList(f){
+  const cards=all("card"); const credit=cards.filter(c=>c.type==="credito").map(c=>c.id); const debit=cards.filter(c=>c.type!=="credito").map(c=>c.id);
+  if(Array.isArray(f.payCards)&&f.payCards.length){
+    const sel=f.payCards.filter(id=>id==="efectivo"||get(id));
+    const cr=sel.filter(id=>credit.includes(id)), db=sel.filter(id=>debit.includes(id));
+    return {credit:new Set(cr),cash:sel.includes("efectivo")||db.length>0,debits:db,onlyCash:sel.includes("efectivo")};
+  }
+  const pw=f.payWith||"auto";
+  if(pw==="credito") return {credit:new Set(credit),cash:false,debits:[]};
+  if(pw==="efectivo") return {credit:new Set(),cash:true,debits:debit,onlyCash:true};
+  if(credit.includes(pw)) return {credit:new Set([pw]),cash:false,debits:[]};
+  if(debit.includes(pw)) return {credit:new Set(),cash:true,debits:[pw]};
+  return {credit:new Set(credit),cash:true,debits:debit,onlyCash:true};
+}
 let recoCache=null;
 function recommendFutures(){
   if(recoCache) return recoCache;
@@ -750,9 +771,9 @@ function recommendFutures(){
     const savAccs=d=>savIds.map(id=>accs.find(a=>a.id===id)).filter(a=>a&&accAvailable(a,d)).sort((a,b)=>(+a.rate||0)-(+b.rate||0));
     const savAvail=d=>r2(savAccs(d).reduce((s,a)=>s+Math.max(0,accLeft[a.id]||0),0));
     const options=[];
-    const pw=f.payWith||"auto";
-    if(pw!=="efectivo") for(const c of credit){
-      if(pw!=="auto"&&pw!=="credito"&&pw!==c.id) continue;
+    const pl=futPayList(f);
+    for(const c of credit){
+      if(!pl.credit.has(c.id)) continue;
       const st=cardState(c); const avail=r2(st.avail-(reserved[c.id]||0));
       if(avail<amt){ options.push({type:"card",card:c,ok:false,why:`Solo tiene ${money(Math.max(0,avail))} disponibles`}); continue; }
       let best=null;
@@ -765,11 +786,13 @@ function recommendFutures(){
       options.push({type:"card",card:c,ok:true,...best,months,cuota,utilAfter,affordable,savNeed,score,
         why:!affordable?`Para el ${fDateS(ds(best.due))} no te alcanzaría para pagarla`:""});
     }
-    if(pw==="auto"||pw==="efectivo"){
+    if(pl.cash){
+      const debitCard=pl.debits.map(id=>get(id)).filter(Boolean).sort((a,b)=>(cardState(b).balance||0)-(cardState(a).balance||0))[0]||null;
+      const cashName=debitCard&&!(pl.onlyCash&&pl.debits.length>1)?(debitCard.type==="efectivo"?debitCard.name:"tu débito "+debitCard.name):"efectivo o débito";
       let d0=null; for(let d=new Date(from),i=0;d<=by&&i<200;d=addDays(d,1),i++){ if(freeAt(d)>=amt){ d0=new Date(d); break; } }
-      if(d0) options.push({type:"cash",ok:true,date:d0,savNeed:0,affordable:true,score:10});
+      if(d0) options.push({type:"cash",ok:true,date:d0,savNeed:0,affordable:true,score:10,debit:debitCard,cashName});
       else { const d=new Date(by); const savNeed=r2(amt-Math.max(0,freeAt(d))); const can=savIds.length>0&&savAvail(d)>=savNeed;
-        options.push({type:"cash",ok:can,date:d,savNeed,affordable:can,score:can?0:-300,why:can?"":`Te faltarían ${money(savNeed)}${f.allowSavings?" aun usando tus apartados":""}`}); }
+        options.push({type:"cash",ok:can,date:d,savNeed,affordable:can,score:can?0:-300,debit:debitCard,cashName,why:can?"":`Te faltarían ${money(savNeed)}${f.allowSavings?" aun usando tus apartados":""}`}); }
     }
     const pick=options.filter(o=>o.ok&&o.affordable).sort((a,b)=>b.score-a.score)[0]||null;
     const draw=(d,need)=>{ const res=[]; for(const a of savAccs(d)){ if(need<=0.009) break; const take=Math.min(need,Math.max(0,accLeft[a.id]||0)); if(take>0){ accLeft[a.id]=r2(accLeft[a.id]-take); need=r2(need-take); res.push({acc:a,amt:r2(take)}); } } return res; };
@@ -1431,7 +1454,7 @@ function loanPayForm(id){
 function recoText(r){
   const p=r.pick, f=r.f;
   if(!p){
-    const why=r.options.filter(o=>o.why).map(o=>`<li>${o.type==="card"?esc(o.card.name):"Efectivo o débito"}: ${esc(o.why)}</li>`).join("");
+    const why=r.options.filter(o=>o.why).map(o=>`<li>${o.type==="card"?esc(o.card.name):esc(o.cashName||"Efectivo o débito")}: ${esc(o.why)}</li>`).join("");
     return `<div class="note bad"><b>No te alcanza antes del ${fDate(ds(r.by))}.</b>${why?`<ul style="margin:6px 0 0;padding-left:18px">${why}</ul>`:""}
       <div class="small" style="margin-top:6px">Prueba con una fecha límite más lejana, a meses sin intereses${f.allowSavings?"":", o permitiendo usar tus apartados"}.</div></div>`;
   }
@@ -1439,7 +1462,7 @@ function recoText(r){
   if(p.type==="card"){ const prevCut=lastCutOnOrBefore(p.card,addDays(p.date,-1)); const right=daysBetween(prevCut,p.date)<=1;
   return `<div class="note good"><b>Cómprala el ${fDate(ds(p.date))} con ${esc(p.card.name)}${p.months?` a ${p.months} meses sin intereses`:""}.</b>
     <div style="margin-top:4px">${right?`Es justo después del corte del ${fDateS(ds(prevCut))}: `:""}entra en el corte del ${fDateS(ds(p.cut))} y la pagas hasta el <b>${fDate(ds(p.due))}</b>, ${p.float} días después de comprarla.${p.months?` Pagarás <b class="num">${money(p.cuota)}</b> al mes.`:` Págala completa ese día para no generar intereses.`} La tarjeta quedaría al ${Math.round(p.utilAfter*100)}% de uso.</div>${savTxt}</div>`; }
-  return `<div class="note good"><b>Cómprala el ${fDate(ds(p.date))} con efectivo o débito.</b><div style="margin-top:4px">${p.savNeed>0?"Con tus ingresos no alcanza sin descuadrar tus otros pagos.":"Ese día ya tienes el dinero sin descuadrar tus otros pagos."}</div>${savTxt}</div>`;
+  return `<div class="note good"><b>Cómprala el ${fDate(ds(p.date))} con ${esc(p.cashName||"efectivo o débito")}.</b><div style="margin-top:4px">${p.savNeed>0?"Con tus ingresos no alcanza sin descuadrar tus otros pagos.":"Ese día ya tienes el dinero sin descuadrar tus otros pagos."}</div>${savTxt}</div>`;
 }
 function vFuturos(){
   const recs=recommendFutures(); const done=all("future").filter(f=>f.done);
@@ -1452,13 +1475,15 @@ function vFuturos(){
   <div class="view" style="gap:12px">${recs.map(r=>{ const f=r.f; const alts=r.options.filter(o=>o!==r.pick);
     return `<div class="period"><div class="period-h"><div><b>${esc(f.name)}</b> <span class="chip">${esc(f.category||"Otros")}</span><div class="small muted">${f.from&&pd(f.from)>today()?"desde "+fDateS(f.from)+" · ":""}a más tardar ${fDate(ds(r.by))}${f.msiMax>1?` · se puede a ${f.msiMax} MSI`:""}${f.allowSavings?" · puede usar apartados":""}</div></div><span class="num" style="font-size:18px">${money(f.amount)}</span></div>
       <div class="period-b">${recoText(r)}
-      ${alts.length?`<details><summary class="small muted" style="cursor:pointer">Otras opciones (${alts.length})</summary><div class="tbl-wrap"><table><thead><tr><th>Con</th><th>Comprar el</th><th>Pagas hasta</th><th class="r">Días</th><th>Nota</th></tr></thead><tbody>${alts.map(o=>`<tr><td>${o.type==="card"?esc(o.card.name)+(o.months?` · ${o.months} MSI`:""):"Efectivo o débito"}</td><td>${o.date?fDateS(ds(o.date)):"—"}</td><td>${o.due?fDateS(ds(o.due)):o.date?fDateS(ds(o.date)):"—"}</td><td class="r num">${o.float??"0"}</td><td class="small">${esc(o.why||(o.type==="card"&&o.utilAfter>0.7?"Uso alto de la tarjeta":o.savNeed>0?"Requiere usar apartados":"Buena opción"))}</td></tr>`).join("")}</tbody></table></div></details>`:""}
+      ${alts.length?`<details><summary class="small muted" style="cursor:pointer">Otras opciones (${alts.length})</summary><div class="tbl-wrap"><table><thead><tr><th>Con</th><th>Comprar el</th><th>Pagas hasta</th><th class="r">Días</th><th>Nota</th></tr></thead><tbody>${alts.map(o=>`<tr><td>${o.type==="card"?esc(o.card.name)+(o.months?` · ${o.months} MSI`:""):esc(o.cashName||"Efectivo o débito")}</td><td>${o.date?fDateS(ds(o.date)):"—"}</td><td>${o.due?fDateS(ds(o.due)):o.date?fDateS(ds(o.date)):"—"}</td><td class="r num">${o.float??"0"}</td><td class="small">${esc(o.why||(o.type==="card"&&o.utilAfter>0.7?"Uso alto de la tarjeta":o.savNeed>0?"Requiere usar apartados":"Buena opción"))}</td></tr>`).join("")}</tbody></table></div></details>`:""}
       <div class="row" style="justify-content:flex-end"><button class="btn sm" data-act="editFuture" data-id="${f.id}">Editar</button><button class="btn sm pri" data-act="buyFuture" data-id="${f.id}">Ya lo compré</button></div></div></div>`; }).join("")}</div>
   ${done.length?`<details><summary class="muted small" style="cursor:pointer">${done.length} compra(s) ya hechas</summary>${done.map(f=>`<div class="small" style="padding:4px 0">✓ ${esc(f.name)} · ${money(f.amount)}${f.doneDate?" · "+fDateS(f.doneDate):""} <button class="btn sm ghost" data-act="editFuture" data-id="${f.id}">Ver</button></div>`).join("")}</details>`:""}`;
 }
 function futureForm(f){
   const isNew=!f; f=f||{category:"Otros",payWith:"auto",msiMax:0,allowSavings:false,savingsIds:[],by:ds(addDays(today(),30))};
-  const cards=all("card").filter(c=>c.type==="credito"); const accs=all("account");
+  const cards=all("card"); const accs=all("account");
+  const pl0=futPayList(f); const chosen=new Set(Array.isArray(f.payCards)&&f.payCards.length?f.payCards:(f.payWith&&f.payWith!=="auto"?[...pl0.credit,...(pl0.onlyCash?["efectivo"]:pl0.debits)]:[]));
+  const tipo={credito:"crédito",debito:"débito",efectivo:"efectivo"};
   openDialog(isNew?"Nueva compra futura":"Editar compra futura",`
     <div class="fgrid">
       <label class="f">Qué vas a comprar o pagar<input type="text" id="uName" value="${esc(f.name||"")}" placeholder="Ej. Laptop, regalos, seguro del auto"></label>
@@ -1469,11 +1494,9 @@ function futureForm(f){
       <label class="f">A más tardar<input type="date" id="uBy" value="${f.by||""}"></label>
       <label class="f">Categoría<select id="uCat">${CATS.map(c=>`<option ${c===f.category?"selected":""}>${c}</option>`).join("")}</select></label>
     </div>
-    <label class="f">¿Con qué lo puedes pagar?<select id="uPw">
-      <option value="auto" ${f.payWith==="auto"?"selected":""}>Lo que más me convenga</option>
-      <option value="credito" ${f.payWith==="credito"?"selected":""}>Cualquier tarjeta de crédito</option>
-      ${cards.map(c=>`<option value="${c.id}" ${f.payWith===c.id?"selected":""}>Solo ${esc(c.name)}</option>`).join("")}
-      <option value="efectivo" ${f.payWith==="efectivo"?"selected":""}>Efectivo o débito</option></select></label>
+    <div><div class="small muted" style="font-weight:700;margin-bottom:8px">¿Con qué lo puedes pagar?</div>
+      <div class="paychips">${cards.map(c=>`<label><input type="checkbox" class="uPay" value="${c.id}" ${chosen.has(c.id)?"checked":""}><span class="dot" style="background:${c.color}"></span>${esc(c.name)} <span class="muted small">${tipo[c.type]||""}</span></label>`).join("")}<label><input type="checkbox" class="uPay" value="efectivo" ${chosen.has("efectivo")?"checked":""}>Efectivo</label></div>
+      <div class="small muted" style="margin-top:6px">Marca una o varias. Si no marcas ninguna, la app elige la que más te convenga.</div></div>
     <div><div class="small muted" style="font-weight:600;margin-bottom:6px">¿La tienda da meses sin intereses?</div>${seg("umsi",[["0","No"],["3","3"],["6","6"],["9","9"],["12","12"],["18","18"],["24","24"]],String(+f.msiMax||0))}</div>
     <label class="row small"><input type="checkbox" id="uSav" ${f.allowSavings?"checked":""}> Puede tomar dinero de mis apartados si hace falta</label>
     <div id="uSavBox" class="view" style="gap:6px;padding-left:22px">${accs.length?accs.map(a=>`<label class="row small"><input type="checkbox" class="uAcc" value="${a.id}" ${(f.savingsIds||[]).includes(a.id)?"checked":""}> ${esc(a.name)} · ${money(a.balance)}${a.liquid===false?` <span class="chip">desde ${a.availFrom?fDateS(a.availFrom):"plazo"}</span>`:""}</label>`).join("")+`<span class="small muted">Si no marcas ninguno, puede usar cualquiera.</span>`:`<span class="small muted">Aún no tienes apartados. Agrégalos en la pestaña Ahorros.</span>`}</div>
@@ -1487,13 +1510,13 @@ function futureForm(f){
     if(!name||!(amt>0)){ $("#uErr").textContent="Escribe qué es y cuánto cuesta."; return; }
     if(!$("#uBy").value){ $("#uErr").textContent="Pon la fecha límite para comprarlo o pagarlo."; return; }
     if($("#uFrom").value&&$("#uFrom").value>$("#uBy").value){ $("#uErr").textContent="La fecha “a partir de” debe ser antes de la fecha límite."; return; }
-    await put({...(f.id?f:{}),kind:"future",name,amount:r2(amt),from:$("#uFrom").value,by:$("#uBy").value,category:$("#uCat").value,payWith:$("#uPw").value,msiMax:+segVal("umsi"),allowSavings:$("#uSav").checked,savingsIds:$$(".uAcc:checked").map(x=>x.value),notes:$("#uNote").value.trim(),done:!!f.done,createdAt:f.createdAt||Date.now()});
+    await put({...(f.id?f:{}),kind:"future",name,amount:r2(amt),from:$("#uFrom").value,by:$("#uBy").value,category:$("#uCat").value,payCards:$$(".uPay:checked").map(x=>x.value),payWith:$$(".uPay:checked").length?"lista":"auto",msiMax:+segVal("umsi"),allowSavings:$("#uSav").checked,savingsIds:$$(".uAcc:checked").map(x=>x.value),notes:$("#uNote").value.trim(),done:!!f.done,createdAt:f.createdAt||Date.now()});
     closeDialog(); toast(isNew?"Compra futura agregada":"Guardado");
   };
 }
 function buyFuture(id){
   const f=get(id); if(!f) return; const r=recommendFutures().find(x=>x.f.id===id); const p=r&&r.pick;
-  expForm({fromFuture:id,amount:f.amount,desc:f.name,category:f.category||"Otros",date:todayS(),cardId:p&&p.type==="card"?p.card.id:"",msi:p&&p.type==="card"?p.months:0,photos:[],notes:f.notes||""});
+  expForm({fromFuture:id,amount:f.amount,desc:f.name,category:f.category||"Otros",date:todayS(),cardId:p&&p.type==="card"?p.card.id:(p&&p.debit?p.debit.id:""),msi:p&&p.type==="card"?p.months:0,photos:[],notes:f.notes||""});
 }
 
 /* ---------- Apartados ---------- */
