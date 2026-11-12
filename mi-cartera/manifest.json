@@ -2,7 +2,8 @@
   "name": "Mi Cartera",
   "short_name": "Mi Cartera",
   "start_url": "./",
-  "display": "browser",
+  "scope": "./",
+  "display": "standalone",
   "background_color": "#0E0E0E",
   "theme_color": "#1F1F1F",
   "icons": [

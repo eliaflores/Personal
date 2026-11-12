@@ -1,0 +1,8 @@
+{
+  "name": "mi-cartera-push",
+  "private": true,
+  "description": "Envía los recordatorios de Mi Cartera con Firebase Cloud Messaging",
+  "dependencies": {
+    "firebase-admin": "12.1.0"
+  }
+}

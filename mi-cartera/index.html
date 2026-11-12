@@ -13,6 +13,9 @@
 <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png?v=2">
 <link rel="manifest" href="manifest.json?v=2">
 <meta name="apple-mobile-web-app-title" content="Mi Cartera">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="shortcut icon" href="icon-192.png?v=2">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <style>
@@ -484,6 +487,7 @@ h2{font-weight:700;letter-spacing:-.01em;text-transform:uppercase;font-size:22px
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getMessaging, getToken, deleteToken, isSupported as messagingSupported } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 const firebaseConfig = {
   apiKey: "AIzaSyC2j-keohRRLs8dnQk6hQXGT9eItJXmzik",
@@ -499,7 +503,7 @@ let db;
 try { db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }); }
 catch (e) { db = initializeFirestore(app, {}); }
 const storage = getStorage(app);
-window.FB = { auth, db, storage, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, collection, doc, setDoc, deleteDoc, onSnapshot, ref, uploadBytes, getDownloadURL, deleteObject };
+window.FB = { messaging:()=>getMessaging(app), getToken, deleteToken, messagingSupported, auth, db, storage, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, collection, doc, setDoc, deleteDoc, onSnapshot, ref, uploadBytes, getDownloadURL, deleteObject };
 window.dispatchEvent(new Event("fb-ready"));
 </script>
 <script>
@@ -617,8 +621,13 @@ function authError(e){
   S.authErr=(AUTH_ERR[code]||"No se pudo iniciar sesión.")+" (código: "+code+")";
   scheduleRender();
 }
+const APP_HOME="https://personal-75acf.firebaseapp.com/";
+const isStandalone=()=>!!(window.matchMedia&&matchMedia("(display-mode: standalone)").matches)||window.navigator.standalone===true;
+const onGithub=()=>location.hostname.endsWith("github.io");
 async function signIn(){
   S.authErr=""; scheduleRender();
+  if(isStandalone()&&onGithub()){ S.authErr="Esta versión instalada no puede iniciar sesión. Borra este ícono y agrega la app desde "+APP_HOME+" (Compartir → Agregar a inicio)."; scheduleRender(); return; }
+  if(isStandalone()){ const p=new FB.GoogleAuthProvider(); p.setCustomParameters({prompt:"select_account"}); try{ await FB.signInWithRedirect(FB.auth,p); }catch(e){ authError(e); } return; }
   if(inAppBrowser()){ S.authErr="Estás dentro de otra app (WhatsApp, Instagram, Facebook…). Google no permite entrar desde ahí: abre este enlace en Chrome o Safari."; scheduleRender(); return; }
   const p=new FB.GoogleAuthProvider(); p.setCustomParameters({prompt:"select_account"});
   try{ await FB.signInWithPopup(FB.auth,p); }
@@ -1148,6 +1157,62 @@ function buildAlerts(){
   const order={high:0,mid:1,warn:1,info:2,good:3};
   return out.sort((a,b)=>order[a.lvl]-order[b.lvl]);
 }
+function buildReminders(){
+  const t=today(), end=addDays(t,21); const out=[];
+  const add=(d,title,body,key,hash)=>{ if(d>=t&&d<=end) out.push({on:ds(d),title,body,key,hash:hash||"#resumen"}); };
+  try{
+    recommendFutures().forEach(r=>{ const pk=r.pick; if(!pk) return; const m=futMethod(pk);
+      add(addDays(pk.date,-1),`Mañana: compra ${r.f.name}`,`${money(r.f.amount)} ${m}`,`fut1-${r.f.id}`,"#futuros");
+      add(pk.date,`Hoy: compra ${r.f.name}`,`${money(r.f.amount)} ${m}. Cuando la hagas, márcala en la app.`,`fut0-${r.f.id}`,"#futuros"); });
+    all("flow").filter(f=>f.type==="fijo"&&f.active!==false).forEach(f=>occurrences(f,t,addDays(end,2)).forEach(o=>{
+      add(addDays(o.date,-2),`Paga ${f.name} en 2 días`,`${money(o.amount)} · vence el ${fDateS(ds(o.date))}`,`fijo2-${f.id}-${ds(o.date)}`,"#plan");
+      add(o.date,`Hoy pagas ${f.name}`,`${money(o.amount)} · pago fijo`,`fijo0-${f.id}-${ds(o.date)}`,"#plan"); }));
+    all("loan").forEach(l=>{ const st=loanState(l); for(let j=st.done+1;j<=st.n;j++){ const d=st.dueOf(j); if(d>addDays(end,2)) break; const a=j===st.done+1?st.next.amt:st.amtOf(j);
+      add(addDays(d,-2),`Pago de ${l.name} en 2 días`,`${money(a)} · pago ${j} de ${st.n}${get(l.payCardId)?` · con ${get(l.payCardId).name}`:""}`,`loan2-${l.id}-${j}`,"#creditos");
+      add(d,`Hoy pagas ${l.name}`,`${money(a)} · pago ${j} de ${st.n}`,`loan0-${l.id}-${j}`,"#creditos"); } });
+    (buildPlan().cardObl||[]).forEach(o=>{ if(o.amount<=0.009) return;
+      add(addDays(o.due,-3),`${o.name} vence en 3 días`,`Pago total ${money(o.amount)} · fecha límite ${fDateS(ds(o.due))}`,`card3-${o.card.id}-${ds(o.due)}`,"#tarjetas");
+      add(o.due,`Hoy vence ${o.name}`,`Pago total ${money(o.amount)}. Si ya lo pagaste, márcalo en la app.`,`card0-${o.card.id}-${ds(o.due)}`,"#tarjetas");
+      if(o.payOn&&+o.payOn<+addDays(o.due,-3)) add(o.payOn,`Hoy te conviene pagar ${o.name}`,`Pago total ${money(o.amount)} · vence el ${fDateS(ds(o.due))}`,`cardpay-${o.card.id}-${ds(o.due)}`,"#tarjetas"); });
+    nextIncomes(21).forEach(i=>add(i.date,`Hoy te llega ${i.flow.name}`,`${money(i.amount)} · abre la app para apartar a tus fondos`,`inc-${i.flow.id}-${ds(i.date)}`,"#plan"));
+  }catch(e){ console.error(e); }
+  return out.sort((a,b)=>a.on.localeCompare(b.on));
+}
+let remTimer=null, lastRemJson="";
+function scheduleRemindersSync(){ if(S.mode!=="fb"||!S.loaded) return; clearTimeout(remTimer); remTimer=setTimeout(syncReminders,4000); }
+async function syncReminders(){
+  try{
+    if(!all("pushtoken").length) return;
+    const list=buildReminders(); const json=JSON.stringify(list);
+    const cur=S.items.get("reminders"); if(json===lastRemJson||(cur&&JSON.stringify(cur.list)===json)){ lastRemJson=json; return; }
+    lastRemJson=json;
+    await FB.setDoc(FB.doc(FB.db,"users",S.uid,"items","reminders"),{kind:"reminders",list,tz:"America/Mexico_City",updatedAt:Date.now()});
+  }catch(e){ console.error(e); }
+}
+// clave pública de notificaciones web (Firebase → Cloud Messaging → Web Push)
+const VAPID_KEY="";
+function hashStr(x){ let h=0; for(let i=0;i<x.length;i++){ h=(h*31+x.charCodeAt(i))|0; } return (h>>>0).toString(36); }
+async function enablePush(){
+  if(S.mode!=="fb"){ toast("Primero inicia sesión con Google"); return; }
+  if(!VAPID_KEY){ toast("Falta configurar la clave de notificaciones"); return enableNotifications(); }
+  if(!("Notification" in window)||!("serviceWorker" in navigator)){ toast(/iPhone|iPad/.test(navigator.userAgent)?"En iPhone primero agrega la app a tu pantalla de inicio y ábrela desde ahí":"Este navegador no permite notificaciones"); return; }
+  try{
+    const ok=await FB.messagingSupported(); if(!ok){ toast("Este navegador no permite notificaciones con la app cerrada"); return enableNotifications(); }
+    const perm=await Notification.requestPermission(); if(perm!=="granted"){ toast("No se activaron las notificaciones"); return; }
+    const reg=await navigator.serviceWorker.register("sw.js"); swReg=reg; await navigator.serviceWorker.ready;
+    const token=await FB.getToken(FB.messaging(),{vapidKey:VAPID_KEY,serviceWorkerRegistration:reg});
+    if(!token){ toast("No se pudo registrar este dispositivo"); return; }
+    await FB.setDoc(FB.doc(FB.db,"users",S.uid,"items","push-"+hashStr(token)),{kind:"pushtoken",token,device:(navigator.userAgent||"").slice(0,140),createdAt:Date.now()});
+    try{ localStorage.setItem("mc-push",token); }catch(e){}
+    lastRemJson=""; setTimeout(syncReminders,1500);
+    toast("¡Listo! Te llegarán notificaciones aunque la app esté cerrada");
+    if($("#dlg").open) openAlerts();
+  }catch(e){ console.error(e); toast("No se pudieron activar: "+(e.code||e.message||"error")); }
+}
+function pushOnThisDevice(){ try{ const t=localStorage.getItem("mc-push"); return !!t&&all("pushtoken").some(x=>x.token===t); }catch(e){ return false; } }
+async function testNotification(){
+  try{ const reg=swReg||await navigator.serviceWorker.register("sw.js"); await reg.showNotification("Mi Cartera",{body:"Así se verán tus recordatorios.",icon:"icon-192.png"}); }catch(e){ toast("No se pudo mostrar la prueba"); }
+}
 let lastAlerts=[];
 function updateBell(){
   lastAlerts=buildAlerts(); const n=lastAlerts.filter(a=>a.lvl==="high"||a.lvl==="mid"||a.lvl==="warn").length;
@@ -1163,9 +1228,17 @@ function openAlerts(){
   document.body.classList.remove("nav-open");
   const list=buildAlerts();
   const perm=("Notification" in window)?Notification.permission:"unsupported";
-  openDialog("Avisos",`${alertsHtml(list)}
-    <div class="note small">${perm==="granted"?"Las notificaciones están activadas en este dispositivo: te llegan cuando abres la app o la tienes abierta.":perm==="unsupported"?"Este navegador no permite notificaciones. En iPhone solo funcionan si la app está instalada en tu pantalla de inicio.":`<button class="btn sm pri" id="nEnable">Activar notificaciones en este dispositivo</button>`}</div>`);
+  const pushed=pushOnThisDevice();
+  const ios=/iPhone|iPad/.test(navigator.userAgent);
+  const pushBox=pushed?`<div class="note good small"><b>Notificaciones activadas en este dispositivo.</b> Te llegan aunque la app esté cerrada: los avisos del día a las 9:00 y, si no registraste gastos, un recordatorio a las 20:00. <button class="btn sm" id="nTest" style="margin-left:6px">Probar</button></div>`
+    : onGithub()?`<div class="note small">Para recibir notificaciones con la app cerrada, abre la app desde <b>${APP_HOME}</b>${ios?" y agrégala a tu pantalla de inicio (Compartir → Agregar a inicio)":""}.</div>`
+    : (ios&&!isStandalone())?`<div class="note small">En iPhone, primero agrega la app a tu pantalla de inicio (Compartir → <b>Agregar a inicio</b>), ábrela desde el ícono y vuelve aquí para activar las notificaciones.</div>`
+    : `<div class="note small"><button class="btn sm pri" id="nPush">Activar notificaciones</button><div style="margin-top:6px">Te llegan aunque la app esté cerrada: compras de hoy y mañana, pagos fijos, créditos y tarjetas antes de su fecha, tu día de sueldo y un recordatorio en la noche si no registraste gastos.</div></div>`;
+  openDialog("Avisos",`${alertsHtml(list)}${pushBox}
+    <div class="note small" ${pushed||!onGithub()&&!(ios&&!isStandalone())?"hidden":""}>${perm==="granted"?"Las notificaciones están activadas en este dispositivo: te llegan cuando abres la app o la tienes abierta.":perm==="unsupported"?"Este navegador no permite notificaciones. En iPhone solo funcionan si la app está instalada en tu pantalla de inicio.":`<button class="btn sm pri" id="nEnable">Activar notificaciones en este dispositivo</button>`}</div>`);
   $("#nEnable") && ($("#nEnable").onclick=enableNotifications);
+  $("#nPush") && ($("#nPush").onclick=enablePush);
+  $("#nTest") && ($("#nTest").onclick=testNotification);
 }
 let swReg=null;
 async function enableNotifications(){
@@ -1178,6 +1251,7 @@ async function enableNotifications(){
 }
 async function maybeNotify(list,force){
   if(!("Notification" in window)||Notification.permission!=="granted") return;
+  if(pushOnThisDevice()) return;
   let sent={}; try{ sent=JSON.parse(localStorage.getItem("mc-notified")||"{}"); }catch(e){}
   const today_=todayS(); Object.keys(sent).forEach(k=>{ if(sent[k]<today_) delete sent[k]; });
   const fresh=list.filter(a=>a.lvl!=="good"&&!sent[a.key]);
@@ -1209,6 +1283,7 @@ function render(){
   document.body.classList.remove("nav-open");
   killCharts();
   const app=$("#app");
+  if(onGithub()&&!document.getElementById("moveBanner")){ const bn=document.createElement("div"); bn.id="moveBanner"; bn.className="wrap"; bn.innerHTML=`<div class="note acc small" style="margin-top:8px">Para recibir notificaciones usa la app desde <a href="${APP_HOME}" target="_blank" rel="noopener">${APP_HOME.replace("https://","")}</a>. Tus datos son los mismos.</div>`; const ban=$("#banner"); ban&&ban.parentElement&&ban.parentElement.after(bn); }
   if(S.mode==="signin"){ app.innerHTML=`<div class="panel empty" style="padding-block:48px"><b>Entra para ver tus finanzas</b><span>Tus tarjetas, gastos y ahorros se guardan en tu cuenta. Solo tú puedes verlos.</span><button class="btn pri" data-act="signIn">Entrar con Google</button>${S.authErr?`<div class="note bad" role="alert" style="max-width:520px;text-align:left">${esc(S.authErr)}</div>`:""}</div>`; return; }
   if(!S.loaded){ app.innerHTML=`<div class="panel empty"><b>Cargando tus datos…</b><span>Tus tarjetas, gastos y ahorros aparecerán aquí.</span></div>`; return; }
   const fn={resumen:vResumen,tarjetas:vTarjetas,gastos:vGastos,pagos:vPagos,creditos:vCreditos,futuros:vFuturos,plan:vPlan,ahorros:vAhorros}[view];
@@ -1218,6 +1293,7 @@ function render(){
   if(!window.Chart){ $$("#app canvas").forEach(c=>{ c.parentElement.innerHTML=`<div class="empty">No se pudo cargar la gráfica. Revisa tu conexión y recarga.</div>`; }); }
   decorateKpis();
   try{ updateBell(); }catch(e){ console.error(e); }
+  scheduleRemindersSync();
   try{ afterRender[view] && afterRender[view](); }catch(e){ console.error(e); }
 }
 window.addEventListener("hashchange",()=>{ render(); window.scrollTo(0,0); });

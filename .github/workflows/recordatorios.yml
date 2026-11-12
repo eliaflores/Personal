@@ -1,0 +1,26 @@
+name: Recordatorios
+
+on:
+  schedule:
+    - cron: "0 15 * * *"   # 9:00 en CDMX
+    - cron: "0 2 * * *"    # 20:00 en CDMX
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "morning (avisos del día) o evening (¿ya registraste tus gastos?)"
+        required: false
+        default: "morning"
+
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --prefix push --no-audit --no-fund
+      - run: node push/send.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          MODE: ${{ github.event.inputs.mode }}
