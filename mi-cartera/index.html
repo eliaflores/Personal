@@ -5,45 +5,53 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px/1.45 system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Mi Cartera</title>
-<meta name="theme-color" content="#171a33">
+<meta name="theme-color" content="#1F1F1F">
 </head>
 <body>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <style>
-/* Layout: barra lateral en escritorio, pestañas tipo píldora y hojas inferiores en el celular.
-   Color: neutros fríos + un tema de color que eliges en Opciones (por defecto azul medianoche). */
+/* Layout: barra lateral en escritorio y menú lateral en el celular; bloques planos muy redondeados.
+   Color: paleta Suave — azul #97C2EC, beige #D6D0C2, negro #1F1F1F, blanco #FFFFFF. Otros temas en Opciones. */
 :root{
-  --bg:#f3f4f8; --surface:#ffffff; --surface-2:#f1f2f7; --line:#e4e6ef;
-  --fg:#161827; --muted:#676c84;
-  --accent-l:#4f5ff0; --accent-d:#8d99ff; --ink:#171a33; --ink-2:#2b3270; --mint:#9aa8ff;
-  --accent:var(--accent-l); --accent-ink:#ffffff; --accent-soft:color-mix(in srgb,var(--accent) 13%,var(--surface));
-  --ink-fg:#eef0fb; --ink-muted:#b3b8d6;
-  --good:#16935a; --warn:#b86e00; --bad:#d23f35; --warn-soft:#fdf0db; --bad-soft:#fde4e1; --good-soft:#dcf3e6;
-  --shadow:0 1px 2px rgba(22,24,39,.05),0 8px 24px -8px rgba(22,24,39,.10);
-  --shadow-lg:0 24px 60px -12px rgba(16,18,40,.35);
+  --blue:#97C2EC; --beige:#D6D0C2; --black:#1F1F1F; --white:#FFFFFF;
+  --bg:#F1F1F1; --surface:#FFFFFF; --surface-2:#F4F2EE; --line:#E7E3DB;
+  --fg:#1F1F1F; --muted:#77736C;
+  --accent-l:#1F1F1F; --accent-d:#97C2EC; --ink:#1F1F1F; --ink-2:#2E2E2E; --mint:#97C2EC;
+  --accent:var(--accent-l); --accent-ink:#ffffff; --accent-soft:color-mix(in srgb,var(--blue) 38%,var(--surface));
+  --ink-fg:#F5F5F5; --ink-muted:#B9B6AF;
+  --t1:#97C2EC; --t1-fg:#1F1F1F; --t1-star:#1F1F1F;
+  --t2:#D6D0C2; --t2-fg:#1F1F1F; --t2-star:#FFFFFF;
+  --t3:#1F1F1F; --t3-fg:#FFFFFF; --t3-star:#97C2EC;
+  --t4:#FFFFFF; --t4-fg:#1F1F1F; --t4-star:#D6D0C2;
+  --good:#1d8a52; --warn:#a8650a; --bad:#c9372d; --warn-soft:#f8eedc; --bad-soft:#fbe3e0; --good-soft:#dff1e6;
+  --shadow:none;
+  --shadow-lg:0 24px 60px -12px rgba(20,20,20,.35);
   --f-display:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-body:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-num:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --r:18px; --side:248px;
+  --r:24px; --side:248px;
 }
-:root[data-tema="violeta"]{--accent-l:#7c3aed;--accent-d:#b794ff;--ink:#1f1336;--ink-2:#4b2a8a;--mint:#c4a8ff}
-:root[data-tema="rosa"]{--accent-l:#db2777;--accent-d:#ff7eb6;--ink:#2a1124;--ink-2:#7a1f55;--mint:#ffa3cf}
-:root[data-tema="coral"]{--accent-l:#e5533d;--accent-d:#ff8a73;--ink:#2a1714;--ink-2:#7a3226;--mint:#ffb3a3}
-:root[data-tema="oceano"]{--accent-l:#0284c7;--accent-d:#4fc3f7;--ink:#0c1d2e;--ink-2:#14507a;--mint:#8ad8ff}
-:root[data-tema="ambar"]{--accent-l:#c2780a;--accent-d:#f5b544;--ink:#1d1a16;--ink-2:#4a3a1c;--mint:#ffd27a}
-:root[data-tema="grafito"]{--accent-l:#334155;--accent-d:#cbd5e1;--ink:#111318;--ink-2:#2d3340;--mint:#e2e8f0}
+:root[data-tema="indigo"]{--accent-l:#4f5ff0;--accent-d:#8d99ff;--ink:#171a33;--ink-2:#2b3270;--mint:#9aa8ff;--accent-soft:color-mix(in srgb,var(--accent) 13%,var(--surface));--t1:#c9cffc;--t3:#171a33;--t3-star:#9aa8ff}
+:root[data-tema="violeta"]{--accent-l:#7c3aed;--accent-d:#b794ff;--ink:#1f1336;--ink-2:#4b2a8a;--mint:#c4a8ff;--accent-soft:color-mix(in srgb,var(--accent) 13%,var(--surface));--t1:#dccbff;--t3:#1f1336;--t3-star:#c4a8ff}
+:root[data-tema="rosa"]{--accent-l:#db2777;--accent-d:#ff7eb6;--ink:#2a1124;--ink-2:#7a1f55;--mint:#ffa3cf;--accent-soft:color-mix(in srgb,var(--accent) 13%,var(--surface));--t1:#ffd0e4;--t3:#2a1124;--t3-star:#ffa3cf}
+:root[data-tema="coral"]{--accent-l:#e5533d;--accent-d:#ff8a73;--ink:#2a1714;--ink-2:#7a3226;--mint:#ffb3a3;--accent-soft:color-mix(in srgb,var(--accent) 13%,var(--surface));--t1:#ffd6cc;--t3:#2a1714;--t3-star:#ffb3a3}
+:root[data-tema="oceano"]{--accent-l:#0284c7;--accent-d:#4fc3f7;--ink:#0c1d2e;--ink-2:#14507a;--mint:#8ad8ff;--accent-soft:color-mix(in srgb,var(--accent) 13%,var(--surface));--t1:#bfe6fb;--t3:#0c1d2e;--t3-star:#8ad8ff}
+:root[data-tema="ambar"]{--accent-l:#c2780a;--accent-d:#f5b544;--ink:#1d1a16;--ink-2:#4a3a1c;--mint:#ffd27a;--accent-soft:color-mix(in srgb,var(--accent) 13%,var(--surface));--t1:#fde3b0;--t3:#1d1a16;--t3-star:#ffd27a}
+:root[data-tema="grafito"]{--accent-l:#334155;--accent-d:#cbd5e1;--ink:#111318;--ink-2:#2d3340;--mint:#e2e8f0;--accent-soft:color-mix(in srgb,var(--accent) 13%,var(--surface));--t1:#dfe5ec;--t3:#111318;--t3-star:#e2e8f0}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0d0e16; --surface:#151724; --surface-2:#1c1f30; --line:#272a3e;
-  --fg:#e9eaf3; --muted:#9a9fb8; --accent:var(--accent-d); --accent-ink:#0d0e16;
-  --good:#47c784; --warn:#e8a640; --bad:#f06a60; --warn-soft:#382b14; --bad-soft:#3b1d1a; --good-soft:#15372a;
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px -8px rgba(0,0,0,.45); --shadow-lg:0 24px 60px -12px rgba(0,0,0,.6); color-scheme:dark}}
+  --bg:#121212; --surface:#1F1F1F; --surface-2:#292929; --line:#333232;
+  --fg:#F3F2EF; --muted:#A9A59D; --accent:var(--accent-d); --accent-ink:#1F1F1F; --ink:#0B0B0B; --ink-2:#202020;
+  --t3:#2B2B2B; --t4:#1F1F1F; --t4-fg:#F3F2EF;
+  --good:#47c784; --warn:#e8a640; --bad:#f06a60; --warn-soft:#372b16; --bad-soft:#3a1e1b; --good-soft:#173527;
+  --shadow-lg:0 24px 60px -12px rgba(0,0,0,.6); color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0d0e16; --surface:#151724; --surface-2:#1c1f30; --line:#272a3e;
-  --fg:#e9eaf3; --muted:#9a9fb8; --accent:var(--accent-d); --accent-ink:#0d0e16;
-  --good:#47c784; --warn:#e8a640; --bad:#f06a60; --warn-soft:#382b14; --bad-soft:#3b1d1a; --good-soft:#15372a;
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px -8px rgba(0,0,0,.45); --shadow-lg:0 24px 60px -12px rgba(0,0,0,.6); color-scheme:dark}
+  --bg:#121212; --surface:#1F1F1F; --surface-2:#292929; --line:#333232;
+  --fg:#F3F2EF; --muted:#A9A59D; --accent:var(--accent-d); --accent-ink:#1F1F1F; --ink:#0B0B0B; --ink-2:#202020;
+  --t3:#2B2B2B; --t4:#1F1F1F; --t4-fg:#F3F2EF;
+  --good:#47c784; --warn:#e8a640; --bad:#f06a60; --warn-soft:#372b16; --bad-soft:#3a1e1b; --good-soft:#173527;
+  --shadow-lg:0 24px 60px -12px rgba(0,0,0,.6); color-scheme:dark}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
@@ -337,6 +345,54 @@ dialog::backdrop{background:rgba(6,16,14,.55);backdrop-filter:blur(3px)}
 .paychips input{width:16px;height:16px;flex:none}
 input[type=date]{min-width:0;max-width:100%;display:block;-webkit-appearance:none;appearance:none;min-height:46px;text-align:left}
 input[type=date]::-webkit-date-and-time-value{text-align:left}
+
+/* ---------- formato Suave: bloques planos, esquinas grandes, asterisco ---------- */
+:root{--star:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg stroke='black' stroke-width='4.4' stroke-linecap='round'%3E%3Cpath d='M12 3.6v16.8M4.7 7.8l14.6 8.4M4.7 16.2l14.6-8.4'/%3E%3C/g%3E%3C/svg%3E")}
+.panel,.period,.subtabs,.navlinks a,.iconbtn{box-shadow:none}
+.panel{border-radius:var(--r);padding:20px}
+.period{border-radius:var(--r)}
+.view>.note{box-shadow:none}
+.note{border-radius:18px}
+h2{font-weight:700;letter-spacing:-.01em;text-transform:uppercase;font-size:22px;color:color-mix(in srgb,var(--fg) 78%,var(--bg))}
+.dlg-h h2{text-transform:none;color:var(--fg)}
+.btn{border-radius:14px}
+.btn.pri{box-shadow:none}
+.fab .btn{box-shadow:0 10px 30px -10px rgba(0,0,0,.35)}
+.grid.g-kpi>.panel.kpi{position:relative;min-height:138px;display:flex;flex-direction:column;justify-content:flex-start;background:var(--tile);color:var(--tile-fg);overflow:hidden}
+.grid.g-kpi>.panel.kpi:nth-child(4n+1){--tile:var(--t1);--tile-fg:var(--t1-fg);--tile-star:var(--t1-star)}
+.grid.g-kpi>.panel.kpi:nth-child(4n+2){--tile:var(--t2);--tile-fg:var(--t2-fg);--tile-star:var(--t2-star)}
+.grid.g-kpi>.panel.kpi:nth-child(4n+3){--tile:var(--t3);--tile-fg:var(--t3-fg);--tile-star:var(--t3-star)}
+.grid.g-kpi>.panel.kpi:nth-child(4n+4){--tile:var(--t4);--tile-fg:var(--t4-fg);--tile-star:var(--t4-star)}
+.grid.g-kpi>.panel.kpi::after{content:"";position:absolute;top:18px;right:18px;width:22px;height:22px;background:var(--tile-star);-webkit-mask:var(--star) center/contain no-repeat;mask:var(--star) center/contain no-repeat}
+.grid.g-kpi>.panel.kpi .lbl{color:var(--tile-fg);opacity:.78;padding-right:30px;font-weight:600}
+.grid.g-kpi>.panel.kpi .lbl .ico{display:none}
+.grid.g-kpi>.panel.kpi .val{margin-top:auto;color:var(--tile-fg)}
+.grid.g-kpi>.panel.kpi .sub{color:var(--tile-fg);opacity:.7}
+.grid.g-kpi>.panel.kpi .chip{background:color-mix(in srgb,var(--tile-fg) 12%,transparent);color:var(--tile-fg)}
+.hero{background:var(--ink);border-radius:28px}
+.hero::after{content:"";right:24px;top:24px;width:30px;height:30px;border:0;border-radius:0;background:var(--mint);-webkit-mask:var(--star) center/contain no-repeat;mask:var(--star) center/contain no-repeat}
+.hero .stat{border-radius:16px}
+.hero.soft{background:var(--beige);color:#1F1F1F}
+.hero.soft::after{background:#FFFFFF}
+.hero.soft .eyebrow,.hero.soft .sub2,.hero.soft .stat span{color:rgba(31,31,31,.68)}
+.hero.soft .big,.hero.soft .stat b{color:#1F1F1F}
+.hero.soft .stat{background:rgba(255,255,255,.5)}
+.hero.soft .meter{background:rgba(255,255,255,.55)}
+.hero.soft .meter i{background:#1F1F1F}
+.side .navlinks a.on{background:color-mix(in srgb,var(--mint) 22%,transparent)}
+.logo{background:var(--ink);box-shadow:none}
+.logo,.navlinks a.on svg.i,.side .navlinks a.on svg.i{color:var(--mint)}
+.subtabs{background:var(--surface)}
+.chip.acc{color:var(--fg)}
+.seg button.on{box-shadow:none;background:var(--surface)}
+.paychips label:has(input:checked){border-color:var(--fg)}
+@media (max-width:560px){.grid.g-kpi>.panel.kpi{min-height:118px;padding:14px}.grid.g-kpi>.panel.kpi::after{top:14px;right:14px;width:18px;height:18px}h2{font-size:19px}}
+
+.cc .ccbar{background:var(--cc-bar,rgba(255,255,255,.25))}
+.cc .ccbar i{background:var(--cc-fill,#fff)}
+
+.cc::after{background:var(--cc-gloss,linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,0) 40%,rgba(0,0,0,.28)))}
+.cc::before{background:var(--cc-ring,rgba(255,255,255,.10))}
 </style>
 
 <div class="shell">
@@ -421,8 +477,10 @@ const daysBetween = (a,b) => Math.round((b-a)/86400000);
 const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
 const CATS = ["Súper","Comida","Transporte","Gasolina","Hogar","Servicios","Salud","Entretenimiento","Ropa","Educación","Suscripciones","Viajes","Tecnología","Otros"];
-const CARD_COLORS = ["#2b59ff","#4338ca","#7c3aed","#a21caf","#db2777","#e11d48","#dc2626","#ea580c","#f59e0b","#ca8a04","#65a30d","#16a34a","#0d9488","#0891b2","#0284c7","#1e3a8a","#475569","#111827","#78350f","#be185d","#9333ea","#f472b6","#14b8a6","#c0a062"];
-const cardBg = col => `${col} linear-gradient(135deg, ${col} 0%, color-mix(in srgb, ${col} 55%, #000) 100%)`;
+const CARD_COLORS = ["#97C2EC","#D6D0C2","#1F1F1F","#2b59ff","#4338ca","#7c3aed","#a21caf","#db2777","#e11d48","#dc2626","#ea580c","#f59e0b","#ca8a04","#65a30d","#16a34a","#0d9488","#0891b2","#0284c7","#1e3a8a","#475569","#111827","#78350f","#be185d","#9333ea","#f472b6","#14b8a6","#c0a062"];
+const isLight = col => { const m=/^#?([0-9a-f]{6})$/i.exec(col||""); if(!m) return false; const n=parseInt(m[1],16); const r=(n>>16)&255,g=(n>>8)&255,b=n&255; return (0.299*r+0.587*g+0.114*b)>165; };
+const cardBg = col => isLight(col) ? `${col} linear-gradient(135deg, color-mix(in srgb, ${col} 70%, #fff) 0%, ${col} 70%)` : `${col} linear-gradient(135deg, ${col} 0%, color-mix(in srgb, ${col} 55%, #000) 100%)`;
+const cardInk = col => isLight(col) ? "color:#1F1F1F;--cc-bar:rgba(31,31,31,.15);--cc-fill:#1F1F1F;--cc-gloss:linear-gradient(135deg,rgba(255,255,255,.35),rgba(255,255,255,0) 55%);--cc-ring:rgba(255,255,255,.28)" : "";
 const CAT_COLORS = ["#0e8f7a","#3b6fd8","#d9822b","#9b51e0","#d64545","#2f9e5b","#c0a020","#e05297","#5a7f8f","#7c5cd6","#e06a3a","#3aa0c9","#8c6e4f","#8a9a98"];
 const catColor = c => CAT_COLORS[Math.max(0,CATS.indexOf(c))%CAT_COLORS.length];
 
@@ -936,7 +994,7 @@ function killCharts(){ Object.keys(charts).forEach(k=>{ try{charts[k].destroy();
 let rq=false;
 function scheduleRender(){ if(rq) return; rq=true; requestAnimationFrame(()=>{ rq=false; render(); }); }
 function render(){
-  if(S.items.get("settings")?.tema && S.items.get("settings").tema!==(document.documentElement.dataset.tema||"medianoche")) applyTema(S.items.get("settings").tema);
+  if(S.items.get("settings")?.tema && S.items.get("settings").tema!==(document.documentElement.dataset.tema||"suave")) applyTema(S.items.get("settings").tema);
   cacheState.clear(); recoCache=null; delete planCache.base; delete planCache.full;
   const v=(location.hash||"#resumen").slice(1);
   view=["resumen","tarjetas","gastos","pagos","creditos","futuros","plan","ahorros"].includes(v)?v:"resumen";
@@ -958,15 +1016,16 @@ function render(){
 }
 window.addEventListener("hashchange",()=>{ render(); window.scrollTo(0,0); });
 const afterRender={};
-const TEMAS=[["medianoche","Medianoche","#4f5ff0","#171a33"],["violeta","Violeta","#7c3aed","#1f1336"],["rosa","Rosa","#db2777","#2a1124"],["coral","Coral","#e5533d","#2a1714"],["oceano","Océano","#0284c7","#0c1d2e"],["ambar","Ámbar","#c2780a","#1d1a16"],["grafito","Grafito","#334155","#111318"]];
+const TEMAS=[["suave","Suave","#97C2EC","#1F1F1F"],["indigo","Índigo","#4f5ff0","#171a33"],["violeta","Violeta","#7c3aed","#1f1336"],["rosa","Rosa","#db2777","#2a1124"],["coral","Coral","#e5533d","#2a1714"],["oceano","Océano","#0284c7","#0c1d2e"],["ambar","Ámbar","#c2780a","#1d1a16"],["grafito","Grafito","#334155","#111318"]];
 function applyTema(t){
-  const ok=TEMAS.find(x=>x[0]===t)?t:"medianoche";
-  if(ok==="medianoche") document.documentElement.removeAttribute("data-tema"); else document.documentElement.setAttribute("data-tema",ok);
+  if(t==="medianoche") t="suave";
+  const ok=TEMAS.find(x=>x[0]===t)?t:"suave";
+  if(ok==="suave") document.documentElement.removeAttribute("data-tema"); else document.documentElement.setAttribute("data-tema",ok);
   const m=document.querySelector('meta[name="theme-color"]'); if(m) m.content=TEMAS.find(x=>x[0]===ok)[3];
   try{ localStorage.setItem("mc-tema",ok); }catch(e){}
   return ok;
 }
-try{ applyTema(localStorage.getItem("mc-tema")||"medianoche"); }catch(e){}
+try{ applyTema(localStorage.getItem("mc-tema")||"suave"); }catch(e){}
 const KPI_ICONS=[
   [/deuda|debes|falta pagar|te falta/i,'<rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20"/>',"#d23f35"],
   [/disponible|crédito/i,'<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',"#2b59ff"],
@@ -1140,13 +1199,13 @@ function expList(list){
 function ccTile(c){
   const st=cardState(c); const bg=c.photo?`<img class="bgimg" src="${esc(photoSrc(c.photo))}" alt="">`:"";
   if(st.isCredit){
-    return `<button class="cc" style="background:${cardBg(c.color)}" data-act="openCard" data-id="${c.id}" type="button">${bg}
+    return `<button class="cc" style="background:${cardBg(c.color)};${cardInk(c.color)}" data-act="openCard" data-id="${c.id}" type="button">${bg}
       <div class="spread"><span class="bank">${esc(c.name)}</span><span class="type">Crédito</span></div>
       <div><div class="type">Deuda actual</div><div class="big">${money(st.debt)}</div></div>
       <div style="display:flex;flex-direction:column;gap:6px"><div class="ccbar"><i style="width:${Math.min(100,st.util*100)}%"></i></div>
       <div class="spread small"><span>Disponible ${money(st.avail)}</span><span class="digits">•••• ${esc(c.last4||"")}</span></div></div></button>`;
   }
-  return `<button class="cc" style="background:${cardBg(c.color)}" data-act="openCard" data-id="${c.id}" type="button">${bg}
+  return `<button class="cc" style="background:${cardBg(c.color)};${cardInk(c.color)}" data-act="openCard" data-id="${c.id}" type="button">${bg}
     <div class="spread"><span class="bank">${esc(c.name)}</span><span class="type">${c.type==="efectivo"?"Efectivo":"Débito"}</span></div>
     <div><div class="type">Saldo estimado</div><div class="big">${money(st.balance)}</div></div>
     <div class="spread small"><span>Gastado ${money(st.spent)}</span><span class="digits">${c.last4?"•••• "+esc(c.last4):""}</span></div></button>`;
@@ -1969,7 +2028,7 @@ const openOptions=()=>{ document.body.classList.remove("nav-open");
     <div class="note">${S.mode==="fb"?`Sesión: <b>${esc(S.user&&S.user.email||"")}</b>. Tus datos se guardan en Firebase y solo tú puedes verlos.`:S.mode==="signin"?"No has iniciado sesión.":"Modo local: los datos viven sólo en este navegador."}</div>
     ${S.mode==="fb"&&hasLocal()?`<div class="note acc">Este navegador tiene datos guardados de antes de Firebase. <button class="btn sm" id="oMig">Subirlos a mi cuenta</button></div>`:""}
     <div><div class="small muted" style="font-weight:700;margin-bottom:10px">Color de la app</div>
-      <div class="temas">${TEMAS.map(([k,n,c,i])=>`<button type="button" data-tema="${k}" class="${(document.documentElement.dataset.tema||"medianoche")===k?"on":""}"><i style="background:linear-gradient(135deg,${c},${i})"></i>${n}</button>`).join("")}</div></div>
+      <div class="temas">${TEMAS.map(([k,n,c,i])=>`<button type="button" data-tema="${k}" class="${(document.documentElement.dataset.tema||"suave")===k?"on":""}"><i style="background:linear-gradient(135deg,${c},${i})"></i>${n}</button>`).join("")}</div></div>
     <div class="row"><button class="btn" id="oExp">Descargar respaldo (JSON)</button><button class="btn" id="oCsv">Descargar gastos (CSV)</button></div>
     <div class="row"><label class="btn">Importar respaldo<input type="file" accept="application/json,.json" id="oImp" hidden></label><button class="btn" data-act="loadSample">Cargar datos de ejemplo</button></div>
     <div class="confirm" id="wipeZone"><button class="btn danger" id="oWipe">Borrar todos mis datos</button></div>
