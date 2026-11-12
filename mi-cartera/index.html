@@ -1698,9 +1698,6 @@ function vPlan(){
   const ni=nextIncomes(60)[0];
   const chip=(label,val,act)=>`<button type="button" class="pchip" data-act="${act}"><span>${label}</span><b>${val}</b></button>`;
   return `<div class="spread"><h2>Plan de pagos</h2><button class="btn pri plusbtn" data-act="planAdd" aria-label="Agregar">＋</button></div>
-  ${(()=>{ const st=settings(); const off=[...(st.fundStop?[{l:"Fondo de ahorro",k:"fund",key:"fundStop"}]:[]),...(st.invStop?[{l:"Fondo de inversión",k:"fund",key:"invStop"}]:[]),
-      ...all("account").filter(a=>a.noMore).map(a=>({l:a.name,k:"acc",id:a.id})),...all("goal").filter(g=>g.noMore).map(g=>({l:g.name,k:"goal",id:g.id}))];
-    return off.length?`<div class="note small"><b>No se les aparta dinero:</b> ${off.map(o=>`<span class="chip" style="margin:2px">${esc(o.l)} <button type="button" class="linkbtn" data-act="unstop" data-kind="${o.k}" ${o.id?`data-id="${o.id}"`:`data-k="${o.key}"`} aria-label="Volver a apartar a ${esc(o.l)}">↺</button></span>`).join("")} <span class="muted">Toca ↺ para que vuelva a recibir.</span></div>`:""; })()}
   <div class="pchips">
     ${chip("Disponible hoy",money(ca.total),"planSettings")}
     ${chip(inc.length?"Próximo ingreso":"Ingresos",inc.length&&ni?`${money(ni.amount)} · ${fDateS(ds(ni.date))}`:"Agregar","planSettings")}
@@ -1753,14 +1750,12 @@ function fundLine(p,purpose,sv){
   const title=purpose==="ahorro"?"Aparta para tu fondo de ahorro":"Aparta para tu fondo de inversión";
   const canNow=p.start<=today();
   const right=doneAmt>0?`${money(doneAmt)}<div class="chip good">apartado</div>`:`${money(amt)}${canNow?`<div><button type="button" class="btn sm" data-act="didSave" data-purpose="${purpose}" data-amt="${amt}" data-per="${ds(p.start)}" style="margin-top:4px">Ya lo aparté</button></div>`:`<div class="chip">${fDateS(ds(p.start))}</div>`}`;
-  const stopBox=doneAmt>0?"":(acc?`<label class="pstop"><input type="checkbox" data-act="stopTarget" data-kind="acc" data-id="${acc.id}"> Ya está completo: no apartar más a ${esc(acc.name)}</label>`:`<label class="pstop"><input type="checkbox" data-act="stopTarget" data-kind="fund" data-k="${purpose==="ahorro"?"fundStop":"invStop"}"> No apartar más a este fondo</label>`);
-  return `<div class="pline"><div class="what"><b>${title}</b><div class="small muted">${acc?`a ${esc(acc.name)}`:(purpose==="ahorro"?"crea tu fondo en Ahorros":"por ejemplo en GBM+ o Cetes")}${purpose==="ahorro"&&p.saveWhy?` · ${esc(p.saveWhy)}`:""}</div>${stopBox}</div><div class="num" style="text-align:right;white-space:nowrap;color:${purpose==="ahorro"?"var(--good)":"var(--accent)"}">${right}</div></div>`;
+  return `<div class="pline"><div class="what"><b>${title}</b><div class="small muted">${acc?`a ${esc(acc.name)}`:(purpose==="ahorro"?"crea tu fondo en Ahorros":"por ejemplo en GBM+ o Cetes")}${purpose==="ahorro"&&p.saveWhy?` · ${esc(p.saveWhy)}`:""}</div></div><div class="num" style="text-align:right;white-space:nowrap;color:${purpose==="ahorro"?"var(--good)":"var(--accent)"}">${right}</div></div>`;
 }
 function goalLine(p,g,amt,doneAmt,acc){
   const canNow=p.start<=today();
   const right=doneAmt>0?`${money(doneAmt)}<div class="chip good">apartado</div>`:`${money(amt)}${canNow?`<div><button type="button" class="btn sm" data-act="didSave" data-purpose="meta" data-goal="${g.id}" data-amt="${amt}" data-per="${ds(p.start)}" style="margin-top:4px">Ya lo aparté</button></div>`:`<div class="chip">${fDateS(ds(p.start))}</div>`}`;
-  const stopBox=doneAmt>0?"":`<label class="pstop"><input type="checkbox" data-act="stopTarget" data-kind="goal" data-id="${g.id}"> Ya no apartar más a esta meta</label>`;
-  return `<div class="pline"><div class="what"><b>Aparta para tu meta ${esc(g.name)}</b><div class="small muted">${acc?`a ${esc(acc.name)} · `:""}llevas ${money(goalSaved(g))} de ${money(g.target)}</div>${stopBox}</div><div class="num" style="text-align:right;white-space:nowrap;color:${esc(g.color||"var(--accent)")}">${right}</div></div>`;
+  return `<div class="pline"><div class="what"><b>Aparta para tu meta ${esc(g.name)}</b><div class="small muted">${acc?`a ${esc(acc.name)} · `:""}llevas ${money(goalSaved(g))} de ${money(g.target)}</div></div><div class="num" style="text-align:right;white-space:nowrap;color:${esc(g.color||"var(--accent)")}">${right}</div></div>`;
 }
 function fundAccount(purpose){
   const sv=saveConfig(); return purpose==="ahorro"?sv.saveAcc:sv.invAcc;
@@ -2188,7 +2183,8 @@ function vAccounts(){
   <div class="grid g-2">
     <div class="panel"><div class="list">${accs.slice().sort((a,b)=>(+b.balance||0)-(+a.balance||0)).map(a=>`<div class="item" data-act="openAccount" data-id="${a.id}">
       <span class="thumb" style="background:${a.color}22;color:${a.color}">${esc(a.inst.slice(0,2))}</span>
-      <div class="main"><div class="title">${esc(a.name)}</div><div class="row small muted" style="gap:6px"><span>${esc(a.inst)}</span><span class="chip">${esc(purposeLabel(a))}</span>${accUsable(a)?`<span class="chip acc">cuenta para pagos</span>`:""}${a.noMore?`<span class="chip good">completo</span>`:""}${a.rate?`<span class="chip good">${a.rate}% anual</span>`:""}${accAvailable(a,today())?"":`<span class="chip">desde ${a.availFrom?fDateS(a.availFrom):"plazo"}</span>`}</div></div>
+      <div class="main"><div class="title">${esc(a.name)}</div><div class="row small muted" style="gap:6px"><span>${esc(a.inst)}</span><span class="chip">${esc(purposeLabel(a))}</span>${accUsable(a)?`<span class="chip acc">cuenta para pagos</span>`:""}${a.noMore?`<span class="chip good">completo</span>`:""}${a.rate?`<span class="chip good">${a.rate}% anual</span>`:""}${accAvailable(a,today())?"":`<span class="chip">desde ${a.availFrom?fDateS(a.availFrom):"plazo"}</span>`}</div>
+        <label class="pstop"><input type="checkbox" data-act="toggleNoMore" data-kind="acc" data-id="${a.id}" ${a.noMore?"checked":""}> Completo: no apartar más</label></div>
       <div class="num">${money(a.balance)}</div></div>`).join("")}</div></div>
     <div class="panel"><div class="panel-h"><h3>Dónde está tu dinero</h3></div><div class="chart-box"><canvas id="chAcc"></canvas></div></div>
   </div>`;
@@ -2208,7 +2204,8 @@ function vAhorros(){
       return `<div class="item" data-act="openGoal" data-id="${g.id}" style="flex-direction:column;align-items:stretch;gap:6px">
         <div class="spread"><b><span class="dot" style="background:${g.color};margin-right:6px"></span>${esc(g.name)}${g.noMore?` <span class="chip good">no apartar más</span>`:""}</b><span class="num">${money(sv_)} <span class="muted">/ ${money(g.target)}</span></span></div>
         <div class="bar"><i style="width:${pct*100}%;background:${g.color}"></i></div>
-        <div class="spread small muted"><span>${per||(pct>=1?"¡Meta cumplida!":"")}</span><span>${Math.round(pct*100)}%</span></div></div>`;}).join("")}</div></div>
+        <div class="spread small muted"><span>${per||(pct>=1?"¡Meta cumplida!":"")}</span><span>${Math.round(pct*100)}%</span></div>
+        <label class="pstop"><input type="checkbox" data-act="toggleNoMore" data-kind="goal" data-id="${g.id}" ${g.noMore?"checked":""}> Completa o en pausa: no apartar más</label></div>`;}).join("")}</div></div>
     <div class="panel"><div class="panel-h"><h3>Aportes por mes</h3></div><div class="chart-box"><canvas id="chSave"></canvas></div></div>
   </div>`:`<div class="panel empty"><b>Crea tu primera meta</b><span>Fondo de emergencia, viaje, enganche… registra cuánto llevas y cuánto quieres juntar.</span><button class="btn pri" data-act="newGoal">＋ Meta de ahorro</button></div>`}`;
 }
@@ -2534,6 +2531,9 @@ document.addEventListener("click",async ev=>{
     case "newLoan": loanForm(); break;
     case "newFuture": futureForm(); break;
     case "planAdd": planAddMenu(); break;
+    case "toggleNoMore": {
+      const o=get(id); if(!o) break; await put({...o,noMore:!o.noMore});
+      toast(!o.noMore?`Listo: ya no se aparta dinero a ${o.name}`:`${o.name} vuelve a recibir dinero`); break; }
     case "stopTarget": {
       const k=t.dataset.kind; let name="";
       if(k==="acc"){ const a=get(id); if(a){ await put({...a,noMore:true}); name=a.name; } }
