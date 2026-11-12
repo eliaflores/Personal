@@ -432,6 +432,15 @@ h2{font-weight:700;letter-spacing:-.01em;text-transform:uppercase;font-size:22px
 
 .refreshline .btn{white-space:nowrap;flex:none}
 .refreshline span{min-width:0}
+
+.btnBell{position:relative}
+.btnBell .badge{position:absolute;top:4px;right:4px;min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--bad);color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center;line-height:1}
+.side .btnBell .badge{position:static;margin-left:auto}
+.alertstrip{display:flex;align-items:center;gap:12px;width:100%;border:0;cursor:pointer;text-align:left;background:var(--surface);color:var(--fg);border-radius:18px;padding:12px 16px}
+.alertstrip svg.i{color:var(--warn);flex:none}
+.alertstrip div{flex:1;min-width:0;display:flex;flex-direction:column}
+.alertstrip div span{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alertstrip .chev{font-size:22px;color:var(--muted)}
 </style>
 
 </head>
@@ -441,6 +450,7 @@ h2{font-weight:700;letter-spacing:-.01em;text-transform:uppercase;font-size:22px
   <div class="brand"><span class="logo logo-rings"><svg viewBox="0 0 100 100" aria-hidden="true" style="width:100%;height:100%"><circle cx="50" cy="50" r="40" fill="#3B3B3B"/><g fill="none" stroke="#F2EEE3" stroke-width="3.4"><ellipse cx="50" cy="39" rx="28" ry="9"/><ellipse cx="50" cy="50" rx="28" ry="9"/><ellipse cx="50" cy="61" rx="28" ry="9"/></g></svg></span><h1>Mi Cartera</h1></div>
   <nav class="navlinks" aria-label="Secciones"><a href="#resumen" data-v="resumen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></svg><span>Inicio</span></a><a href="#tarjetas" data-v="tarjetas"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20M6 15h4"/></svg><span>Tarjetas y pagos</span></a><a href="#gastos" data-v="gastos"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 2v20l2.3-1.5L9.6 22l2.4-1.5 2.4 1.5 2.3-1.5L19 22V2l-2.3 1.5L14.4 2 12 3.5 9.6 2 7.3 3.5Z"/><path d="M15 8H9M15 12H9"/></svg><span>Gastos</span></a><a href="#creditos" data-v="creditos"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 18v-7M9.5 18v-7M14.5 18v-7M19 18v-7M12 3l9 5H3Z"/></svg><span>Créditos</span></a><a href="#plan" data-v="plan"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg><span>Planear</span></a><a href="#ahorros" data-v="ahorros"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9.5c.6.6 1 1.4 1 2.5h1.5v3H19a6 6 0 0 1-2 2V20h-3v-2h-4v2H7v-3c-1.7-1.2-3-3-3-5.5C4 7.5 7.5 6 11 6h3l3-2v3.5c.8.5 1.5 1.2 2 2Z"/><path d="M15 11h.01"/></svg><span>Ahorros</span></a></nav>
   <div class="grow"></div>
+  <button class="btnMenu btnBell" type="button" data-act="openAlerts"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Avisos</span><span class="badge" hidden></span></button>
   <button class="btnMenu btnRefresh" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span>Actualizar</span></button>
   <button class="btnMenu" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg><span>Opciones</span></button>
 </aside>
@@ -450,7 +460,7 @@ h2{font-weight:700;letter-spacing:-.01em;text-transform:uppercase;font-size:22px
   <div class="wrap">
     <div class="top-row">
       <div class="brand"><button class="iconbtn" id="btnNav" type="button" aria-label="Abrir menú"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button><span class="logo logo-rings hdr-logo"><svg viewBox="0 0 100 100" aria-hidden="true" style="width:100%;height:100%"><circle cx="50" cy="50" r="40" fill="#3B3B3B"/><g fill="none" stroke="#F2EEE3" stroke-width="3.4"><ellipse cx="50" cy="39" rx="28" ry="9"/><ellipse cx="50" cy="50" rx="28" ry="9"/><ellipse cx="50" cy="61" rx="28" ry="9"/></g></svg></span><h1 id="secTitle">Mi Cartera</h1></div>
-      <div class="row" style="gap:8px;flex-wrap:nowrap"><button class="iconbtn btnRefresh" type="button" aria-label="Actualizar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button><button class="iconbtn btnMenu" type="button" aria-label="Opciones"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg></button></div>
+      <div class="row" style="gap:8px;flex-wrap:nowrap"><button class="iconbtn btnBell" type="button" aria-label="Avisos" data-act="openAlerts"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="badge" hidden></span></button><button class="iconbtn btnRefresh" type="button" aria-label="Actualizar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button><button class="iconbtn btnMenu" type="button" aria-label="Opciones"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg></button></div>
     </div>
     
   </div>
@@ -1104,6 +1114,84 @@ function buildPlan(opts={}){
   return (planCache[key]={...res,incomeTotal,oblTotal,end,avail0,cardObl,hasIncome:incomes.length>0});
 }
 
+/* ================= avisos ================= */
+function spendPace(){
+  const t=today(); const day=t.getDate(); if(day<5) return null;
+  const sum=a=>r2(a.reduce((x,e)=>x+(+e.amount||0),0));
+  const key=ds(t).slice(0,7);
+  const cur=sum(all("exp").filter(e=>e.date.slice(0,7)===key&&e.date<=ds(t)&&!(+e.msi>1)));
+  const prev=[1,2,3].map(k=>{ const d=new Date(t.getFullYear(),t.getMonth()-k,1); const kk=ds(d).slice(0,7); return sum(all("exp").filter(e=>e.date.slice(0,7)===kk&&!(+e.msi>1))); }).filter(v=>v>0);
+  if(!prev.length) return null;
+  const avg=prev.reduce((a,b)=>a+b,0)/prev.length; const expected=r2(avg*day/dim(t.getFullYear(),t.getMonth()));
+  if(expected<=0) return null; const ratio=cur/expected;
+  if(ratio>=1.2) return {lvl:"warn",key:"pace-hi-"+key,title:`Vas gastando ${Math.round((ratio-1)*100)}% más de lo normal`,text:`Llevas ${money(cur)} este mes; a estas alturas sueles llevar ${money(expected)}.`,to:"gastos"};
+  if(ratio<=0.75) return {lvl:"good",key:"pace-lo-"+key,title:`Vas gastando ${Math.round((1-ratio)*100)}% menos de lo normal`,text:`Llevas ${money(cur)}; sueles llevar ${money(expected)}. ¡Vas bien!`,to:"gastos"};
+  return null;
+}
+function buildAlerts(){
+  if(!S.loaded||S.mode==="signin") return [];
+  const t=today(), d3=addDays(t,3); const out=[];
+  const when=d=>{ const n=daysBetween(t,d); return n<0?`(venció el ${fDateS(ds(d))})`:n===0?"hoy":n===1?"mañana":`en ${n} días (${fDateS(ds(d))})`; };
+  const lv=d=>{ const n=daysBetween(t,d); return n<=1?"high":"mid"; };
+  try{
+    recommendFutures().forEach(r=>{ const pk=r.pick; if(!pk) return; const n=daysBetween(t,pk.date); if(n<=1) out.push({lvl:n<=0?"high":"mid",key:"fut-"+r.f.id+"-"+ds(pk.date),title:`${n<=0?"Hoy":"Mañana"}: compra ${r.f.name}`,text:`${money(r.f.amount)} ${futMethod(pk)}. Cuando la hagas, toca “Ya lo compré”.`,to:"futuros"}); });
+    all("flow").filter(f=>f.type==="fijo"&&f.active!==false).forEach(f=>{ const o=occurrences(f,t,d3)[0]; if(o) out.push({lvl:lv(o.date),key:"fijo-"+f.id+"-"+ds(o.date),title:`Paga ${f.name} ${when(o.date)}`,text:`${money(o.amount)} · pago fijo`,to:"plan"}); });
+    all("loan").forEach(l=>{ const st=loanState(l); if(!st.next) return; if(daysBetween(t,st.next.date)<=3) out.push({lvl:lv(st.next.date),key:"loan-"+l.id+"-"+st.next.j,title:`Pago de ${l.name} ${when(st.next.date)}`,text:`${money(st.next.amt)} · pago ${st.next.j} de ${st.n}${get(l.payCardId)?` · con ${get(l.payCardId).name}`:""}`,to:"creditos"}); });
+    const plan=buildPlan();
+    (plan.cardObl||[]).forEach(o=>{ if(o.amount<=0.009||o.carried) return; const nDue=daysBetween(t,o.due), nPay=daysBetween(t,o.payOn||o.due);
+      if(nDue>=0&&nDue<=3) out.push({lvl:lv(o.due),key:"card-"+o.card.id+"-"+ds(o.due),title:`${o.name} vence ${when(o.due)}`,text:`Pago total ${money(o.amount)}. Si ya lo pagaste, toca “Ya pagué el corte”.`,to:"tarjetas"});
+      else if(nPay===0) out.push({lvl:"mid",key:"cardpay-"+o.card.id+"-"+ds(o.due),title:`Hoy te conviene pagar ${o.name}`,text:`Pago total ${money(o.amount)} · vence el ${fDateS(ds(o.due))}`,to:"tarjetas"}); });
+    nextIncomes(1).filter(i=>+i.date===+t).forEach(i=>{ const p0=plan.periods[0]; out.push({lvl:"info",key:"inc-"+i.flow.id+"-"+ds(t),title:`Hoy te llega ${i.flow.name}`,text:`${money(i.amount)}${p0&&(p0.save||p0.inv)?` · aparta ${money(p0.save)} a tu fondo de ahorro y ${money(p0.inv)} a inversión`:""}`,to:"plan"}); });
+  }catch(e){ console.error(e); }
+  const pace=spendPace(); if(pace) out.push(pace);
+  if(!all("exp").some(e=>e.date===todayS())) out.push({lvl:"info",key:"log-"+todayS(),title:"¿Ya registraste tus gastos de hoy?",text:"Anótalos para que tu plan esté al día.",to:"newExp"});
+  const order={high:0,mid:1,warn:1,info:2,good:3};
+  return out.sort((a,b)=>order[a.lvl]-order[b.lvl]);
+}
+let lastAlerts=[];
+function updateBell(){
+  lastAlerts=buildAlerts(); const n=lastAlerts.filter(a=>a.lvl==="high"||a.lvl==="mid"||a.lvl==="warn").length;
+  $$(".btnBell .badge").forEach(b=>{ b.hidden=!n; b.textContent=n>9?"9+":String(n); });
+  maybeNotify(lastAlerts);
+}
+const ALERT_COLOR={high:"var(--bad)",mid:"var(--warn)",warn:"var(--warn)",info:"var(--accent)",good:"var(--good)"};
+function alertsHtml(list){
+  if(!list.length) return `<div class="empty" style="padding:16px">No tienes avisos por ahora.</div>`;
+  return `<div class="list">${list.map(a=>`<div class="item" data-act="goAlert" data-to="${a.to}"><span class="dot" style="background:${ALERT_COLOR[a.lvl]};width:10px;height:10px"></span><div class="main"><div class="title" style="white-space:normal">${esc(a.title)}</div><div class="small muted">${esc(a.text)}</div></div></div>`).join("")}</div>`;
+}
+function openAlerts(){
+  document.body.classList.remove("nav-open");
+  const list=buildAlerts();
+  const perm=("Notification" in window)?Notification.permission:"unsupported";
+  openDialog("Avisos",`${alertsHtml(list)}
+    <div class="note small">${perm==="granted"?"Las notificaciones están activadas en este dispositivo: te llegan cuando abres la app o la tienes abierta.":perm==="unsupported"?"Este navegador no permite notificaciones. En iPhone solo funcionan si la app está instalada en tu pantalla de inicio.":`<button class="btn sm pri" id="nEnable">Activar notificaciones en este dispositivo</button>`}</div>`);
+  $("#nEnable") && ($("#nEnable").onclick=enableNotifications);
+}
+let swReg=null;
+async function enableNotifications(){
+  if(!("Notification" in window)){ toast("Este navegador no permite notificaciones"); return; }
+  try{ if("serviceWorker" in navigator&&location.protocol==="https:") swReg=await navigator.serviceWorker.register("sw.js"); }catch(e){}
+  const r=await Notification.requestPermission();
+  if(r==="granted"){ try{ localStorage.removeItem("mc-notified"); }catch(e){} toast("Notificaciones activadas"); maybeNotify(buildAlerts(),true); }
+  else toast("No se activaron las notificaciones");
+  if($("#dlg").open) openAlerts();
+}
+async function maybeNotify(list,force){
+  if(!("Notification" in window)||Notification.permission!=="granted") return;
+  let sent={}; try{ sent=JSON.parse(localStorage.getItem("mc-notified")||"{}"); }catch(e){}
+  const today_=todayS(); Object.keys(sent).forEach(k=>{ if(sent[k]<today_) delete sent[k]; });
+  const fresh=list.filter(a=>a.lvl!=="good"&&!sent[a.key]);
+  if(!fresh.length) return;
+  try{
+    if(!swReg&&"serviceWorker" in navigator&&location.protocol==="https:") swReg=await navigator.serviceWorker.register("sw.js");
+    const show=(title,body,tag)=>swReg?swReg.showNotification(title,{body,tag,icon:"icon-192.png",badge:"icon-192.png",data:{url:location.href.split("#")[0]+"#resumen"}}):new Notification(title,{body,tag,icon:"icon-192.png"});
+    if(fresh.length===1) await show(fresh[0].title,fresh[0].text,fresh[0].key);
+    else await show(`Mi Cartera: ${fresh.length} avisos`,fresh.slice(0,3).map(a=>"• "+a.title).join("\n"),"resumen-"+today_);
+    fresh.forEach(a=>sent[a.key]=today_); localStorage.setItem("mc-notified",JSON.stringify(sent));
+  }catch(e){ console.error(e); }
+}
+setInterval(()=>{ try{ updateBell(); }catch(e){} },30*60*1000);
+
 /* ================= render ================= */
 let view="resumen";
 const charts={};
@@ -1129,6 +1217,7 @@ function render(){
   app.innerHTML=`<section class="view">${sub}${fn()}</section>`;
   if(!window.Chart){ $$("#app canvas").forEach(c=>{ c.parentElement.innerHTML=`<div class="empty">No se pudo cargar la gráfica. Revisa tu conexión y recarga.</div>`; }); }
   decorateKpis();
+  try{ updateBell(); }catch(e){ console.error(e); }
   try{ afterRender[view] && afterRender[view](); }catch(e){ console.error(e); }
 }
 window.addEventListener("hashchange",()=>{ render(); window.scrollTo(0,0); });
@@ -1196,7 +1285,9 @@ function vResumen(){
   const cashNow=cashAvailable().total; const left=r2(cashNow+incTot-monthTot);
   const mesN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][t0.getMonth()];
   const kindTxt={tarjeta:"pago total (saldo + MSI del mes)",prestamo:"pago fijo · crédito",fijo:"pago fijo",futuro:"compra planeada"};
+  const al=buildAlerts(); const alTop=al.filter(a=>a.lvl!=="info"||a.key.startsWith("inc-")).slice(0,3);
   return `
+  ${al.length?`<button type="button" class="alertstrip" data-act="openAlerts">${'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>'}<div><b>${al.length} aviso${al.length===1?"":"s"}</b><span>${esc((alTop[0]||al[0]).title)}${al.length>1?` y ${al.length-1} más`:""}</span></div><span class="chev">›</span></button>`:""}
   <section class="hero soft">
     <div class="eyebrow">Te falta pagar en ${mesN}</div>
     <div class="big">${money(monthTot)}</div>
@@ -2283,6 +2374,8 @@ document.addEventListener("click",async ev=>{
     case "newLoan": loanForm(); break;
     case "newFuture": futureForm(); break;
     case "planAdd": planAddMenu(); break;
+    case "openAlerts": openAlerts(); break;
+    case "goAlert": closeDialog(); if(t.dataset.to==="newExp") expForm(); else location.hash=t.dataset.to; break;
     case "didSave": fundDepositForm(t.dataset.purpose,+t.dataset.amt,t.dataset.per); break;
     case "fundDeposit": fundDepositForm(t.dataset.purpose,0,""); break;
     case "stmtPaid": stmtPaidForm(id); break;
@@ -2322,6 +2415,7 @@ const openOptions=()=>{ document.body.classList.remove("nav-open");
       <div class="temas">${TEMAS.map(([k,n,c,i])=>`<button type="button" data-tema="${k}" class="${(document.documentElement.dataset.tema||"suave")===k?"on":""}"><i style="background:linear-gradient(135deg,${c},${i})"></i>${n}</button>`).join("")}</div></div>
     <div class="row"><button class="btn" id="oExp">Descargar respaldo (JSON)</button><button class="btn" id="oCsv">Descargar gastos (CSV)</button></div>
     <div class="row"><label class="btn">Importar respaldo<input type="file" accept="application/json,.json" id="oImp" hidden></label><button class="btn" data-act="loadSample">Cargar datos de ejemplo</button></div>
+    <div><div class="small muted" style="font-weight:700;margin-bottom:8px">Notificaciones</div><button class="btn" data-act="openAlerts">Ver avisos y activar notificaciones</button></div>
     <div class="confirm" id="wipeZone"><button class="btn danger" id="oWipe">Borrar todos mis datos</button></div>
     ${S.mode==="fb"?`<button class="btn" id="oOut">Cerrar sesión</button>`:S.mode==="signin"?`<button class="btn pri" data-act="signIn">Entrar con Google</button>`:""}
     <div class="small muted" id="oMsg"></div>`);
@@ -2341,7 +2435,7 @@ const openOptions=()=>{ document.body.classList.remove("nav-open");
     $("#oWipe2").onclick=async()=>{ for(const id of [...S.items.keys()]) await del(id); closeDialog(); toast("Datos borrados"); }; };
 };
 
-$$(".btnMenu:not(.btnRefresh)").forEach(b=>b.onclick=openOptions);
+$$(".btnMenu:not(.btnRefresh):not(.btnBell)").forEach(b=>b.onclick=openOptions);
 function hardRefresh(b){ if(b) b.classList.add("spin"); toast("Actualizando…"); try{ sessionStorage.setItem("mc-refreshed","1"); }catch(e){}
   setTimeout(()=>{ const u=new URL(location.href); u.searchParams.set("v",Date.now()); location.replace(u.pathname+u.search+location.hash); },250); }
 $$(".btnRefresh").forEach(b=>b.onclick=()=>hardRefresh(b));
