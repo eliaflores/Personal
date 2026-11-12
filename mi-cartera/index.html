@@ -658,11 +658,16 @@ function cardState(card){
       nextPay:P,stmtCut:L,revDue,msiDue,noInt:r2(revDue+msiDue),payTotal:r2(Math.max(0,rev)+msiDue),nextCut,loanItems,loanDue,
       daysToPay:daysBetween(t,P)});
   } else {
-    const spent=r2(exps.reduce((s,e)=>s+(+e.amount||0),0));
-    const dep=r2(pays.reduce((s,p)=>s+(+p.amount||0),0));
+    // solo cuenta lo que pasó después del saldo que capturaste
+    const inRange=x=>{ const d=x.date||""; if(d>initDate) return true; if(d<initDate) return false; return !card.balanceSetAt||(x.createdAt||0)>card.balanceSetAt; };
+    const sum=a=>r2(a.reduce((s,x)=>s+(+x.amount||0),0));
+    const spent=sum(exps.filter(inRange));
+    const dep=sum(pays.filter(inRange));
     const lids=new Set(all("loan").filter(l=>l.payCardId===card.id).map(l=>l.id));
-    const loanOut=r2(all("loanpay").filter(p=>lids.has(p.loanId)).reduce((s,p)=>s+(+p.amount||0),0));
-    Object.assign(st,{spent,dep,loanOut,balance:r2(init+dep-spent-loanOut)});
+    const loanOut=sum(all("loanpay").filter(p=>lids.has(p.loanId)&&inRange(p)));
+    const paidOutList=[...all("pay").filter(p=>p.fromId===card.id&&inRange(p)),...all("loanpay").filter(p=>p.fromId===card.id&&!lids.has(p.loanId)&&inRange(p))];
+    const paidOut=sum(paidOutList);
+    Object.assign(st,{spent,dep,loanOut,paidOut,paidOutList,balance:r2(init+dep-spent-loanOut-paidOut)});
   }
   cacheState.set(card.id,st);
   return st;
@@ -841,77 +846,87 @@ function nextIncomes(days){ const t=today(); return all("flow").filter(f=>f.type
 
 /* ================= plan de pagos ================= */
 const planCache={};
+function cashAvailable(){
+  const debits=all("card").filter(c=>c.type!=="credito").map(c=>({card:c,bal:cardState(c).balance}));
+  const cash=+settings().cash||0;
+  return {cash,debits,total:r2(cash+debits.reduce((s,d)=>s+d.bal,0))};
+}
 function buildPlan(opts={}){
   const key=opts.noFutures?"base":"full"; if(planCache[key]) return planCache[key];
   const s=settings();
   const t=today(); const end=addDays(t,opts.horizon||+s.horizon||60);
+  const avail0=cashAvailable().total;
   const incomes=all("flow").filter(f=>f.type==="ingreso").flatMap(f=>occurrences(f,t,end)).sort((a,b)=>a.date-b.date);
   const fixed=all("flow").filter(f=>f.type==="fijo").flatMap(f=>occurrences(f,t,end));
   const cards=all("card").filter(c=>c.type==="credito");
   const stmts=cards.flatMap(c=>projectStatements(c,end));
   const loanObl=[];
   all("loan").forEach(l=>{ const st=loanState(l); for(let j=st.done+1;j<=st.n;j++){ let d=st.dueOf(j); if(d>end) break; if(d<t) d=new Date(t); const amt=j===st.done+1?st.next.amt:st.amtOf(j); loanObl.push({kind:"prestamo",date:d,amount:amt,must:amt,name:l.name+(get(l.payCardId)?` (con ${get(l.payCardId).name})`:""),rate:+l.rate||0,loanJ:j,loanN:st.n}); } });
+  const cardObl=stmts.map(x=>({kind:"tarjeta",date:x.date,due:x.date,cut:x.cut,amount:x.total,must:x.msi,name:x.card.name,card:x.card,stmt:x,rate:+x.card.rate||0,futs:[]}));
   const futObl=[];
   if(!opts.noFutures) recommendFutures().forEach(r=>{ if(!r.pick) return; r.pick.payments.forEach((p,k)=>{ if(p.date>end) return;
     const sav=r2(p.fromSav.reduce((x,y)=>x+y.amt,0)); const cashPart=r2(p.amount-sav);
-    futObl.push({kind:"futuro",date:p.date<t?new Date(t):p.date,amount:cashPart,must:cashPart,full:p.amount,fromSav:p.fromSav,name:r.f.name,fut:r.f,pick:r.pick,k,rate:0}); }); });
-  const obligations=[...loanObl,...futObl,
-    ...fixed.map(o=>({kind:"fijo",date:o.date,amount:o.amount,name:o.flow.name,must:o.amount,rate:0})),
-    ...stmts.map(x=>({kind:"tarjeta",date:x.date,amount:x.total,must:x.msi,name:x.card.name,card:x.card,stmt:x,rate:+x.card.rate||0}))
-  ].sort((a,b)=>a.date-b.date);
-  // periodos: [hoy, ingreso1), [ingreso1, ingreso2) ...
-  const starts=[{date:t,amount:+s.cash||0,label:"Dinero disponible hoy",isCash:true}];
-  incomes.forEach(i=>starts.push({date:i.date,amount:i.amount,label:i.flow.name}));
-  // juntar ingresos del mismo día
-  const merged=[];
-  for(const st of starts){ const last=merged[merged.length-1]; if(last && +last.date===+st.date){ last.amount+=st.amount; last.label+=" + "+st.label; } else merged.push({...st}); }
-  const periods=merged.map((p,i)=>({start:p.date,end:i<merged.length-1?addDays(merged[i+1].date,-1):end,income:p.amount,label:p.label,isCash:p.isCash,obl:[],lines:[]}));
-  obligations.forEach(o=>{ const per=periods.slice().reverse().find(p=>o.date>=p.start) || periods[0]; per.obl.push(o); });
-  // cada obligación se paga con el dinero que tengas ANTES de su fecha
-  let carry=0; const pct=(+s.savingsPct||0)/100;
-  const series=[{date:t,bal:+s.cash||0}];
-  let totalShort=0, totalInt=0;
-  periods.forEach((per,idx)=>{
-    let avail=r2(carry+(per.isCash?per.income:per.income));
-    per.availStart=avail;
-    // prioridad: fijos y mensualidades MSI (mínimos obligatorios) por fecha, luego saldos de tarjeta por tasa más alta
-    const lines=[];
-    const ob=per.obl.slice().sort((a,b)=>a.date-b.date);
-    for(const o of ob){
-      const take=Math.min(avail,o.must); avail=r2(avail-take);
-      lines.push({o,pay:take,shortMust:r2(o.must-take)});
-    }
-    const revOrder=lines.filter(l=>l.o.kind==="tarjeta").sort((a,b)=>(b.o.rate-a.o.rate)||(a.o.date-b.o.date));
-    for(const l of revOrder){
-      const need=r2(l.o.amount-l.pay); const take=Math.min(avail,need); l.pay=r2(l.pay+take); avail=r2(avail-take);
-    }
-    lines.forEach(l=>{
-      l.short=r2(l.o.amount-l.pay);
-      if(l.short>0.009){ totalShort=r2(totalShort+l.short); if(l.o.kind==="tarjeta"){ const revUnpaid=Math.max(0,r2(l.short-l.shortMust)); l.interest=r2(revUnpaid*(l.o.rate/100)/12*1.16); totalInt=r2(totalInt+l.interest); } }
+    if(r.pick.type==="card"){
+      // la compra planeada con tarjeta se paga junto con esa tarjeta, en su mismo estado de cuenta
+      const c=r.pick.card; let co=cardObl.find(o=>o.card.id===c.id&&+o.due===+p.date);
+      if(!co){ co={kind:"tarjeta",date:p.date,due:p.date,cut:lastCutBefore(c,p.date),amount:0,must:0,name:c.name,card:c,stmt:{msi:0,first:false,total:0},rate:+c.rate||0,futs:[]}; cardObl.push(co); }
+      co.amount=r2(co.amount+cashPart); if(r.pick.months) co.must=r2(co.must+cashPart);
+      co.futs.push({name:r.f.name,amt:p.amount,cash:cashPart,fromSav:p.fromSav,k,months:r.pick.months});
+    } else futObl.push({kind:"futuro",date:p.date<t?new Date(t):p.date,amount:cashPart,must:cashPart,full:p.amount,fromSav:p.fromSav,name:r.f.name,fut:r.f,pick:r.pick,k,rate:0});
+  }); });
+  const obligations=[...loanObl,...futObl,...fixed.map(o=>({kind:"fijo",date:o.date,amount:o.amount,name:o.flow.name,must:o.amount,rate:0})),...cardObl];
+  const simulate=()=>{
+    const obl=obligations.slice().sort((a,b)=>a.date-b.date);
+    const starts=[{date:t,amount:avail0,label:"Dinero disponible hoy",isCash:true}];
+    incomes.forEach(i=>starts.push({date:i.date,amount:i.amount,label:i.flow.name}));
+    const merged=[];
+    for(const st of starts){ const last=merged[merged.length-1]; if(last && +last.date===+st.date){ last.amount+=st.amount; last.label+=" + "+st.label; } else merged.push({...st}); }
+    const periods=merged.map((p,i)=>({start:p.date,end:i<merged.length-1?addDays(merged[i+1].date,-1):end,income:p.amount,label:p.label,isCash:p.isCash,obl:[],lines:[]}));
+    obl.forEach(o=>{ const per=periods.slice().reverse().find(p=>o.date>=p.start) || periods[0]; per.obl.push(o); });
+    let carry=0; const pct=(+s.savingsPct||0)/100; let totalShort=0, totalInt=0;
+    periods.forEach((per,idx)=>{
+      let avail=r2(carry+per.income); per.availStart=avail;
+      const lines=[];
+      for(const o of per.obl.slice().sort((a,b)=>a.date-b.date)){ const take=Math.min(avail,o.must); avail=r2(avail-take); lines.push({o,pay:take,shortMust:r2(o.must-take)}); }
+      for(const l of lines.filter(l=>l.o.kind==="tarjeta").sort((a,b)=>(b.o.rate-a.o.rate)||(a.o.date-b.o.date))){ const need=r2(l.o.amount-l.pay); const take=Math.min(avail,need); l.pay=r2(l.pay+take); avail=r2(avail-take); }
+      lines.forEach(l=>{ l.short=r2(l.o.amount-l.pay);
+        if(l.short>0.009){ totalShort=r2(totalShort+l.short); if(l.o.kind==="tarjeta"){ const revUnpaid=Math.max(0,r2(l.short-l.shortMust)); l.interest=r2(revUnpaid*(l.o.rate/100)/12*1.16); totalInt=r2(totalInt+l.interest); } } });
+      const nextNeed = periods[idx+1] ? periods[idx+1].obl.reduce((s,o)=>s+o.amount,0) - periods[idx+1].income : 0;
+      let save=0;
+      if(!per.isCash && lines.every(l=>l.short<=0.009)){ save=Math.max(0,r2(Math.min(r2(per.income*pct), Math.max(0, r2(avail - Math.max(0,nextNeed)))))); }
+      avail=r2(avail-save);
+      per.lines=lines.sort((a,b)=>a.o.date-b.o.date); per.save=save; per.left=avail; carry=avail;
     });
-    // apartar para ahorro sólo si todo lo de este periodo y el siguiente quedó cubierto
-    const nextNeed = periods[idx+1] ? periods[idx+1].obl.reduce((s,o)=>s+o.amount,0) - periods[idx+1].income : 0;
-    let save=0;
-    if(!per.isCash && lines.every(l=>l.short<=0.009)){
-      save=Math.min(r2(per.income*pct), Math.max(0, r2(avail - Math.max(0,nextNeed))));
-      save=Math.max(0,r2(save));
-    }
-    avail=r2(avail-save);
-    per.lines=lines.sort((a,b)=>a.o.date-b.o.date); per.save=save; per.left=avail;
-    carry=avail;
-    // serie de saldo proyectado
-    if(!per.isCash) series.push({date:per.start,bal:r2(per.availStart)});
-    lines.forEach(l=>series.push({date:l.o.date,bal:null,delta:-l.pay}));
+    const ev=[];
+    periods.forEach(per=>{ ev.push({d:per.start,v:per.income}); if(per.save) ev.push({d:per.start,v:-per.save}); per.lines.forEach(l=>ev.push({d:l.o.date,v:-l.pay})); });
+    ev.sort((a,b)=>a.d-b.d);
+    const daily=[]; let bal=0, j=0;
+    for(let d=new Date(t); d<=end; d=addDays(d,1)){ while(j<ev.length && ev[j].d<=d){ bal=r2(bal+ev[j].v); j++; } daily.push({d:new Date(d),bal}); }
+    return {periods,daily,totalShort,totalInt,saveTotal:periods.reduce((s,p)=>s+p.save,0)};
+  };
+  // 1ª pasada: cada tarjeta se paga en su fecha límite
+  let res=simulate();
+  // fecha conveniente: entre el día después del corte y la fecha límite, el primer día (hoy o día de sueldo)
+  // en que puedes pagarla completa sin quedarte corto para tus otros pagos
+  const bal=res.daily.map(x=>x.bal); const idx=d=>Math.max(0,Math.min(bal.length-1,daysBetween(t,d)));
+  const incDates=[...new Set(incomes.map(i=>+i.date))].map(x=>new Date(x));
+  cardObl.slice().sort((a,b)=>a.due-b.due).forEach(o=>{
+    const ws0=addDays(o.cut,1); const ws=ws0>t?ws0:new Date(t); const last=addDays(o.due,-1);
+    o.window={from:ws,to:o.due};
+    if(o.amount<=0.009||last<ws){ o.payOn=o.due; o.why=last<ws?"vence muy pronto":""; return; }
+    const cands=[ws,...incDates.filter(d=>d>ws&&d<=last)];
+    let pick=null;
+    for(const d of cands){ let ok=true; for(let k=idx(d);k<idx(o.due);k++){ if(bal[k]<o.amount-0.009){ ok=false; break; } } if(ok){ pick=d; break; } }
+    if(pick){ for(let k=idx(pick);k<idx(o.due);k++) bal[k]=r2(bal[k]-o.amount); o.payOn=pick;
+      o.why=+pick===+ws?(ws0>t?"en cuanto sale tu estado de cuenta":"ya tienes el dinero"):"cuando te llegue tu sueldo"; }
+    else { o.payOn=o.due; o.why="no te alcanza antes; paga a más tardar ese día"; }
+    o.date=o.payOn;
   });
-  // reconstruir serie diaria simple
-  const ev=[];
-  periods.forEach(per=>{ if(!per.isCash) ev.push({d:per.start,v:per.income}); if(per.save) ev.push({d:per.start,v:-per.save}); per.lines.forEach(l=>ev.push({d:l.o.date,v:-l.pay})); });
-  ev.sort((a,b)=>a.d-b.d);
-  const daily=[]; let bal=+s.cash||0, j=0;
-  for(let d=new Date(t); d<=end; d=addDays(d,1)){ while(j<ev.length && ev[j].d<=d){ bal=r2(bal+ev[j].v); j++; } daily.push({d:new Date(d),bal}); }
+  // 2ª pasada con las fechas recomendadas
+  res=simulate();
   const incomeTotal=incomes.reduce((s,i)=>s+i.amount,0);
   const oblTotal=obligations.reduce((s,o)=>s+o.amount,0);
-  return (planCache[key]={periods,daily,totalShort,totalInt,incomeTotal,oblTotal,end,hasIncome:incomes.length>0,saveTotal:periods.reduce((s,p)=>s+p.save,0)});
+  return (planCache[key]={...res,incomeTotal,oblTotal,end,avail0,cardObl,hasIncome:incomes.length>0});
 }
 
 /* ================= render ================= */
@@ -998,11 +1013,11 @@ function vResumen(){
   const accTot=all("account").reduce((s,a)=>s+(+a.balance||0),0);
   const owe=r2(debt+loanRem);
   const t0=today(), mEnd=new Date(t0.getFullYear(),t0.getMonth()+1,0);
-  const monthLines=plan.periods.flatMap(p=>p.lines).filter(l=>l.o.date<=mEnd).map(l=>({date:l.o.date,name:l.o.kind==="tarjeta"?"Tarjeta "+l.o.name:l.o.kind==="futuro"?l.o.name+" (planeada)":l.o.name,amt:r2(l.o.full||l.o.amount),kind:l.o.kind})).filter(x=>x.amt>0.009).sort((a,b)=>a.date-b.date);
+  const monthLines=plan.periods.flatMap(p=>p.lines).filter(l=>(l.o.due||l.o.date)<=mEnd).map(l=>({date:l.o.date,due:l.o.due,name:l.o.kind==="tarjeta"?"Tarjeta "+l.o.name:l.o.kind==="futuro"?l.o.name+" (planeada)":l.o.name,amt:r2(l.o.full||l.o.amount),kind:l.o.kind,futs:l.o.futs})).filter(x=>x.amt>0.009).sort((a,b)=>a.date-b.date);
   const monthTot=r2(monthLines.reduce((s,x)=>s+x.amt,0));
   const incMonth=nextIncomes(45).filter(i=>i.date<=mEnd); const incTot=r2(incMonth.reduce((s,i)=>s+i.amount,0));
   const nextInc=nextIncomes(45)[0];
-  const cashNow=+settings().cash||0; const left=r2(cashNow+incTot-monthTot);
+  const cashNow=cashAvailable().total; const left=r2(cashNow+incTot-monthTot);
   const mesN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][t0.getMonth()];
   const kindTxt={tarjeta:"pago total (saldo + MSI del mes)",prestamo:"pago de crédito",fijo:"gasto fijo",futuro:"compra planeada"};
   return `
@@ -1010,9 +1025,10 @@ function vResumen(){
     <div class="eyebrow">Te falta pagar en ${mesN}</div>
     <div class="big">${money(monthTot)}</div>
     <div style="color:var(--ink-muted);margin-top:4px;font-size:13.5px">${monthLines.length?`${monthLines.length} pago(s) de hoy al ${mEnd.getDate()} de ${mesN}`:`No tienes pagos pendientes lo que queda del mes`}</div>
-    ${monthLines.length?`<div class="plist">${monthLines.slice(0,7).map(x=>`<div class="pr"><div class="dt"><b>${x.date.getDate()}</b><span>${MES[x.date.getMonth()]}</span></div><div class="nm">${esc(x.name)}<small>${kindTxt[x.kind]||""}</small></div><div class="am">${money(x.amt)}</div></div>`).join("")}${monthLines.length>7?`<div class="small" style="color:var(--ink-muted);padding-top:6px">y ${monthLines.length-7} más en el <a href="#plan" style="color:var(--mint)">plan de pagos</a></div>`:""}</div>`:""}
+    ${monthLines.length?`<div class="plist">${monthLines.slice(0,7).map(x=>`<div class="pr"><div class="dt"><b>${x.date.getDate()}</b><span>${MES[x.date.getMonth()]}</span></div><div class="nm">${esc(x.name)}<small>${x.kind==="tarjeta"?`págala este día · vence ${fDateS(ds(x.due))}${x.futs&&x.futs.length?" · incluye compra planeada":""}`:(kindTxt[x.kind]||"")}</small></div><div class="am">${money(x.amt)}</div></div>`).join("")}${monthLines.length>7?`<div class="small" style="color:var(--ink-muted);padding-top:6px">y ${monthLines.length-7} más en el <a href="#plan" style="color:var(--mint)">plan de pagos</a></div>`:""}</div>`:""}
     <div class="row-stats">
       <div class="stat"><span>${nextInc?`Próximo sueldo · ${["dom","lun","mar","mié","jue","vie","sáb"][nextInc.date.getDay()]} ${fDateS(ds(nextInc.date))}`:"Tu sueldo"}</span><b>${nextInc?money(nextInc.amount):`<a href="#" data-act="newSalary" style="color:var(--mint)">Agregar sueldo</a>`}</b></div>
+      <div class="stat"><span>Tienes hoy (débito y efectivo)</span><b>${money(cashNow)}</b></div>
       <div class="stat"><span>Te llega antes de fin de mes</span><b>${money(incTot)}</b></div>
       <div class="stat"><span>Te quedaría a fin de mes</span><b style="color:${left<0?"#ff9b93":"#fff"}">${money(left)}</b></div>
     </div>
@@ -1026,7 +1042,7 @@ function vResumen(){
     ${all("account").length?`<div class="panel kpi"><span class="lbl">En apartados</span><span class="val num">${money(all("account").reduce((s,a)=>s+(+a.balance||0),0))}</span><span class="sub">${all("account").length} apartado(s)</span></div>`:`<div class="panel kpi"><span class="lbl">Ahorrado</span><span class="val num">${money(saved)}</span><span class="sub">${all("goal").length} meta(s)</span></div>`}
   </div>
   ${lnx?`<div class="note ${lnx.overdue?"bad":"warn"}"><b>Crédito:</b> ${esc(lnx.loan.name)} · pago ${lnx.next.j} de ${lnx.n} por <b class="num">${money(lnx.next.amt)}</b> ${lnx.overdue?`venció el <b>${fDate(ds(lnx.next.date))}</b>`:`vence el <b>${fDate(ds(lnx.next.date))}</b>`}. <a href="#creditos">Ver créditos</a></div>`:""}
-  ${nx?`<div class="note ${nx.daysToPay<=3?"bad":nx.daysToPay<=7?"warn":"acc"}"><b>Próximo pago:</b> ${esc(nx.card.name)} vence el <b>${fDate(ds(nx.nextPay))}</b> (${nx.daysToPay===0?"hoy":nx.daysToPay===1?"mañana":"en "+nx.daysToPay+" días"}). Paga el total: <b class="num">${money(nx.payTotal)}</b>${nx.msiDue>0?` (${money(Math.max(0,nx.rev))} de saldo + ${money(nx.msiDue)} de mensualidades del mes)`:""}. <a href="#plan">Ver plan de pagos</a></div>`:""}
+  ${nx?`<div class="note ${nx.daysToPay<=3?"bad":nx.daysToPay<=7?"warn":"acc"}"><b>Próximo pago:</b> ${esc(nx.card.name)} vence el <b>${fDate(ds(nx.nextPay))}</b>${(()=>{ const co=(plan.cardObl||[]).find(o=>o.card.id===nx.card.id&&+o.due===+nx.nextPay); return co&&+co.payOn!==+co.due?`; te conviene pagarla el <b>${fDate(ds(co.payOn))}</b> (${esc(co.why)})`:""; })()} (${nx.daysToPay===0?"hoy":nx.daysToPay===1?"mañana":"en "+nx.daysToPay+" días"}). Paga el total: <b class="num">${money(nx.payTotal)}</b>${nx.msiDue>0?` (${money(Math.max(0,nx.rev))} de saldo + ${money(nx.msiDue)} de mensualidades del mes)`:""}. <a href="#plan">Ver plan de pagos</a></div>`:""}
   <section class="hero soft">
     <div class="eyebrow">Debes en total</div>
     <div class="big">${money(owe)}</div>
@@ -1146,12 +1162,13 @@ function vTarjetas(){
       ${st.isCredit?`<div class="card-meta">
         <div><span>Corte</span><span>día ${c.cutDay} · próximo ${fDateS(ds(st.nextCut))}</span></div>
         <div><span>Fecha límite de pago</span><span>${fDateS(ds(st.nextPay))} ${st.daysToPay<=5&&st.payTotal>0?`<span class="chip bad">${st.daysToPay} días</span>`:""}</span></div>
+        ${(()=>{ const co=(buildPlan().cardObl||[]).find(o=>o.card.id===c.id&&+o.due===+st.nextPay); return co&&co.amount>0.009?`<div><span>Conviene pagarla</span><span style="color:var(--accent);font-weight:700">${fDateS(ds(co.payOn))}</span></div>`:""; })()}
         <div><span>Pago total del mes</span><span class="num" style="color:var(--accent)">${money(st.payTotal)}</span></div>
         <div><span>Mensualidades MSI</span><span class="num">${money(st.msiDue)}</span></div>
         <div><span>Saldo normal</span><span class="num">${money(st.rev)}</span></div>
         <div><span>Uso</span><span>${utilChip(st.util)}</span></div>
         ${st.loanDue>0?`<div><span>Préstamos en esta tarjeta</span><span class="num">${money(st.loanDue)}</span></div><div><span>Total a pagar el ${fDateS(ds(st.nextPay))}</span><span class="num" style="color:var(--accent)">${money(st.payTotal+st.loanDue)}</span></div>`:""}
-      </div>`:`<div class="card-meta"><div><span>Depósitos</span><span class="num">${money(st.dep)}</span></div><div><span>Gastos</span><span class="num">${money(st.spent)}</span></div>${st.loanOut?`<div><span>Pagos de préstamos</span><span class="num">${money(st.loanOut)}</span></div>`:""}</div>`}
+      </div>`:`<div class="card-meta"><div><span>Saldo capturado (${fDateS(c.initialDate||todayS())})</span><span class="num">${money(+c.initialBalance||0)}</span></div><div><span>Depósitos</span><span class="num">${money(st.dep)}</span></div><div><span>Gastos</span><span class="num">${money(st.spent)}</span></div>${st.paidOut?`<div><span>Pagos de tarjetas</span><span class="num">${money(st.paidOut)}</span></div>`:""}${st.loanOut?`<div><span>Pagos de préstamos</span><span class="num">${money(st.loanOut)}</span></div>`:""}<div><span>Cuenta para tus pagos</span><span class="chip good">sí</span></div></div>`}
     </div>`;}).join("")}</div>`;
 }
 function cardDetail(id){
@@ -1174,6 +1191,8 @@ function cardDetail(id){
     <div class="note acc"><b>Pago total antes del ${fDate(ds(st.nextPay))}: <span class="num">${money(st.payTotal)}</span></b><br>
       <span class="num">${money(Math.max(0,st.rev))}</span> de saldo (todas tus compras normales, aunque sean de después del corte) + <span class="num">${money(st.msiDue)}</span> de mensualidades de este mes. Las mensualidades que faltan de tus compras a meses no se incluyen.${st.loanDue>0?`<br>Con tus préstamos en esta tarjeta: <b class="num">${money(st.payTotal+st.loanDue)}</b>.`:""}</div>
     <h3>Compras a meses sin intereses</h3>${plansHtml}`:""}
+    ${st.isCredit?"":`<div class="note acc"><b>Saldo estimado: <span class="num">${money(st.balance)}</span></b><div class="small" style="margin-top:4px">Tu saldo del ${fDate(c.initialDate||todayS())} (${money(+c.initialBalance||0)}) más depósitos, menos gastos y pagos hechos desde esta cuenta. Este dinero cuenta como disponible para tus pagos.</div>
+      <div class="row" style="margin-top:10px"><input type="number" id="dbBal" step="0.01" inputmode="decimal" placeholder="Saldo real de hoy" style="max-width:200px"><button class="btn sm pri" id="dbSet" type="button">Actualizar saldo</button></div></div>`}
     <h3>Pagos ${st.isCredit?"":"y depósitos"}</h3>
     ${pays.length?`<div class="list">${pays.map(p=>payRow(p,st)).join("")}</div>`:`<p class="muted">Sin pagos registrados.</p>`}
     <h3>Fotos de los gastos (${photos.length})</h3>
@@ -1181,12 +1200,23 @@ function cardDetail(id){
     <h3>Gastos (${st.exps.length})</h3>${expList(st.exps.slice().reverse().slice(0,30))}
   `,`<div class="confirm" id="delZone"><button class="btn danger" data-act="askDelete" data-id="${c.id}">Borrar tarjeta</button></div>
      <div class="row"><button class="btn" data-act="editCard" data-id="${c.id}">Editar</button>${st.isCredit?`<button class="btn pri" data-act="newPay" data-card="${c.id}">Registrar pago</button>`:""}</div>`);
+  attachDebitUpdate(c);
+}
+function fromOptions(sel){
+  const debs=all("card").filter(c=>c.type!=="credito").map(c=>({c,b:cardState(c).balance})).sort((a,b)=>b.b-a.b);
+  let last=""; try{ last=localStorage.getItem("mc-from")||""; }catch(e){}
+  const def=sel!==undefined?sel:(debs.some(x=>x.c.id===last)?last:(debs[0]?debs[0].c.id:""));
+  return debs.map(x=>`<option value="${x.c.id}" ${x.c.id===def?"selected":""}>${esc(x.c.name)} (tienes ${money(x.b)})</option>`).join("")+`<option value="" ${def===""?"selected":""}>Efectivo u otra cuenta</option>`;
+}
+function attachDebitUpdate(c){
+  const b=$("#dbSet"); if(!b) return;
+  b.onclick=async()=>{ const v=$("#dbBal").value; if(v===""||isNaN(+v)) return; await put({...c,initialBalance:r2(+v),initialDate:todayS(),balanceSetAt:Date.now()}); toast("Saldo actualizado"); closeDialog(); };
 }
 function payRow(p,st){
   const parts=(st.allocs[p.id]||[]);
   const label={mensualidad:"mensualidad de",adelanto:"adelanto a",saldo:"saldo normal",favor:"saldo a favor",deposito:"depósito"};
   return `<div class="item" style="cursor:default;align-items:flex-start"><span class="thumb" style="background:var(--good-soft);color:var(--good)">$</span>
-    <div class="main"><div class="spread"><span class="title">Pago ${fDateS(p.date)}${p.note?` · ${esc(p.note)}`:""}</span><span class="num" style="color:var(--good)">${money(p.amount)}</span></div>
+    <div class="main"><div class="spread"><span class="title">Pago ${fDateS(p.date)}${p.note?` · ${esc(p.note)}`:""}${get(p.fromId)?` · desde ${esc(get(p.fromId).name)}`:""}</span><span class="num" style="color:var(--good)">${money(p.amount)}</span></div>
       ${st.isCredit?`<div class="alloc"><span>Liberó <b class="num">${money(p.amount)}</b> de crédito:</span>${parts.map(a=>{ const pl=st.plans.find(x=>x.id===a.to); return `<span>· <span class="num">${money(a.amt)}</span> ${label[a.kind]} ${pl?esc(pl.exp.desc||"compra a meses"):""}</span>`; }).join("")}</div>`:""}
     </div><button class="btn sm ghost" data-act="delPay" data-id="${p.id}" title="Borrar pago" aria-label="Borrar pago">✕</button></div>`;
 }
@@ -1259,10 +1289,11 @@ function vPlan(){
   <div class="grid g-2">
     <div class="panel"><div class="panel-h"><h3>Tu dinero</h3></div>
       <div class="fgrid">
-        <label class="f">Dinero disponible hoy<input type="number" id="sCash" step="0.01" inputmode="decimal" value="${s.cash||""}" placeholder="0.00"></label>
+        <label class="f">Efectivo en mano<input type="number" id="sCash" step="0.01" inputmode="decimal" value="${s.cash||""}" placeholder="0.00"></label>
         <label class="f">% de cada ingreso para ahorrar<input type="number" id="sPct" min="0" max="100" value="${s.savingsPct??10}"></label>
         <label class="f">Planear a<select id="sHor">${[30,60,90].map(d=>`<option value="${d}" ${(+s.horizon||60)===d?"selected":""}>${d} días</option>`).join("")}</select></label>
       </div>
+      ${(()=>{ const ca=cashAvailable(); return `<div class="note" style="margin-top:12px">Dinero disponible para pagar hoy: <b class="num">${money(ca.total)}</b>${ca.debits.length?`<div class="small muted" style="margin-top:4px">${ca.debits.map(d=>`${esc(d.card.name)} ${money(d.bal)}`).join(" · ")}${ca.cash?` · efectivo ${money(ca.cash)}`:""}. Tus apartados no cuentan, a menos que una compra futura lo permita.</div>`:`<div class="small muted" style="margin-top:4px">Agrega tus tarjetas de débito (como Mercado Pago) con su saldo para que cuenten aquí.</div>`}</div>`; })()}
       <div class="spread" style="margin-top:14px"><h3>Ingresos</h3><button class="btn sm" data-act="newFlow" data-type="ingreso">＋ Ingreso</button></div>
       ${inc.length?`<div class="list">${inc.map(flowRow).join("")}</div><div class="small muted" style="margin-top:6px">Próximos: ${nextIncomes(60).slice(0,4).map(i=>`${fDateS(ds(i.date))} ${money(i.amount)}`).join(" · ")||"—"}</div>`:`<div class="note acc">Agrega tu sueldo una vez y la app calcula sola los siguientes pagos. <button class="btn sm pri" data-act="newSalary">Agregar sueldo</button></div>`}
       <div class="spread" style="margin-top:14px"><h3>Gastos fijos</h3><button class="btn sm" data-act="newFlow" data-type="fijo">＋ Gasto fijo</button></div>
@@ -1286,7 +1317,10 @@ function vPlan(){
     <div class="period-b">
       ${p.lines.length?p.lines.map(l=>`<div class="pline"><div class="what"><b>${l.o.kind==="futuro"?(l.o.pick.type==="card"?`Paga en ${esc(l.o.pick.card.name)}: ${esc(l.o.name)}${l.o.pick.months?` <span class="chip">${l.o.k+1} de ${l.o.pick.months} MSI</span>`:""}`:`Compra: ${esc(l.o.name)}`)+` <span class="chip acc">planeada</span>`:l.o.kind==="tarjeta"?"Paga "+esc(l.o.name):l.o.kind==="prestamo"?"Pago de "+esc(l.o.name)+` <span class="chip">${l.o.loanJ} de ${l.o.loanN}</span>`:esc(l.o.name)}</b>
           ${l.o.kind==="futuro"&&l.o.fromSav.length?`<div class="small" style="color:var(--accent)">${l.o.fromSav.map(x=>`Toma ${money(x.amt)} de ${esc(x.acc.name)}`).join(" · ")}</div>`:""}
-          <div class="small muted">${l.o.kind==="futuro"&&l.o.pick.type==="cash"?"cómprala el":"vence"} ${fDate(ds(l.o.date))}${l.o.kind==="tarjeta"?` · pago total ${money(l.o.amount)}${l.o.stmt.msi?` (incluye ${money(l.o.stmt.msi)} de MSI del mes)`:""}${l.o.stmt.first?"":" · estimado"}`:""}</div>
+          ${l.o.kind==="tarjeta"?`<div class="small"><b style="color:var(--accent)">Págala el ${fDate(ds(l.o.date))}</b>${l.o.why?` · ${esc(l.o.why)}`:""}</div>
+          <div class="small muted">Puedes pagarla del ${fDateS(ds(l.o.window?l.o.window.from:l.o.date))} al ${fDate(ds(l.o.due))} (fecha límite) · pago total ${money(l.o.amount)}${l.o.stmt.msi?` (incluye ${money(l.o.stmt.msi)} de MSI del mes)`:""}${l.o.stmt.first?"":" · estimado"}</div>
+          ${(l.o.futs||[]).map(fu=>`<div class="small" style="color:var(--accent)">Incluye ${esc(fu.name)} <span class="chip acc">planeada</span>${fu.months?` ${fu.k+1} de ${fu.months} MSI`:""}: ${money(fu.amt)}${fu.fromSav.length?` · toma ${fu.fromSav.map(x=>`${money(x.amt)} de ${esc(x.acc.name)}`).join(" y ")}`:""}</div>`).join("")}`
+          :`<div class="small muted">${l.o.kind==="futuro"&&l.o.pick.type==="cash"?"cómprala el":"vence"} ${fDate(ds(l.o.date))}</div>`}
           ${l.short>0.009?`<div class="small" style="color:var(--bad)">Faltan ${money(l.short)}${l.shortMust>0.009?` · incluye ${money(l.shortMust)} obligatorio`:""}${l.interest?` · intereses aprox. ${money(l.interest)}`:""}</div>`:""}</div>
         <div class="num" style="text-align:right;white-space:nowrap">${money(l.pay)}${l.short>0.009?`<div class="chip bad">parcial</div>`:`<div class="chip good">completo</div>`}</div></div>`).join("")
       :`<div class="muted small">Sin pagos en este periodo.</div>`}
@@ -1434,6 +1468,7 @@ function loanPayForm(id){
     </div>
     <div id="lpQuick" class="row"></div>
     <label class="f">Monto<input type="number" id="lpAmt" step="0.01" inputmode="decimal" placeholder="0.00"></label>
+    <label class="f" id="lpFromL">Pagado desde<select id="lpFrom"></select></label>
     <label class="f">Nota (opcional)<input type="text" id="lpNote"></label>
     <div id="lpPrev"></div><div class="small" id="lpErr" style="color:var(--bad)"></div>`,
     `<span></span><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="lpSave">Guardar pago</button></div>`);
@@ -1441,12 +1476,14 @@ function loanPayForm(id){
     const after=Math.min(st.totalToPay,st.paidAmt+a), done=st.doneFor(after);
     $("#lpPrev").innerHTML=`<div class="note good">Con este pago llevas <b>${done} de ${st.n}</b> pagos. Te faltaría <b class="num">${money(Math.max(0,st.totalToPay-after))}</b>.</div>`; };
   const fill=()=>{ const st=loanState(get($("#lpLoan").value));
+    const ln=get($("#lpLoan").value); $("#lpFromL").hidden=!!(ln&&ln.payCardId); $("#lpFrom").innerHTML=fromOptions();
     $("#lpQuick").innerHTML=[["Siguiente pago",st.next.amt],["Liquidar todo",st.remaining]].filter((x,i,a)=>x[1]>0&&(i===0||x[1]!==a[0][1])).map(([t,v])=>`<button type="button" class="btn sm" data-amt="${v}">${t}: ${money(v)}</button>`).join("");
     $$("#lpQuick [data-amt]").forEach(b=>b.onclick=()=>{ $("#lpAmt").value=b.dataset.amt; prev(); });
     if(!$("#lpAmt").value) $("#lpAmt").value=st.next.amt; prev(); };
   $("#lpLoan").onchange=()=>{ $("#lpAmt").value=""; fill(); }; $("#lpAmt").oninput=prev; fill();
   $("#lpSave").onclick=async()=>{ const a=+$("#lpAmt").value; if(!(a>0)){ $("#lpErr").textContent="Escribe el monto que pagaste."; return; }
-    await put({kind:"loanpay",loanId:$("#lpLoan").value,amount:r2(a),date:$("#lpDate").value||todayS(),note:$("#lpNote").value.trim(),createdAt:Date.now()});
+    const ln=get($("#lpLoan").value); const fromId=ln&&ln.payCardId?"":$("#lpFrom").value;
+    await put({kind:"loanpay",loanId:$("#lpLoan").value,amount:r2(a),date:$("#lpDate").value||todayS(),fromId,note:$("#lpNote").value.trim(),createdAt:Date.now()});
     closeDialog(); toast("Pago de crédito registrado"); };
 }
 
@@ -1680,7 +1717,8 @@ function cardForm(c){
     const cut=+$("#cCut").value, pay=+$("#cPay").value;
     if(t==="credito" && (!(cut>=1&&cut<=31)||!(pay>=1&&pay<=31))){ $("#cErr").textContent="Escribe el día de corte y el día límite de pago (1 a 31). Vienen en tu estado de cuenta."; return; }
     const obj={...(c.id?c:{}),kind:"card",type:t,name,last4:$("#cLast").value.trim(),limit:+$("#cLimit").value||0,cutDay:cut||0,payDay:pay||0,rate:+$("#cRate").value||0,
-      initialBalance:+$("#cInit").value||0,initialDate:$("#cInitD").value||todayS(),color:$("#sw .on")?.dataset.col||CARD_COLORS[0],photo,createdAt:c.createdAt||Date.now()};
+      initialBalance:+$("#cInit").value||0,initialDate:$("#cInitD").value||todayS(),
+      balanceSetAt:((+$("#cInit").value||0)!==(+c.initialBalance||0)||($("#cInitD").value||todayS())!==c.initialDate||!c.id)?Date.now():(c.balanceSetAt||0),color:$("#sw .on")?.dataset.col||CARD_COLORS[0],photo,createdAt:c.createdAt||Date.now()};
     await put(obj); closeDialog(); toast(isNew?"Tarjeta agregada":"Tarjeta guardada");
   };
 }
@@ -1770,6 +1808,7 @@ function payForm(cardId,planId){
     </div>
     <div id="pQuick" class="row"></div>
     <label class="f">Monto<input type="number" id="pAmt" step="0.01" inputmode="decimal" placeholder="0.00"></label>
+    <label class="f" id="pFromL">Pagado desde<select id="pFrom"></select></label>
     <div id="pLoans" class="view" style="gap:6px"></div>
     <label class="f" id="pTgtL">Aplicar a<select id="pTgt"></select></label>
     <label class="f">Nota (opcional)<input type="text" id="pNote" placeholder="Ej. pago quincena"></label>
@@ -1777,7 +1816,8 @@ function payForm(cardId,planId){
     `<span></span><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="pSave">Guardar pago</button></div>`);
   const fill=()=>{
     const c=get($("#pCard").value); const st=cardState(c);
-    $("#pTgtL").hidden=!st.isCredit; $("#pQuick").hidden=!st.isCredit; $("#pLoans").innerHTML="";
+    $("#pTgtL").hidden=!st.isCredit; $("#pQuick").hidden=!st.isCredit; $("#pLoans").innerHTML=""; $("#pFromL").hidden=!st.isCredit;
+    $("#pFrom").innerHTML=fromOptions();
     if(st.isCredit){
       const act=st.plans.filter(p=>p.paid<p.total-0.009);
       $("#pTgt").innerHTML=`<option value="auto">Automático: mensualidades vencidas y luego saldo</option>`+act.map(p=>`<option value="${p.id}" ${p.id===planId?"selected":""}>Adelantar: ${esc(p.exp.desc||p.exp.category)} (falta ${money(p.total-p.paid)})</option>`).join("");
@@ -1807,8 +1847,9 @@ function payForm(cardId,planId){
     const loans=c.type==="credito"?$$(".pLoan:checked").map(cb=>({id:cb.value,amt:+cb.dataset.amt})):[];
     const loanAmt=r2(loans.reduce((s,x)=>s+x.amt,0)); const amt=r2(total-loanAmt);
     if(amt<0){ $("#pErr").textContent="El monto no alcanza para el pago del préstamo."; return; }
-    for(const x of loans) await put({kind:"loanpay",loanId:x.id,amount:r2(x.amt),date,note:"Pagado con "+c.name,createdAt:Date.now()});
-    if(amt>0.009) await put({kind:"pay",cardId:c.id,amount:amt,date,target:c.type==="credito"?$("#pTgt").value:"auto",note:$("#pNote").value.trim(),createdAt:Date.now()});
+    const fromId=c.type==="credito"?$("#pFrom").value:""; try{ if(c.type==="credito") localStorage.setItem("mc-from",fromId); }catch(e){}
+    for(const x of loans) await put({kind:"loanpay",loanId:x.id,amount:r2(x.amt),date,fromId,note:"Pagado con "+c.name,createdAt:Date.now()});
+    if(amt>0.009) await put({kind:"pay",cardId:c.id,amount:amt,date,fromId,target:c.type==="credito"?$("#pTgt").value:"auto",note:$("#pNote").value.trim(),createdAt:Date.now()});
     closeDialog(); toast(loans.length?`Pago registrado: ${money(amt)} a la tarjeta y ${money(loanAmt)} al préstamo`:`Pago registrado: liberaste ${money(amt)}`);
   };
 }
