@@ -10,6 +10,11 @@
 <body>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="Mi Cartera">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: barra lateral en escritorio y menú lateral en el celular; bloques planos muy redondeados.
@@ -393,13 +398,18 @@ h2{font-weight:700;letter-spacing:-.01em;text-transform:uppercase;font-size:22px
 
 .cc::after{background:var(--cc-gloss,linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,0) 40%,rgba(0,0,0,.28)))}
 .cc::before{background:var(--cc-ring,rgba(255,255,255,.10))}
+
+.logo-rings{background:#0E0E0E!important;padding:2px}
+.btnRefresh.spin svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 
 <div class="shell">
 <aside class="side">
-  <div class="brand"><span class="logo"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg></span><h1>Mi Cartera</h1></div>
+  <div class="brand"><span class="logo logo-rings"><svg viewBox="0 0 100 100" aria-hidden="true" style="width:100%;height:100%"><circle cx="50" cy="50" r="40" fill="#3B3B3B"/><g fill="none" stroke="#F2EEE3" stroke-width="3.4"><ellipse cx="50" cy="39" rx="28" ry="9"/><ellipse cx="50" cy="50" rx="28" ry="9"/><ellipse cx="50" cy="61" rx="28" ry="9"/></g></svg></span><h1>Mi Cartera</h1></div>
   <nav class="navlinks" aria-label="Secciones"><a href="#resumen" data-v="resumen"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></svg><span>Inicio</span></a><a href="#tarjetas" data-v="tarjetas"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20M6 15h4"/></svg><span>Tarjetas y pagos</span></a><a href="#gastos" data-v="gastos"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 2v20l2.3-1.5L9.6 22l2.4-1.5 2.4 1.5 2.3-1.5L19 22V2l-2.3 1.5L14.4 2 12 3.5 9.6 2 7.3 3.5Z"/><path d="M15 8H9M15 12H9"/></svg><span>Gastos</span></a><a href="#creditos" data-v="creditos"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 18v-7M9.5 18v-7M14.5 18v-7M19 18v-7M12 3l9 5H3Z"/></svg><span>Créditos</span></a><a href="#plan" data-v="plan"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg><span>Planear</span></a><a href="#ahorros" data-v="ahorros"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9.5c.6.6 1 1.4 1 2.5h1.5v3H19a6 6 0 0 1-2 2V20h-3v-2h-4v2H7v-3c-1.7-1.2-3-3-3-5.5C4 7.5 7.5 6 11 6h3l3-2v3.5c.8.5 1.5 1.2 2 2Z"/><path d="M15 11h.01"/></svg><span>Ahorros</span></a></nav>
   <div class="grow"></div>
+  <button class="btnMenu btnRefresh" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span>Actualizar</span></button>
   <button class="btnMenu" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg><span>Opciones</span></button>
 </aside>
 <div class="scrim" id="scrim"></div>
@@ -408,7 +418,7 @@ h2{font-weight:700;letter-spacing:-.01em;text-transform:uppercase;font-size:22px
   <div class="wrap">
     <div class="top-row">
       <div class="brand"><button class="iconbtn" id="btnNav" type="button" aria-label="Abrir menú"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button><h1 id="secTitle">Mi Cartera</h1></div>
-      <button class="iconbtn btnMenu" type="button" aria-label="Opciones"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg></button>
+      <div class="row" style="gap:8px;flex-wrap:nowrap"><button class="iconbtn btnRefresh" type="button" aria-label="Actualizar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button><button class="iconbtn btnMenu" type="button" aria-label="Opciones"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg></button></div>
     </div>
     
   </div>
@@ -704,7 +714,8 @@ function cardState(card){
     const msiOut=r2(plans.reduce((s,p)=>s+(p.total-p.paid),0));
     const debt=r2(rev+msiOut);
     const limit=+card.limit||0;
-    const P=nextPayOnOrAfter(card,t);
+    let P=nextPayOnOrAfter(card,t);
+    if(card.cyclePay){ const fp=pd(card.cyclePay); if(P<fp) P=fp; }
     const L=lastCutBefore(card,P);
     const revDue=Math.max(0,r2(init*(initDate<=ds(L)?1:0)+regular.filter(e=>pd(e.date)<=L).reduce((s,e)=>s+(+e.amount||0),0)-revPaid));
     const msiDue=r2(plans.reduce((s,p)=>s+Math.max(0,billedAmt(p,card,L)-p.paid),0));
@@ -1367,10 +1378,7 @@ function vPlan(){
       ${inc.length?`<div class="list">${inc.map(flowRow).join("")}</div><div class="small muted" style="margin-top:6px">Próximos: ${nextIncomes(60).slice(0,4).map(i=>`${fDateS(ds(i.date))} ${money(i.amount)}`).join(" · ")||"—"}</div>`:`<div class="note acc">Agrega tu sueldo una vez y la app calcula sola los siguientes pagos. <button class="btn sm pri" data-act="newSalary">Agregar sueldo</button></div>`}
       <div class="spread" style="margin-top:14px"><h3>Gastos fijos</h3><button class="btn sm" data-act="newFlow" data-type="fijo">＋ Gasto fijo</button></div>
       ${fix.length?`<div class="list">${fix.map(flowRow).join("")}</div>`:`<p class="muted small">Renta, luz, internet, colegiaturas… lo que pagas sí o sí.</p>`}
-      <div class="spread" style="margin-top:14px"><h3>Compras planeadas</h3><button class="btn sm" data-act="newFuture">＋ Compra futura</button></div>
-      ${(()=>{ const rs=recommendFutures(); if(!rs.length) return `<p class="muted small">Lo que tienes que comprar o pagar pronto. También entra a este plan.</p>`;
-        return `<div class="list">${rs.map(r=>{ const pk=r.pick; const when=pk?(pk.type==="card"?`con ${esc(pk.card.name)}${pk.months?` a ${pk.months} MSI`:""} · se paga ${fDateS(ds(pk.due))}`:`${esc(pk.cashName||"efectivo o débito")} · ${fDateS(ds(pk.date))}`):`a más tardar ${fDateS(ds(r.by))}`;
-          return `<div class="item" data-act="editFuture" data-id="${r.f.id}"><span class="thumb" style="background:var(--accent-soft);color:var(--fg)">◷</span><div class="main"><div class="title">${esc(r.f.name)}</div><div class="small muted">${when}${pk&&pk.forced?` · <span style="color:var(--bad)">te faltan ${money(pk.short)}</span>`:""}</div></div><div class="num">${money(r.f.amount)}</div></div>`; }).join("")}</div>`; })()}
+
     </div>
     <div class="panel"><div class="panel-h"><h3>Saldo proyectado</h3><span class="small muted">siguiendo el plan</span></div>
       <div class="grid g-kpi" style="margin-bottom:12px">
@@ -1759,6 +1767,12 @@ function seg(name,opts,val){ return `<div class="seg" data-seg="${name}">${opts.
 function segVal(name){ const b=$(`[data-seg="${name}"] .on`); return b?b.dataset.v:null; }
 
 /* ----- tarjeta ----- */
+function cutPayDefaults(c){
+  if(!c||c.type!=="credito"&&c.type) return {cut:"",pay:""};
+  if(c.cycleCut&&c.cyclePay&&pd(c.cyclePay)>=today()) return {cut:c.cycleCut,pay:c.cyclePay};
+  if(!c.cutDay||!c.payDay) return {cut:"",pay:""};
+  const st=cardState(c); return {cut:ds(st.stmtCut>=today()?st.stmtCut:st.nextCut),pay:ds(st.stmtCut>=today()?st.nextPay:nextPayOnOrAfter(c,addDays(st.nextCut,1)))};
+}
 function cardForm(c){
   const isNew=!c; c=c||{type:"credito",color:CARD_COLORS[all("card").length%CARD_COLORS.length],cutDay:"",payDay:""};
   let photo=c.photo||null;
@@ -1771,8 +1785,9 @@ function cardForm(c){
     </div>
     <div class="fgrid" id="credOnly">
       <label class="f">Límite de crédito<input type="number" id="cLimit" step="0.01" inputmode="decimal" value="${c.limit||""}"></label>
-      <label class="f">Día de corte<input type="number" id="cCut" min="1" max="31" value="${c.cutDay||""}"></label>
-      <label class="f">Día límite de pago<input type="number" id="cPay" min="1" max="31" value="${c.payDay||""}"></label>
+      <label class="f">Próxima fecha de corte<input type="date" id="cCut" value="${cutPayDefaults(c).cut}"></label>
+      <label class="f">Fecha límite de pago de ese corte<input type="date" id="cPay" value="${cutPayDefaults(c).pay}"></label>
+      <div class="small muted" style="grid-column:1/-1">Pon las fechas completas de tu siguiente estado de cuenta (por ejemplo corte 1 dic y pago 21 dic). Los meses siguientes se calculan solos.</div>
       <label class="f">Tasa de interés anual %<input type="number" id="cRate" step="0.1" value="${c.rate||""}" placeholder="Ej. 54"></label>
     </div>
     <div class="fgrid">
@@ -1795,9 +1810,11 @@ function cardForm(c){
   $("#cSave").onclick=async()=>{
     const t=segVal("ctype"); const name=$("#cName").value.trim();
     if(!name){ $("#cErr").textContent="Ponle un nombre a la tarjeta."; return; }
-    const cut=+$("#cCut").value, pay=+$("#cPay").value;
-    if(t==="credito" && (!(cut>=1&&cut<=31)||!(pay>=1&&pay<=31))){ $("#cErr").textContent="Escribe el día de corte y el día límite de pago (1 a 31). Vienen en tu estado de cuenta."; return; }
-    const obj={...(c.id?c:{}),kind:"card",type:t,name,last4:$("#cLast").value.trim(),limit:+$("#cLimit").value||0,cutDay:cut||0,payDay:pay||0,rate:+$("#cRate").value||0,
+    const cutS=$("#cCut").value, payS=$("#cPay").value;
+    if(t==="credito" && (!cutS||!payS)){ $("#cErr").textContent="Elige la fecha de tu próximo corte y la fecha límite de pago de ese corte. Vienen en tu estado de cuenta o en la app del banco."; return; }
+    if(t==="credito" && (pd(payS)<=pd(cutS)||daysBetween(pd(cutS),pd(payS))>45)){ $("#cErr").textContent="La fecha límite de pago debe ser después del corte (normalmente 15 a 25 días después)."; return; }
+    const cut=cutS?pd(cutS).getDate():0, pay=payS?pd(payS).getDate():0;
+    const obj={...(c.id?c:{}),kind:"card",type:t,name,last4:$("#cLast").value.trim(),limit:+$("#cLimit").value||0,cutDay:cut||0,payDay:pay||0,cycleCut:t==="credito"?cutS:"",cyclePay:t==="credito"?payS:"",rate:+$("#cRate").value||0,
       initialBalance:+$("#cInit").value||0,initialDate:$("#cInitD").value||todayS(),
       balanceSetAt:((+$("#cInit").value||0)!==(+c.initialBalance||0)||($("#cInitD").value||todayS())!==c.initialDate||!c.id)?Date.now():(c.balanceSetAt||0),color:$("#sw .on")?.dataset.col||CARD_COLORS[0],photo,createdAt:c.createdAt||Date.now()};
     await put(obj); closeDialog(); toast(isNew?"Tarjeta agregada":"Tarjeta guardada");
@@ -2072,7 +2089,8 @@ const openOptions=()=>{ document.body.classList.remove("nav-open");
     $("#oWipe2").onclick=async()=>{ for(const id of [...S.items.keys()]) await del(id); closeDialog(); toast("Datos borrados"); }; };
 };
 
-$$(".btnMenu").forEach(b=>b.onclick=openOptions);
+$$(".btnMenu:not(.btnRefresh)").forEach(b=>b.onclick=openOptions);
+$$(".btnRefresh").forEach(b=>b.onclick=()=>{ b.classList.add("spin"); toast("Actualizando…"); setTimeout(()=>location.reload(),250); });
 $("#btnNav").onclick=()=>document.body.classList.add("nav-open");
 $("#scrim").onclick=()=>document.body.classList.remove("nav-open");
 $$(".side .navlinks a").forEach(a=>a.addEventListener("click",()=>document.body.classList.remove("nav-open")));
