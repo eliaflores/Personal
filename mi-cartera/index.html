@@ -894,7 +894,7 @@ function recommendFutures(){
     const fixedD=pd(f.by||todayS());
     const from=fixedD<t?new Date(t):fixedD; const by=new Date(from);
     const savIds=f.allowSavings?((f.savingsIds&&f.savingsIds.length)?f.savingsIds:accs.map(a=>a.id)):[];
-    const savAccs=d=>savIds.map(id=>accs.find(a=>a.id===id)).filter(a=>a&&accAvailable(a,d)).sort((a,b)=>(+a.rate||0)-(+b.rate||0));
+    const savAccs=d=>savIds.map(id=>accs.find(a=>a.id===id)).filter(a=>a&&!accUsable(a)&&accAvailable(a,d)).sort((a,b)=>(+a.rate||0)-(+b.rate||0));
     const savAvail=d=>r2(savAccs(d).reduce((s,a)=>s+Math.max(0,accLeft[a.id]||0),0));
     const options=[];
     const pl=futPayList(f);
@@ -986,6 +986,11 @@ function nextIncomes(days){ const t=today(); return all("flow").filter(f=>f.type
 const planCache={};
 const INV_INSTS=["GBM+","Cetesdirecto"];
 const accPurpose=a=>a.purpose||(INV_INSTS.includes(a.inst)?"inversion":"ahorro");
+const PURPOSES=[["ahorro","Fondo de ahorro"],["inversion","Inversión"],["meta","Para una meta"],["gastar","Para gastar"]];
+const purposeLabel=a=>{ const p=accPurpose(a); if(p==="meta"){ const g=get(a.goalId); return g?"meta: "+g.name:"meta"; } return {ahorro:"fondo de ahorro",inversion:"inversión",gastar:"para gastar"}[p]||"fondo de ahorro"; };
+const accUsable=a=>a.usable===true||(a.usable!==false&&accPurpose(a)==="gastar");
+const goalAccounts=g=>all("account").filter(a=>a.goalId===g.id&&accPurpose(a)==="meta");
+const goalSaved=g=>{ const ac=goalAccounts(g); return ac.length?r2(ac.reduce((x,a)=>x+(+a.balance||0),0)):r2(+g.saved||0); };
 function saveConfig(){
   const s=settings(); const t=today();
   const since=ds(addDays(t,-90));
@@ -994,6 +999,9 @@ function saveConfig(){
   const span=Math.max(30,daysBetween(pd(firstDate),t));
   const spendMonthly=regular.length?r2(regular.reduce((x,e)=>x+(+e.amount||0),0)/span*30):null;
   const fixedMonthly=fixedPayments().monthly;
+  const goals=all("goal").map(g=>{ const saved=goalSaved(g), target=+g.target||0, remaining=Math.max(0,r2(target-saved));
+    const months=g.deadline?Math.max(1,(pd(g.deadline).getFullYear()-t.getFullYear())*12+pd(g.deadline).getMonth()-t.getMonth()):6;
+    return {g,saved,target,remaining,monthly:r2(remaining/months),acc:goalAccounts(g)[0]||null}; }).filter(x=>x.remaining>0.009);
   const accs=all("account");
   const saveAccs=accs.filter(a=>accPurpose(a)==="ahorro"), invAccs=accs.filter(a=>accPurpose(a)==="inversion");
   const fundNow=r2(saveAccs.reduce((x,a)=>x+(+a.balance||0),0));
@@ -1003,12 +1011,13 @@ function saveConfig(){
   const invTarget=+s.invGoal>0?+s.invGoal:0;
   const invYield=r2(invAccs.reduce((x,a)=>x+(+a.balance||0)*(+a.rate||0)/100/12,0));
   const best=list=>list.slice().sort((a,b)=>(+b.rate||0)-(+a.rate||0))[0]||null;
-  return {invTarget,invYield,fundAuto:!(+s.fundGoal>0),mode:s.saveMode||"auto",savePct:(s.savePct??s.savingsPct??10)/100,invPct:(s.invPct??5)/100,spendMonthly,fixedMonthly,fundNow,invNow,fundTarget,monthlyNeed,saveAcc:best(saveAccs),invAcc:best(invAccs)};
+  return {goals,goalPct:(s.goalPct??5)/100,invTarget,invYield,fundAuto:!(+s.fundGoal>0),mode:s.saveMode||"auto",savePct:(s.savePct??s.savingsPct??10)/100,invPct:(s.invPct??5)/100,spendMonthly,fixedMonthly,fundNow,invNow,fundTarget,monthlyNeed,saveAcc:best(saveAccs),invAcc:best(invAccs)};
 }
 function cashAvailable(){
   const debits=all("card").filter(c=>c.type!=="credito").map(c=>({card:c,bal:cardState(c).balance}));
   const cash=+settings().cash||0;
-  return {cash,debits,total:r2(cash+debits.reduce((s,d)=>s+d.bal,0))};
+  const usable=all("account").filter(a=>accUsable(a)&&accAvailable(a,today())).map(a=>({acc:a,bal:+a.balance||0}));
+  return {cash,debits,usable,total:r2(cash+debits.reduce((s,d)=>s+d.bal,0)+usable.reduce((s,d)=>s+d.bal,0))};
 }
 function buildPlan(opts={}){
   const key=opts.noFutures?"base":"full"; if(planCache[key]) return planCache[key];
@@ -1047,7 +1056,7 @@ function buildPlan(opts={}){
     const done={}; all("transfer").forEach(x=>{ if(x.periodStart){ const k=x.periodStart+"|"+x.purpose; done[k]=r2((done[k]||0)+(+x.amount||0)); } });
     obl.forEach(o=>{ const per=periods.slice().reverse().find(p=>o.date>=p.start) || periods[0]; per.obl.push(o); });
     let carry=0; let totalShort=0, totalInt=0; let pending=[];
-    const sv=saveConfig(); let fundSim=sv.fundNow;
+    const sv=saveConfig(); let fundSim=sv.fundNow; const goalSim={};
     periods.forEach((per,idx)=>{
       let avail=r2(carry+per.income); per.availStart=avail;
       // lo que quedó pendiente del periodo anterior se completa primero
@@ -1068,11 +1077,22 @@ function buildPlan(opts={}){
       let save=0, inv=0, why="";
       const base=per.inc||0; const pk=ds(per.start);
       per.saveDone=done[pk+"|ahorro"]||0; per.invDone=done[pk+"|inversion"]||0;
+      per.goalsDone=sv.goals.map(x=>({g:x.g,amt:done[pk+"|meta:"+x.g.id]||0})).filter(x=>x.amt>0);
+      const goalsDoneTot=r2(per.goalsDone.reduce((a,x)=>a+x.amt,0)); let goalsAlloc=[];
       if(!opts.noFutures && base>0 && lines.every(l=>l.short<=0.009)){
         // lo que sobra después de tus pagos y de reservar lo que falte para el siguiente periodo
         // lo que ya apartaste hoy ya salió de tu cuenta: se suma para calcular igual que antes
-        const sobrante=r2(Math.max(0,r2(avail-Math.max(0,nextNeed)))+per.saveDone+per.invDone);
-        if(sv.mode==="fijo"){ save=Math.min(r2(base*sv.savePct),sobrante); inv=Math.min(r2(base*sv.invPct),r2(sobrante-save)); why=`${Math.round(sv.savePct*100)}% y ${Math.round(sv.invPct*100)}% de este ingreso`; }
+        const sobrante=r2(Math.max(0,r2(avail-Math.max(0,nextNeed)))+per.saveDone+per.invDone+goalsDoneTot);
+        // reparte un monto entre tus metas, más a la que más necesita por mes
+        const distGoals=amt=>{ const pend=sv.goals.filter(x=>(goalSim[x.g.id]||0)<x.remaining-0.01); const res=[]; let left=amt;
+          for(let pass=0;pass<2&&left>0.009&&pend.length;pass++){ const live=pend.filter(x=>(goalSim[x.g.id]||0)<x.remaining-0.01); const w=live.reduce((a,x)=>a+(x.monthly||1),0); if(!w) break; let used=0;
+            live.forEach(x=>{ const room=r2(x.remaining-(goalSim[x.g.id]||0)); const take=Math.min(room,r2(left*(x.monthly||1)/w)); if(take>0.009){ goalSim[x.g.id]=r2((goalSim[x.g.id]||0)+take); used=r2(used+take); const ex=res.find(r=>r.g.id===x.g.id); if(ex) ex.amt=r2(ex.amt+take); else res.push({g:x.g,acc:x.acc,amt:take}); } });
+            left=r2(left-used); }
+          return {res,left}; };
+        const hasGoals=sv.goals.some(x=>(goalSim[x.g.id]||0)<x.remaining-0.01);
+        if(sv.mode==="fijo"){ save=Math.min(r2(base*sv.savePct),sobrante); inv=Math.min(r2(base*sv.invPct),r2(sobrante-save));
+          if(hasGoals){ const d=distGoals(Math.min(r2(base*sv.goalPct),Math.max(0,r2(sobrante-save-inv)))); goalsAlloc=d.res; }
+          why=`${Math.round(sv.savePct*100)}% y ${Math.round(sv.invPct*100)}% de este ingreso`; }
         else {
           const days=daysBetween(per.start,per.end)+1;
           const dia=sv.spendMonthly!=null?r2(sv.spendMonthly*days/30):r2(base*0.35);
@@ -1080,23 +1100,28 @@ function buildPlan(opts={}){
           let total=libre>0?Math.max(r2(base*0.05),r2(libre*0.6)):r2(base*0.03);
           total=Math.max(0,Math.min(total,sobrante));
           const needFund=fundSim<sv.fundTarget;
-          save=r2(total*(needFund?0.7:0.3)); inv=r2(total-save);
-          why=libre>0?(needFund?"tu fondo de ahorro aún no llega a su meta":"tu fondo de ahorro ya está completo; más a inversión"):"este periodo sobra poco, se aparta un mínimo";
+          const sh=needFund?(hasGoals?[0.45,0.40]:[0.7,0]):(hasGoals?[0.1,0.6]:[0.3,0]);
+          save=r2(total*sh[0]); let gAmt=r2(total*sh[1]);
+          if(gAmt>0){ const d=distGoals(gAmt); goalsAlloc=d.res; save=r2(save+d.left); }
+          inv=Math.max(0,r2(total-save-goalsAlloc.reduce((a,x)=>a+x.amt,0)));
+          why=libre>0?(hasGoals?"primero tus metas y tu fondo":needFund?"tu fondo de ahorro aún no llega a su meta":"tu fondo de ahorro ya está completo; más a inversión"):"este periodo sobra poco, se aparta un mínimo";
         }
         // lo que ya apartaste este día no se vuelve a pedir
         if(per.saveDone) save=0; if(per.invDone) inv=0;
+        goalsAlloc=goalsAlloc.filter(x=>!per.goalsDone.some(d=>d.g.id===x.g.id));
         fundSim=r2(fundSim+save);
       }
       per.saveWhy=why; per.fund=fundSim;
-      avail=r2(avail-save-inv);
+      per.goals=goalsAlloc; per.goalTot=r2(goalsAlloc.reduce((a,x)=>a+x.amt,0));
+      avail=r2(avail-save-inv-per.goalTot);
       per.lines=lines.sort((a,b)=>(a.o.carried?0:1)-(b.o.carried?0:1)||a.o.date-b.o.date); per.save=save; per.inv=inv; per.left=avail; carry=avail;
     });
     const ev=[];
-    periods.forEach(per=>{ ev.push({d:per.start,v:per.income}); if(per.save||per.inv) ev.push({d:per.start,v:-(per.save+per.inv)}); per.lines.forEach(l=>ev.push({d:l.o.date,v:-l.pay})); });
+    periods.forEach(per=>{ ev.push({d:per.start,v:per.income}); if(per.save||per.inv||per.goalTot) ev.push({d:per.start,v:-(per.save+per.inv+(per.goalTot||0))}); per.lines.forEach(l=>ev.push({d:l.o.date,v:-l.pay})); });
     ev.sort((a,b)=>a.d-b.d);
     const daily=[]; let bal=0, j=0;
     for(let d=new Date(t); d<=end; d=addDays(d,1)){ while(j<ev.length && ev[j].d<=d){ bal=r2(bal+ev[j].v); j++; } daily.push({d:new Date(d),bal}); }
-    return {periods,daily,totalShort,totalInt,saveTotal:r2(periods.reduce((s,p)=>s+p.save,0)),invTotal:r2(periods.reduce((s,p)=>s+(p.inv||0),0)),sv};
+    return {periods,daily,totalShort,totalInt,saveTotal:r2(periods.reduce((s,p)=>s+p.save,0)),invTotal:r2(periods.reduce((s,p)=>s+(p.inv||0),0)),goalTotal:r2(periods.reduce((s,p)=>s+(p.goalTot||0),0)),sv};
   };
   // 1ª pasada: cada tarjeta se paga en su fecha límite
   let res=simulate();
@@ -1665,7 +1690,7 @@ function vPlan(){
     ${chip("Disponible hoy",money(ca.total),"planSettings")}
     ${chip(inc.length?"Próximo ingreso":"Ingresos",inc.length&&ni?`${money(ni.amount)} · ${fDateS(ds(ni.date))}`:"Agregar","planSettings")}
     ${(()=>{ const fp=fixedPayments(); return chip("Pagos fijos al mes",fp.items.length?`${money(fp.monthly)} · ${fp.items.length}`:"Agregar","planSettings"); })()}
-    ${chip("Ahorro + inversión",`${money(r2(plan.saveTotal+plan.invTotal))}`,"planSettings")}
+    ${chip("Ahorro, metas e inversión",`${money(r2(plan.saveTotal+plan.invTotal+(plan.goalTotal||0)))}`,"planSettings")}
     ${chip("Planeando",`hasta ${fDateS(ds(plan.end))}`,"planSettings")}
   </div>
   ${!plan.hasIncome?`<div class="note warn">Agrega tu sueldo con el botón ＋ para que el plan cuente con él.</div>`:""}
@@ -1690,6 +1715,7 @@ function vPlan(){
         return `<div class="pline"><div class="what"><b>${title}</b>${info}${shortTxt}</div>
         <div class="num" style="text-align:right;white-space:nowrap">${money(l.pay)}${l.short>0.009?`<div class="chip ${l.carriedTo?"warn":"bad"}">${l.carriedTo?"parcial":"falta"}</div>`:`<div class="chip good">completo</div>`}</div></div>`; }).join("")
       :`<div class="muted small">Sin pagos en este periodo.</div>`}
+      ${(p.goals||[]).map(x=>goalLine(p,x.g,x.amt,0,x.acc)).join("")}${(p.goalsDone||[]).map(x=>goalLine(p,x.g,0,x.amt,goalAccounts(x.g)[0])).join("")}
       ${fundLine(p,"ahorro",plan.sv)}
       ${fundLine(p,"inversion",plan.sv)}
       ${!p.isCash&&!p.save&&!p.inv&&p.lines.some(l=>l.short>0.009)?`<div class="small muted">Este periodo no alcanza para ahorrar: primero tus pagos.</div>`:""}
@@ -1714,6 +1740,11 @@ function fundLine(p,purpose,sv){
   const right=doneAmt>0?`${money(doneAmt)}<div class="chip good">apartado</div>`:`${money(amt)}${canNow?`<div><button type="button" class="btn sm" data-act="didSave" data-purpose="${purpose}" data-amt="${amt}" data-per="${ds(p.start)}" style="margin-top:4px">Ya lo aparté</button></div>`:`<div class="chip">${fDateS(ds(p.start))}</div>`}`;
   return `<div class="pline"><div class="what"><b>${title}</b><div class="small muted">${acc?`a ${esc(acc.name)}`:(purpose==="ahorro"?"crea tu fondo en Ahorros":"por ejemplo en GBM+ o Cetes")}${purpose==="ahorro"&&p.saveWhy?` · ${esc(p.saveWhy)}`:""}</div></div><div class="num" style="text-align:right;white-space:nowrap;color:${purpose==="ahorro"?"var(--good)":"var(--accent)"}">${right}</div></div>`;
 }
+function goalLine(p,g,amt,doneAmt,acc){
+  const canNow=p.start<=today();
+  const right=doneAmt>0?`${money(doneAmt)}<div class="chip good">apartado</div>`:`${money(amt)}${canNow?`<div><button type="button" class="btn sm" data-act="didSave" data-purpose="meta" data-goal="${g.id}" data-amt="${amt}" data-per="${ds(p.start)}" style="margin-top:4px">Ya lo aparté</button></div>`:`<div class="chip">${fDateS(ds(p.start))}</div>`}`;
+  return `<div class="pline"><div class="what"><b>Aparta para tu meta ${esc(g.name)}</b><div class="small muted">${acc?`a ${esc(acc.name)} · `:""}llevas ${money(goalSaved(g))} de ${money(g.target)}</div></div><div class="num" style="text-align:right;white-space:nowrap;color:${esc(g.color||"var(--accent)")}">${right}</div></div>`;
+}
 function fundAccount(purpose){
   const sv=saveConfig(); return purpose==="ahorro"?sv.saveAcc:sv.invAcc;
 }
@@ -1722,28 +1753,36 @@ async function ensureFundAccount(purpose){
   acc=await put({kind:"account",inst:"Otro",name:purpose==="ahorro"?"Fondo de ahorro":"Fondo de inversión",purpose,balance:0,rate:0,liquid:true,color:purpose==="ahorro"?"#D6D0C2":"#97C2EC",history:[],createdAt:Date.now()});
   return acc;
 }
-function fundDepositForm(purpose,amt,periodStart){
-  const acc=fundAccount(purpose); const accs=all("account").filter(a=>accPurpose(a)===purpose);
-  openDialog(purpose==="ahorro"?"Apartar a tu fondo de ahorro":"Apartar a tu fondo de inversión",`
+function fundDepositForm(purpose,amt,periodStart,goalId){
+  const goal=purpose==="meta"?get(goalId):null;
+  const acc=purpose==="meta"?(goal?goalAccounts(goal)[0]:null):fundAccount(purpose);
+  const accs=purpose==="meta"?(goal?goalAccounts(goal):[]):all("account").filter(a=>accPurpose(a)===purpose);
+  const title=purpose==="meta"?`Apartar para ${goal?goal.name:"tu meta"}`:purpose==="ahorro"?"Apartar a tu fondo de ahorro":"Apartar a tu fondo de inversión";
+  const newLabel=purpose==="meta"?`Solo registrarlo en la meta`:`Nuevo: ${purpose==="ahorro"?"Fondo de ahorro":"Fondo de inversión"}`;
+  openDialog(title,`
     <div class="fgrid">
       <label class="f">Monto<input type="number" id="fdAmt" step="0.01" inputmode="decimal" value="${amt||""}"></label>
       <label class="f">Fecha<input type="date" id="fdDate" value="${todayS()}"></label>
     </div>
     <div class="fgrid">
       <label class="f">Desde<select id="fdFrom">${fromOptions()}</select></label>
-      <label class="f">A<select id="fdTo">${accs.map(a=>`<option value="${a.id}" ${acc&&a.id===acc.id?"selected":""}>${esc(a.name)} (${money(a.balance)})</option>`).join("")}<option value="__new" ${accs.length?"":"selected"}>Nuevo: ${purpose==="ahorro"?"Fondo de ahorro":"Fondo de inversión"}</option></select></label>
+      <label class="f">A<select id="fdTo">${accs.map(a=>`<option value="${a.id}" ${acc&&a.id===acc.id?"selected":""}>${esc(a.name)} (${money(a.balance)})</option>`).join("")}<option value="__new" ${accs.length?"":"selected"}>${newLabel}</option></select></label>
     </div>
-    <div class="small muted">Esto solo lo registra en la app: haz la transferencia en tu banco o app. Se resta de la cuenta "Desde" y se suma al fondo.</div>
+    <div class="small muted">Esto solo lo registra en la app: haz la transferencia en tu banco o app. Se resta de la cuenta "Desde" y se suma ${purpose==="meta"?"a tu meta":"al fondo"}.</div>
     <div class="small" id="fdErr" style="color:var(--bad)"></div>`,
     `<span></span><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="fdSave">Guardar</button></div>`);
   $("#fdSave").onclick=async()=>{
     const v=+$("#fdAmt").value; if(!(v>0)){ $("#fdErr").textContent="Escribe cuánto apartaste."; return; }
-    let to=$("#fdTo").value; let a=to==="__new"?await ensureFundAccount(purpose):get(to);
-    if(to==="__new"&&accs.length){ a=await put({kind:"account",inst:"Otro",name:purpose==="ahorro"?"Fondo de ahorro":"Fondo de inversión",purpose,balance:0,rate:0,liquid:true,color:purpose==="ahorro"?"#D6D0C2":"#97C2EC",history:[],createdAt:Date.now()}); }
-    a=get(a.id)||a; const date=$("#fdDate").value||todayS();
-    await put({...a,balance:r2((+a.balance||0)+v),history:(a.history||[]).concat([{date,amount:r2(v),type:"deposito"}])});
-    await put({kind:"transfer",fromId:$("#fdFrom").value,accountId:a.id,amount:r2(v),date,purpose,periodStart:periodStart||"",createdAt:Date.now()});
-    closeDialog(); toast(`Apartaste ${money(v)} a ${a.name}`);
+    const to=$("#fdTo").value; const date=$("#fdDate").value||todayS(); let a=null;
+    if(purpose==="meta"){
+      if(to==="__new"){ const g=get(goalId); await put({...g,saved:r2((+g.saved||0)+v),history:(g.history||[]).concat([{date,amount:r2(v)}])}); }
+      else a=get(to);
+    } else {
+      a=to==="__new"?(accs.length?await put({kind:"account",inst:"Otro",name:purpose==="ahorro"?"Fondo de ahorro":"Fondo de inversión",purpose,balance:0,rate:0,liquid:true,color:purpose==="ahorro"?"#D6D0C2":"#97C2EC",history:[],createdAt:Date.now()}):await ensureFundAccount(purpose)):get(to);
+    }
+    if(a){ a=get(a.id)||a; await put({...a,balance:r2((+a.balance||0)+v),history:(a.history||[]).concat([{date,amount:r2(v),type:"deposito"}])}); }
+    await put({kind:"transfer",fromId:$("#fdFrom").value,accountId:a?a.id:"",amount:r2(v),date,purpose:purpose==="meta"?"meta:"+goalId:purpose,periodStart:periodStart||"",createdAt:Date.now()});
+    closeDialog(); toast(`Apartaste ${money(v)}${purpose==="meta"&&goal?" para "+goal.name:a?" a "+a.name:""}`);
   };
 }
 function planAddMenu(){
@@ -1760,25 +1799,26 @@ function planSettingsForm(){
   const inc=all("flow").filter(f=>f.type==="ingreso"), fix=all("flow").filter(f=>f.type==="fijo");
   const row=f=>`<div class="item" data-act="editFlow" data-id="${f.id}"><div class="main"><div class="title">${esc(f.name)}</div><div class="small muted">${FREQ[f.freq]}${f.freq==="mensual"?" · día "+f.day:f.freq==="unico"?" · "+fDateS(f.date):""}${f.active===false?" · pausado":""}</div></div><div class="num">${money(f.amount)}</div></div>`;
   openDialog("Tu dinero y ajustes",`
-    <div class="note">Dinero disponible hoy: <b class="num">${money(ca.total)}</b>${ca.debits.length?`<div class="small muted" style="margin-top:4px">${ca.debits.map(d=>`${esc(d.card.name)} ${money(d.bal)}`).join(" · ")}. Para cambiarlo, actualiza el saldo de cada tarjeta de débito.</div>`:""}</div>
+    <div class="note">Dinero disponible hoy: <b class="num">${money(ca.total)}</b>${ca.debits.length||ca.usable.length?`<div class="small muted" style="margin-top:4px">${[...ca.debits.map(d=>`${esc(d.card.name)} ${money(d.bal)}`),...ca.usable.map(d=>`${esc(d.acc.name)} ${money(d.bal)} (apartado)`)].join(" · ")}. Para cambiarlo, actualiza el saldo de cada cuenta; en cada apartado puedes elegir si cuenta aquí.</div>`:""}</div>
     <div class="fgrid">
       <label class="f">Efectivo en mano<input type="number" id="sCash" step="0.01" inputmode="decimal" value="${s.cash||""}" placeholder="0.00"></label>
       <label class="f">Ahorro e inversión<select id="sMode"><option value="auto" ${(s.saveMode||"auto")==="auto"?"selected":""}>Automático, según lo que sobre</option><option value="fijo" ${s.saveMode==="fijo"?"selected":""}>Porcentaje fijo de cada ingreso</option></select></label>
       <label class="f" id="sPctL">% para tu fondo de ahorro<input type="number" id="sPct" min="0" max="100" value="${s.savePct??s.savingsPct??10}"></label>
       <label class="f" id="sInvL">% para invertir<input type="number" id="sInv" min="0" max="100" value="${s.invPct??5}"></label>
+      <label class="f" id="sGoalL">% para tus metas<input type="number" id="sGoalPct" min="0" max="100" value="${s.goalPct??5}"></label>
       <label class="f">Meta del fondo de ahorro<input type="number" id="sFundGoal" step="100" inputmode="decimal" value="${+s.fundGoal>0?s.fundGoal:""}" placeholder="Automática: 3 meses"></label>
       <label class="f">Meta del fondo de inversión (opcional)<input type="number" id="sInvGoal" step="100" inputmode="decimal" value="${+s.invGoal>0?s.invGoal:""}" placeholder="Sin meta"></label>
       <label class="f">Planear al menos<select id="sHor">${[30,60,90,120].map(d=>`<option value="${d}" ${(+s.horizon||60)===d?"selected":""}>${d} días</option>`).join("")}</select></label>
     </div>
-    ${(()=>{ const sv=saveConfig(); return `<div class="note small" id="sAutoInfo">En automático, después de tus pagos y de dejarte para tus gastos del día a día${sv.spendMonthly!=null?` (unos ${money(sv.spendMonthly)} al mes, según lo que has gastado)`:""}, se aparta el 60% de lo que sobre (mínimo 5% del ingreso; si sobra poco, 3%). Mientras tu fondo no llegue a <b>${money(sv.fundTarget)}</b> (3 meses de gastos) va 70% al fondo y 30% a invertir; ya completo, 30% y 70%. Hoy tu fondo tiene <b>${money(sv.fundNow)}</b>.</div>`; })()}
+    ${(()=>{ const sv=saveConfig(); return `<div class="note small" id="sAutoInfo">En automático, después de tus pagos y de dejarte para tus gastos del día a día${sv.spendMonthly!=null?` (unos ${money(sv.spendMonthly)} al mes, según lo que has gastado)`:""}, se aparta el 60% de lo que sobre (mínimo 5% del ingreso; si sobra poco, 3%). Si tienes metas, ellas van primero: 40% a metas, 45% al fondo y 15% a invertir (con el fondo completo: 60% metas, 10% fondo, 30% inversión). Sin metas: 70% fondo y 30% inversión mientras el fondo no llegue a <b>${money(sv.fundTarget)}</b>; ya completo, 30% y 70%. Hoy tu fondo tiene <b>${money(sv.fundNow)}</b>.</div>`; })()}
     <div class="spread"><h3>Ingresos</h3><button class="btn sm" data-act="newSalary">＋ Ingreso</button></div>
     ${inc.length?`<div class="list">${inc.map(row).join("")}</div>`:`<p class="muted small">Aún no tienes ingresos.</p>`}
     ${(()=>{ const fp=fixedPayments();
       return `<div class="spread"><h3>Pagos fijos <span class="muted small" style="font-weight:600">${money(fp.monthly)} al mes</span></h3><div class="row" style="gap:6px"><button class="btn sm" data-act="newFlow" data-type="fijo">＋ Pago fijo</button><button class="btn sm" data-act="newLoan">＋ Crédito</button></div></div>
       ${fp.items.length?`<div class="list">${fp.items.map(x=>`<div class="item" data-act="${x.kind==="prestamo"?"openLoan":"editFlow"}" data-id="${x.id}"><div class="main"><div class="title">${esc(x.name)} ${x.kind==="prestamo"?`<span class="chip">crédito · ${x.j} de ${x.n}</span>`:""}</div><div class="small muted">${esc(x.freq)}${x.next?` · siguiente ${fDateS(ds(x.next.date))}`:""}${x.card?` · con ${esc(x.card.name)}`:""} · ${money(x.monthly)} al mes</div></div><div class="num">${money(x.amount)}</div></div>`).join("")}</div>`:`<p class="muted small">Renta, luz, internet, créditos… lo que pagas sí o sí cada mes.</p>`}`; })()}`,
     `<span></span><div class="row"><button class="btn" data-act="close">Cerrar</button><button class="btn pri" id="sSave">Guardar</button></div>`);
-  const updMode=()=>{ const f=$("#sMode").value==="fijo"; $("#sPctL").hidden=!f; $("#sInvL").hidden=!f; $("#sAutoInfo").hidden=f; }; $("#sMode").onchange=updMode; updMode();
-  $("#sSave").onclick=async()=>{ await put({...settings(),kind:"settings",id:"settings",fundGoal:+$("#sFundGoal").value||0,invGoal:+$("#sInvGoal").value||0,cash:+$("#sCash").value||0,saveMode:$("#sMode").value,savePct:Math.min(100,Math.max(0,+$("#sPct").value||0)),invPct:Math.min(100,Math.max(0,+$("#sInv").value||0)),savingsPct:Math.min(100,Math.max(0,+$("#sPct").value||0)),horizon:+$("#sHor").value||60}); closeDialog(); toast("Guardado"); };
+  const updMode=()=>{ const f=$("#sMode").value==="fijo"; $("#sPctL").hidden=!f; $("#sInvL").hidden=!f; $("#sGoalL").hidden=!f; $("#sAutoInfo").hidden=f; }; $("#sMode").onchange=updMode; updMode();
+  $("#sSave").onclick=async()=>{ await put({...settings(),kind:"settings",id:"settings",fundGoal:+$("#sFundGoal").value||0,invGoal:+$("#sInvGoal").value||0,cash:+$("#sCash").value||0,saveMode:$("#sMode").value,savePct:Math.min(100,Math.max(0,+$("#sPct").value||0)),invPct:Math.min(100,Math.max(0,+$("#sInv").value||0)),goalPct:Math.min(100,Math.max(0,+$("#sGoalPct").value||0)),savingsPct:Math.min(100,Math.max(0,+$("#sPct").value||0)),horizon:+$("#sHor").value||60}); closeDialog(); toast("Guardado"); };
 }
 afterRender.plan=()=>{
   const plan=buildPlan();
@@ -2046,7 +2086,13 @@ function accountForm(a){
       ${isNew?`<label class="f">Saldo actual<input type="number" id="aBal" step="0.01" inputmode="decimal"></label>`:""}
       <label class="f">Rendimiento anual % (GAT)<input type="number" id="aRate" step="0.01" value="${a.rate||""}" placeholder="Ej. 13"></label>
     </div>
-    <div><div class="small muted" style="font-weight:700;margin-bottom:6px">¿Para qué es?</div>${seg("apur",[["ahorro","Fondo de ahorro"],["inversion","Inversión"]],accPurpose(a))}</div>
+    <div><div class="small muted" style="font-weight:700;margin-bottom:6px">¿Para qué es?</div>${seg("apur",PURPOSES,accPurpose(a))}</div>
+    <div id="aGoalBox" class="fgrid">
+      <label class="f">¿Para qué meta?<select id="aGoal">${all("goal").map(g=>`<option value="${g.id}" ${a.goalId===g.id?"selected":""}>${esc(g.name)} (${money(g.target)})</option>`).join("")}<option value="__new" ${all("goal").length?"":"selected"}>＋ Nueva meta con este nombre</option></select></label>
+      <label class="f" id="aGoalTgtL">Monto de la meta<input type="number" id="aGoalTgt" step="0.01" inputmode="decimal" placeholder="Ej. 3000"></label>
+    </div>
+    <div class="small muted" id="aPurHelp"></div>
+    <label class="row small" style="font-weight:600"><input type="checkbox" id="aUsable" ${accUsable(a)?"checked":""}> Contar este dinero como disponible para mis pagos</label>
     ${seg("aliq",[["1","Lo saco cuando quiera"],["0","Está a plazo"]],a.liquid===false?"0":"1")}
     <label class="f" id="aFromL">Disponible a partir de<input type="date" id="aFrom" value="${a.availFrom||""}"></label>
     <div><div class="small muted" style="font-weight:600;margin-bottom:6px">Color</div><div class="swatches" id="asw" data-sel="${a.color}">${[...CAT_COLORS,...CARD_COLORS.slice(0,12)].map(col=>`<button type="button" style="background:${col}" data-col="${col}" class="${col===a.color?"on":""}" aria-label="Color ${col}"></button>`).join("")}</div></div>
@@ -2054,11 +2100,16 @@ function accountForm(a){
     `<div class="confirm" id="delZone">${isNew?"":`<button class="btn danger" data-act="askDelete" data-id="${a.id}">Borrar</button>`}</div><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="aSave">Guardar</button></div>`);
   $$('[data-seg="aliq"] button').forEach(b=>b.onclick=()=>{ $$('[data-seg="aliq"] button').forEach(x=>x.classList.remove("on")); b.classList.add("on"); $("#aFromL").hidden=segVal("aliq")==="1"; });
   $("#aFromL").hidden=segVal("aliq")==="1";
-  $$('[data-seg="apur"] button').forEach(b=>b.onclick=()=>{ $$('[data-seg="apur"] button').forEach(x=>x.classList.remove("on")); b.classList.add("on"); });
+  const help={ahorro:"Cuenta para tu fondo de ahorro (emergencias).",inversion:"Cuenta para tu fondo de inversión.",meta:"Es para algo específico: no cuenta para tu fondo de ahorro y el plan le aparta dinero con prioridad.",gastar:"Es dinero para usar: cuenta como disponible para tus pagos."};
+  const updPur=()=>{ const v=segVal("apur"); $("#aGoalBox").hidden=v!=="meta"; $("#aGoalTgtL").hidden=$("#aGoal").value!=="__new"; $("#aPurHelp").textContent=help[v]||""; };
+  $$('[data-seg="apur"] button').forEach(b=>b.onclick=()=>{ $$('[data-seg="apur"] button').forEach(x=>x.classList.remove("on")); b.classList.add("on"); if(b.dataset.v==="gastar") $("#aUsable").checked=true; updPur(); });
+  $("#aGoal").onchange=updPur; updPur();
   $$("#asw button").forEach(b=>b.onclick=()=>{ $$("#asw button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); });
   $("#aSave").onclick=async()=>{
     const inst=$("#aInst").value, name=$("#aName").value.trim()||inst;
-    const o={...a,kind:"account",inst,name,purpose:segVal("apur")||"ahorro",rate:+$("#aRate").value||0,liquid:segVal("aliq")==="1",availFrom:segVal("aliq")==="1"?"":$("#aFrom").value,color:$("#asw .on")?.dataset.col||CAT_COLORS[0]};
+    const pur=segVal("apur")||"ahorro"; let goalId="";
+    if(pur==="meta"){ if($("#aGoal").value==="__new"){ const tg=+$("#aGoalTgt").value; if(!(tg>0)){ $("#aErr").textContent="Escribe el monto de la meta."; return; } const g=await put({kind:"goal",name,target:r2(tg),saved:0,history:[],color:$("#asw .on")?.dataset.col||CAT_COLORS[0],deadline:""}); goalId=g.id; } else goalId=$("#aGoal").value; }
+    const o={...a,kind:"account",inst,name,purpose:pur,goalId,usable:$("#aUsable").checked,rate:+$("#aRate").value||0,liquid:segVal("aliq")==="1",availFrom:segVal("aliq")==="1"?"":$("#aFrom").value,color:$("#asw .on")?.dataset.col||CAT_COLORS[0]};
     if(isNew){ const b=+$("#aBal").value||0; o.balance=r2(b); o.history=b?[{date:todayS(),amount:r2(b),type:"inicial"}]:[]; o.createdAt=Date.now(); }
     await put(o); closeDialog(); toast("Apartado guardado");
   };
@@ -2117,22 +2168,25 @@ function vAccounts(){
   <div class="grid g-2">
     <div class="panel"><div class="list">${accs.slice().sort((a,b)=>(+b.balance||0)-(+a.balance||0)).map(a=>`<div class="item" data-act="openAccount" data-id="${a.id}">
       <span class="thumb" style="background:${a.color}22;color:${a.color}">${esc(a.inst.slice(0,2))}</span>
-      <div class="main"><div class="title">${esc(a.name)}</div><div class="row small muted" style="gap:6px"><span>${esc(a.inst)}</span><span class="chip">${accPurpose(a)==="inversion"?"inversión":"fondo de ahorro"}</span>${a.rate?`<span class="chip good">${a.rate}% anual</span>`:""}${accAvailable(a,today())?"":`<span class="chip">desde ${a.availFrom?fDateS(a.availFrom):"plazo"}</span>`}</div></div>
+      <div class="main"><div class="title">${esc(a.name)}</div><div class="row small muted" style="gap:6px"><span>${esc(a.inst)}</span><span class="chip">${esc(purposeLabel(a))}</span>${accUsable(a)?`<span class="chip acc">cuenta para pagos</span>`:""}${a.rate?`<span class="chip good">${a.rate}% anual</span>`:""}${accAvailable(a,today())?"":`<span class="chip">desde ${a.availFrom?fDateS(a.availFrom):"plazo"}</span>`}</div></div>
       <div class="num">${money(a.balance)}</div></div>`).join("")}</div></div>
     <div class="panel"><div class="panel-h"><h3>Dónde está tu dinero</h3></div><div class="chart-box"><canvas id="chAcc"></canvas></div></div>
   </div>`;
 }
 function vAhorros(){
   const goals=all("goal");
-  const tot=goals.reduce((s,g)=>s+(+g.saved||0),0), tgt=goals.reduce((s,g)=>s+(+g.target||0),0);
+  const tot=goals.reduce((s,g)=>s+goalSaved(g),0), tgt=goals.reduce((s,g)=>s+(+g.target||0),0);
+  const pl=buildPlan(); const planFor=g=>{ let t=0, first=null; pl.periods.forEach(p=>(p.goals||[]).forEach(x=>{ if(x.g.id===g.id){ t=r2(t+x.amt); if(!first) first={date:p.start,amt:x.amt}; } })); return {t,first}; };
   return vAccounts()+`<div class="spread"><h2 style="font-size:17px">Metas de ahorro</h2><button class="btn" data-act="newGoal">＋ Meta de ahorro</button></div>
   ${goals.length?`<div class="grid g-kpi"><div class="panel kpi"><span class="lbl">Ahorrado</span><span class="val num">${money(tot)}</span><span class="sub">${tgt?Math.round(tot/tgt*100)+"% de tus metas":""}</span></div>
     <div class="panel kpi"><span class="lbl">Falta para tus metas</span><span class="val num">${money(Math.max(0,tgt-tot))}</span></div></div>
   <div class="grid g-2">
-    <div class="panel"><div class="list">${goals.map(g=>{ const pct=g.target?Math.min(1,(+g.saved||0)/g.target):0; let per="";
-      if(g.deadline&&g.target>g.saved){ const mo=Math.max(1,(pd(g.deadline).getFullYear()-today().getFullYear())*12+pd(g.deadline).getMonth()-today().getMonth()); per=`Ahorra ${money((g.target-g.saved)/mo)} al mes para llegar el ${fDate(g.deadline)}`; }
+    <div class="panel"><div class="list">${goals.map(g=>{ const sv_=goalSaved(g); const pct=g.target?Math.min(1,sv_/g.target):0; let per=""; const pf=planFor(g); const ac=goalAccounts(g);
+      if(g.deadline&&g.target>sv_){ const mo=Math.max(1,(pd(g.deadline).getFullYear()-today().getFullYear())*12+pd(g.deadline).getMonth()-today().getMonth()); per=`Ahorra ${money((g.target-sv_)/mo)} al mes para llegar el ${fDate(g.deadline)}`; }
+      if(pf.first) per=(per?per+" · ":"")+`el plan le aparta ${money(pf.first.amt)} el ${fDateS(ds(pf.first.date))}`;
+      if(ac.length) per=(per?per+" · ":"")+`en ${ac.map(a=>esc(a.name)).join(", ")}`;
       return `<div class="item" data-act="openGoal" data-id="${g.id}" style="flex-direction:column;align-items:stretch;gap:6px">
-        <div class="spread"><b><span class="dot" style="background:${g.color};margin-right:6px"></span>${esc(g.name)}</b><span class="num">${money(g.saved)} <span class="muted">/ ${money(g.target)}</span></span></div>
+        <div class="spread"><b><span class="dot" style="background:${g.color};margin-right:6px"></span>${esc(g.name)}</b><span class="num">${money(sv_)} <span class="muted">/ ${money(g.target)}</span></span></div>
         <div class="bar"><i style="width:${pct*100}%;background:${g.color}"></i></div>
         <div class="spread small muted"><span>${per||(pct>=1?"¡Meta cumplida!":"")}</span><span>${Math.round(pct*100)}%</span></div></div>`;}).join("")}</div></div>
     <div class="panel"><div class="panel-h"><h3>Aportes por mes</h3></div><div class="chart-box"><canvas id="chSave"></canvas></div></div>
@@ -2403,26 +2457,35 @@ function goalForm(g){
       ${isNew?`<label class="f">Ya llevo<input type="number" id="gSaved" step="0.01" value=""></label>`:""}
       <label class="f">Fecha objetivo (opcional)<input type="date" id="gDl" value="${g.deadline||""}"></label>
     </div>
+    <label class="f">¿Dónde guardas este dinero?<select id="gAcc"><option value="">En ningún apartado (lo registro aquí)</option>${all("account").map(a=>`<option value="${a.id}" ${a.goalId&&a.goalId===g.id&&accPurpose(a)==="meta"?"selected":""}>${esc(a.name)} · ${money(a.balance)}${accPurpose(a)!=="meta"?` (hoy: ${esc(purposeLabel(a))})`:""}</option>`).join("")}</select></label>
+    <div class="small muted">Si eliges un apartado, su saldo es lo que llevas en la meta y deja de contar para tu fondo de ahorro. El plan le da prioridad a tus metas al apartar.</div>
     <div class="small" id="gErr" style="color:var(--bad)"></div>`,
     `<span></span><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="gSave">Guardar</button></div>`);
   $("#gSave").onclick=async()=>{
     const name=$("#gName").value.trim(), tgt=+$("#gTgt").value; if(!name||!(tgt>0)){ $("#gErr").textContent="Escribe nombre y monto de la meta."; return; }
     const o={...g,kind:"goal",name,target:r2(tgt),deadline:$("#gDl").value||""};
     if(isNew){ const s0=+$("#gSaved").value||0; o.saved=r2(s0); o.history=s0?[{date:todayS(),amount:r2(s0)}]:[]; }
-    await put(o); closeDialog(); toast("Meta guardada");
+    const saved=await put(o); const accId=$("#gAcc").value;
+    for(const a of all("account").filter(a=>a.goalId===saved.id&&a.id!==accId)) await put({...a,goalId:"",purpose:"ahorro"});
+    if(accId){ const a=get(accId); if(a&&(a.goalId!==saved.id||accPurpose(a)!=="meta")) await put({...a,goalId:saved.id,purpose:"meta"}); }
+    closeDialog(); toast("Meta guardada");
   };
 }
 function goalDetail(id){
   const g=get(id); if(!g) return;
   openDialog(esc(g.name),`
-    <div class="spread"><span class="num" style="font-size:24px">${money(g.saved)}</span><span class="muted">de ${money(g.target)}</span></div>
-    <div class="bar"><i style="width:${Math.min(100,(g.saved/g.target)*100)}%;background:${g.color}"></i></div>
+    <div class="spread"><span class="num" style="font-size:24px">${money(goalSaved(g))}</span><span class="muted">de ${money(g.target)}</span></div>
+    <div class="bar"><i style="width:${Math.min(100,(goalSaved(g)/g.target)*100)}%;background:${g.color}"></i></div>
+    ${goalAccounts(g).length?`<div class="small muted">El dinero está en ${goalAccounts(g).map(a=>esc(a.name)).join(", ")}; al aportar se suma a ese apartado.</div>`:""}
     <div class="fgrid"><label class="f">Monto<input type="number" id="gAmt" step="0.01" inputmode="decimal"></label><label class="f">Fecha<input type="date" id="gDate" value="${todayS()}"></label></div>
     <div class="row"><button class="btn pri" id="gAdd">＋ Aportar</button><button class="btn" id="gSub">− Retirar</button></div>
     <h3>Movimientos</h3>
     ${(g.history||[]).length?`<div class="list">${g.history.slice().reverse().map(h=>`<div class="item" style="cursor:default"><div class="main">${fDate(h.date)}</div><span class="num" style="color:${h.amount<0?"var(--bad)":"var(--good)"}">${h.amount<0?"":"+"}${money(h.amount)}</span></div>`).join("")}</div>`:`<p class="muted small">Sin movimientos.</p>`}`,
     `<div class="confirm" id="delZone"><button class="btn danger" data-act="askDelete" data-id="${g.id}">Borrar meta</button></div><button class="btn" data-act="editGoal" data-id="${g.id}">Editar</button>`);
-  const mv=async sign=>{ const a=+$("#gAmt").value; if(!(a>0)) return; const h=(g.history||[]).concat([{date:$("#gDate").value||todayS(),amount:r2(sign*a)}]); await put({...g,history:h,saved:r2((+g.saved||0)+sign*a)}); goalDetail(id); toast(sign>0?"Aporte guardado":"Retiro guardado"); };
+  const mv=async sign=>{ const a=+$("#gAmt").value; if(!(a>0)) return; const date=$("#gDate").value||todayS(); const h=(g.history||[]).concat([{date,amount:r2(sign*a)}]);
+    const ac=goalAccounts(g)[0];
+    if(ac){ await put({...ac,balance:r2((+ac.balance||0)+sign*a),history:(ac.history||[]).concat([{date,amount:r2(sign*a),type:sign>0?"deposito":"retiro"}])}); await put({...g,history:h}); }
+    else await put({...g,history:h,saved:r2((+g.saved||0)+sign*a)}); goalDetail(id); toast(sign>0?"Aporte guardado":"Retiro guardado"); };
   $("#gAdd").onclick=()=>mv(1); $("#gSub").onclick=()=>mv(-1);
 }
 
@@ -2452,7 +2515,7 @@ document.addEventListener("click",async ev=>{
     case "planAdd": planAddMenu(); break;
     case "openAlerts": openAlerts(); break;
     case "goAlert": closeDialog(); if(t.dataset.to==="newExp") expForm(); else location.hash=t.dataset.to; break;
-    case "didSave": fundDepositForm(t.dataset.purpose,+t.dataset.amt,t.dataset.per); break;
+    case "didSave": fundDepositForm(t.dataset.purpose,+t.dataset.amt,t.dataset.per,t.dataset.goal); break;
     case "fundDeposit": fundDepositForm(t.dataset.purpose,0,""); break;
     case "stmtPaid": stmtPaidForm(id); break;
     case "planSettings": planSettingsForm(); break;
@@ -2475,6 +2538,7 @@ document.addEventListener("click",async ev=>{
     case "cancelDelete": $("#delZone").innerHTML=`<button class="btn danger" data-act="askDelete" data-id="${id}">Borrar</button>`; break;
     case "doDelete": {
       const o=get(id);
+      if(o&&o.kind==="goal"){ for(const a of all("account").filter(a=>a.goalId===id)) await put({...a,goalId:"",purpose:"ahorro"}); }
       if(o&&o.kind==="loan"){ for(const x of all("loanpay").filter(p=>p.loanId===id)) await del(x.id); }
       if(o&&o.kind==="card"){ for(const x of [...all("exp").filter(e=>e.cardId===id),...all("pay").filter(p=>p.cardId===id)]) await del(x.id); }
       if(o&&o.kind==="exp"){ for(const p of all("pay").filter(p=>p.target===id)) await put({...p,target:"auto"}); }
