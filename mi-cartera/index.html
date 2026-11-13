@@ -772,10 +772,13 @@ function cardState(card){
   const exps=all("exp").filter(e=>e.cardId===card.id).sort((a,b)=>a.date.localeCompare(b.date));
   const pays=all("pay").filter(p=>p.cardId===card.id).sort((a,b)=>a.date.localeCompare(b.date)||(a.createdAt||0)-(b.createdAt||0));
   const isCredit=card.type==="credito";
-  const regular=exps.filter(e=>!(+e.msi>1));
-  const plans=exps.filter(e=>+e.msi>1).map(planOf);
   const init = +card.initialBalance||0;
   const initDate = card.initialDate || "1970-01-01";
+  // (crédito) lo que registraste en o antes de la fecha de tu "deuda actual", y antes de capturarla, ya va incluido en esa deuda
+  const setAt=+card.balanceSetAt||0;
+  const preCapture=x=>isCredit&&setAt>0&&(x.date||"")<=initDate&&(x.createdAt||0)<=setAt;
+  const regular=exps.filter(e=>!(+e.msi>1)&&!preCapture(e));
+  const plans=exps.filter(e=>+e.msi>1).map(planOf);
   let revPaid=0;
   const allocs={};
   for(const p of pays){
@@ -793,12 +796,14 @@ function cardState(card){
         const due=r2(billedAmt(pl,card,Lp)-pl.paid);
         if(due>0){ const take=Math.min(rem,due); pl.paid=r2(pl.paid+take); rem=r2(rem-take); parts.push({to:pl.id,amt:take,kind:"mensualidad"}); }
       }
+      if(rem>0&&preCapture(p)){ parts.push({to:"rev",amt:rem,kind:"previo"}); rem=0; }
       if(rem>0){
         const owed = r2((initDate<=p.date?init:0) + regular.filter(e=>e.date<=p.date).reduce((s,e)=>s+(+e.amount||0),0) - revPaid);
         const take=Math.max(0,Math.min(rem,owed));
         if(take>0){ revPaid=r2(revPaid+take); rem=r2(rem-take); parts.push({to:"rev",amt:take,kind:"saldo"}); }
       }
-      if(rem>0){ revPaid=r2(revPaid+rem); parts.push({to:"rev",amt:rem,kind:"favor"}); rem=0; }
+      // lo que pagaste de más cubrió deuda que no estaba registrada; no se queda como "saldo a favor" que esconda tus gastos nuevos
+      if(rem>0){ parts.push({to:"rev",amt:rem,kind:"noreg"}); rem=0; }
     } else {
       parts.push({to:"rev",amt:rem,kind:"deposito"});
     }
@@ -1803,7 +1808,9 @@ function cardDetail(id){
       <div class="kpi"><span class="lbl">Bloqueado por MSI</span><span class="num">${money(st.msiOut)}</span></div></div>
     <div class="row"><button type="button" class="btn sm" data-act="stmtPaid" data-id="${c.id}">Ya pagué el corte del ${fDateS(ds(st.stmtCut))} (vence ${fDateS(ds(st.nextPay))})</button></div>
     <div class="note acc"><b>Pago total antes del ${fDate(ds(st.nextPay))}: <span class="num">${money(st.payTotal)}</span></b><br>
-      <span class="num">${money(Math.max(0,st.rev))}</span> de saldo (todas tus compras normales, aunque sean de después del corte) + <span class="num">${money(st.msiDue)}</span> de mensualidades de este mes. Las mensualidades que faltan de tus compras a meses no se incluyen.${st.loanDue>0?`<br>Con tus préstamos en esta tarjeta: <b class="num">${money(st.payTotal+st.loanDue)}</b>.`:""}</div>
+      <span class="num">${money(Math.max(0,st.rev))}</span> de saldo (todas tus compras normales, aunque sean de después del corte) + <span class="num">${money(st.msiDue)}</span> de mensualidades de este mes. Las mensualidades que faltan de tus compras a meses no se incluyen.${st.loanDue>0?`<br>Con tus préstamos en esta tarjeta: <b class="num">${money(st.payTotal+st.loanDue)}</b>.`:""}
+      <div class="small" style="margin-top:8px">Se actualiza solo con cada gasto y pago que registras. ¿Tu banco dice otra cosa? Pon tu deuda normal de hoy (sin lo que te falta de compras a meses) y desde ahí sigue sumando:</div>
+      <div class="row" style="margin-top:6px"><input type="number" id="crBal" step="0.01" inputmode="decimal" placeholder="Deuda de hoy sin MSI" style="max-width:200px"><button class="btn sm pri" id="crSet" type="button">Actualizar deuda</button></div></div>
     <h3>Compras a meses sin intereses</h3>${plansHtml}`:""}
     ${st.isCredit?"":`<div class="note acc"><b>Saldo estimado: <span class="num">${money(st.balance)}</span></b><div class="small" style="margin-top:4px">Tu saldo del ${fDate(c.initialDate||todayS())} (${money(+c.initialBalance||0)}) más ${isVales(c)?"recargas":"depósitos"}, menos gastos${isVales(c)?"":" y pagos hechos desde esta cuenta"}. ${isVales(c)?"Los vales sirven para tus compras; no cuentan como dinero para pagar tarjetas o recibos.":"Este dinero cuenta como disponible para tus pagos."}</div>
       <div class="row" style="margin-top:10px"><input type="number" id="dbBal" step="0.01" inputmode="decimal" placeholder="Saldo real de hoy" style="max-width:200px"><button class="btn sm pri" id="dbSet" type="button">Actualizar saldo</button></div></div>`}
@@ -1845,12 +1852,13 @@ function stmtPaidForm(id){
   };
 }
 function attachDebitUpdate(c){
+  const cb=$("#crSet"); if(cb) cb.onclick=async()=>{ const v=$("#crBal").value; if(v===""||isNaN(+v)||+v<0) return; await put({...get(c.id),initialBalance:r2(+v),initialDate:todayS(),balanceSetAt:Date.now()}); toast(`Deuda de ${c.name} actualizada: ${money(+v)}`); closeDialog(); };
   const b=$("#dbSet"); if(!b) return;
   b.onclick=async()=>{ const v=$("#dbBal").value; if(v===""||isNaN(+v)) return; await put({...c,initialBalance:r2(+v),initialDate:todayS(),balanceSetAt:Date.now()}); toast("Saldo actualizado"); closeDialog(); };
 }
 function payRow(p,st){
   const parts=(st.allocs[p.id]||[]);
-  const label={mensualidad:"mensualidad de",adelanto:"adelanto a",saldo:"saldo normal",favor:"saldo a favor",deposito:"depósito"};
+  const label={mensualidad:"mensualidad de",adelanto:"adelanto a",saldo:"saldo normal",favor:"saldo a favor",deposito:"depósito",noreg:"de compras que no estaban registradas en la app",previo:"ya incluido en tu deuda capturada"};
   return `<div class="item" style="cursor:default;align-items:flex-start"><span class="thumb" style="background:var(--good-soft);color:var(--good)">$</span>
     <div class="main"><div class="spread"><span class="title">Pago ${fDateS(p.date)}${p.note?` · ${esc(p.note)}`:""}${get(p.fromId)?` · desde ${esc(get(p.fromId).name)}`:""}</span><span class="num" style="color:var(--good)">${money(p.amount)}</span></div>
       ${st.isCredit?`<div class="alloc"><span>Liberó <b class="num">${money(p.amount)}</b> de crédito:</span>${parts.map(a=>{ const pl=st.plans.find(x=>x.id===a.to); return `<span>· <span class="num">${money(a.amt)}</span> ${label[a.kind]} ${pl?esc(pl.exp.desc||"compra a meses"):""}</span>`; }).join("")}</div>`:""}
@@ -2887,7 +2895,7 @@ async function loadSample(){
     ["Farmacia (ejemplo)",420,"Salud","ej-deb",-3,0],["Despensa (ejemplo)",1640,"Súper","ej-bbva",-2,0],["Uber (ejemplo)",185,"Transporte","ej-deb",-1,0],
     ["Ropa (ejemplo)",1350,"Ropa","ej-bbva",-45,0],["Despensa (ejemplo)",2100,"Súper","ej-bbva",-40,0],["Cine (ejemplo)",360,"Entretenimiento","ej-nu",-35,0],["Luz CFE (ejemplo)",640,"Servicios","ej-deb",-30,0],["Despensa (ejemplo)",1720,"Súper","ej-bbva",-70,0],["Gasolina (ejemplo)",850,"Gasolina","ej-nu",-65,0]
   ].map(([desc,amount,category,cardId,off,msi],i)=>({id:"ej-e"+i,kind:"exp",desc,amount,category,cardId,date:d(off),msi,photos:[],createdAt:10+i}));
-  const pays=[{id:"ej-p1",kind:"pay",cardId:"ej-bbva",amount:6000,date:d(-50),target:"auto",createdAt:50},{id:"ej-p2",kind:"pay",cardId:"ej-nu",amount:2500,date:d(-25),target:"auto",createdAt:51},{id:"ej-p3",kind:"pay",cardId:"ej-bbva",amount:4200,date:d(-18),target:"auto",createdAt:52}];
+  const pays=[{id:"ej-p1",kind:"pay",cardId:"ej-bbva",amount:2800,date:d(-50),target:"auto",createdAt:50},{id:"ej-p2",kind:"pay",cardId:"ej-nu",amount:1210,date:d(-25),target:"auto",createdAt:51},{id:"ej-p3",kind:"pay",cardId:"ej-bbva",amount:4200,date:d(-18),target:"auto",createdAt:52}];
   const flows=[{id:"ej-f1",kind:"flow",type:"ingreso",name:"Quincena (ejemplo)",amount:11500,freq:"quincenal",date:d(-60),day:15,active:true},{id:"ej-f2",kind:"flow",type:"fijo",name:"Renta (ejemplo)",amount:7500,freq:"mensual",day:1,date:d(-60),active:true},{id:"ej-f3",kind:"flow",type:"fijo",name:"Internet (ejemplo)",amount:499,freq:"mensual",day:12,date:d(-60),active:true}];
   const goals=[{id:"ej-g1",kind:"goal",name:"Fondo de emergencia (ejemplo)",target:30000,saved:8500,color:"#0e8f7a",deadline:d(300),history:[{date:d(-60),amount:5000},{date:d(-30),amount:2000},{date:d(-5),amount:1500}]},{id:"ej-g2",kind:"goal",name:"Viaje (ejemplo)",target:15000,saved:3200,color:"#d9822b",deadline:d(200),history:[{date:d(-40),amount:2000},{date:d(-10),amount:1200}]}];
   const st={...settings(),id:"settings",kind:"settings",cash:4800,savingsPct:10,horizon:60};
