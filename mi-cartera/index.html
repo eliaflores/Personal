@@ -557,6 +557,10 @@ const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n)
 
 const CATS = ["Súper","Comida","Transporte","Gasolina","Hogar","Servicios","Salud","Entretenimiento","Ropa","Educación","Suscripciones","Viajes","Tecnología","Otros"];
 const CARD_COLORS = ["#97C2EC","#D6D0C2","#1F1F1F","#2b59ff","#4338ca","#7c3aed","#a21caf","#db2777","#e11d48","#dc2626","#ea580c","#f59e0b","#ca8a04","#65a30d","#16a34a","#0d9488","#0891b2","#0284c7","#1e3a8a","#475569","#111827","#78350f","#be185d","#9333ea","#f472b6","#14b8a6","#c0a062"];
+const isVales = c => !!c && c.type==="vales";
+const CASH_TYPES = c => c.type!=="credito" && c.type!=="vales";
+function valesNext(c){ const r=c.recarga||{}; if(!(+r.amount>0)||!r.next) return null; const occ=occurrences({freq:r.freq||"mensual",day:pd(r.next).getDate(),date:r.next,amount:+r.amount},pd(r.next),addDays(pd(r.next),400)); return occ[0]?{date:occ[0].date,amount:+r.amount}:null; }
+function valesAfter(c,d){ const r=c.recarga||{}; const occ=occurrences({freq:r.freq||"mensual",day:pd(r.next).getDate(),date:r.next,amount:+r.amount},addDays(d,1),addDays(d,400)); return occ[0]?occ[0].date:null; }
 const isLight = col => { const m=/^#?([0-9a-f]{6})$/i.exec(col||""); if(!m) return false; const n=parseInt(m[1],16); const r=(n>>16)&255,g=(n>>8)&255,b=n&255; return (0.299*r+0.587*g+0.114*b)>165; };
 const cardBg = col => isLight(col) ? `${col} linear-gradient(135deg, color-mix(in srgb, ${col} 70%, #fff) 0%, ${col} 70%)` : `${col} linear-gradient(135deg, ${col} 0%, color-mix(in srgb, ${col} 55%, #000) 100%)`;
 const cardInk = col => isLight(col) ? "color:#1F1F1F;--cc-bar:rgba(31,31,31,.15);--cc-fill:#1F1F1F;--cc-gloss:linear-gradient(135deg,rgba(255,255,255,.35),rgba(255,255,255,0) 55%);--cc-ring:rgba(255,255,255,.28)" : "";
@@ -885,7 +889,7 @@ const accAvailable=(a,d)=> a.liquid!==false || !a.availFrom || pd(a.availFrom)<=
 /* ================= compras futuras: cuándo y con qué pagar ================= */
 function cutOnOrAfter(card,d){ const c=cutDate(card,d.getFullYear(),d.getMonth()); if(c>=d) return c; const n=new Date(d.getFullYear(),d.getMonth()+1,1); return cutDate(card,n.getFullYear(),n.getMonth()); }
 function futPayList(f){
-  const cards=all("card"); const credit=cards.filter(c=>c.type==="credito").map(c=>c.id); const debit=cards.filter(c=>c.type!=="credito").map(c=>c.id);
+  const cards=all("card"); const credit=cards.filter(c=>c.type==="credito").map(c=>c.id); const debit=cards.filter(CASH_TYPES).map(c=>c.id);
   if(Array.isArray(f.payCards)&&f.payCards.length){
     const sel=f.payCards.filter(id=>id==="efectivo"||get(id));
     const cr=sel.filter(id=>credit.includes(id)), db=sel.filter(id=>debit.includes(id));
@@ -1017,7 +1021,7 @@ const goalSaved=g=>{ const ac=goalAccounts(g); return ac.length?r2(ac.reduce((x,
 function saveConfig(){
   const s=settings(); const t=today();
   const since=ds(addDays(t,-90));
-  const regular=all("exp").filter(e=>e.date>=since&&e.date<=ds(t)&&!(+e.msi>1));
+  const regular=all("exp").filter(e=>e.date>=since&&e.date<=ds(t)&&!(+e.msi>1)&&!isVales(get(e.cardId)));
   const firstDate=regular.reduce((m,e)=>e.date<m?e.date:m,ds(t));
   const span=Math.max(30,daysBetween(pd(firstDate),t));
   const spendMonthly=regular.length?r2(regular.reduce((x,e)=>x+(+e.amount||0),0)/span*30):null;
@@ -1040,7 +1044,7 @@ function saveConfig(){
   return {fundStop,invStop,goals,goalPct:(s.goalPct??5)/100,invTarget,invYield,fundAuto:!(+s.fundGoal>0),mode:s.saveMode||"auto",savePct:(s.savePct??s.savingsPct??10)/100,invPct:(s.invPct??5)/100,spendMonthly,fixedMonthly,fundNow,invNow,fundTarget,monthlyNeed,saveAcc:best(saveAccs),invAcc:best(invAccs)};
 }
 function cashAvailable(){
-  const debits=all("card").filter(c=>c.type!=="credito").map(c=>({card:c,bal:cardState(c).balance}));
+  const debits=all("card").filter(CASH_TYPES).map(c=>({card:c,bal:cardState(c).balance}));
   const cash=+settings().cash||0;
   const usable=all("account").filter(a=>accUsable(a)&&accAvailable(a,today())).map(a=>({acc:a,bal:+a.balance||0}));
   return {cash,debits,usable,total:r2(cash+debits.reduce((s,d)=>s+d.bal,0)+usable.reduce((s,d)=>s+d.bal,0))};
@@ -1205,6 +1209,7 @@ function buildAlerts(){
       else if(nPay===0) out.push({lvl:"mid",key:"cardpay-"+o.card.id+"-"+ds(o.due),title:`Hoy te conviene pagar ${o.name}`,text:`Pago total ${money(o.amount)} · vence el ${fDateS(ds(o.due))}`,to:"tarjetas"}); });
     nextIncomes(1).filter(i=>+i.date===+t).forEach(i=>{ const p0=plan.periods[0]; out.push({lvl:"info",key:"inc-"+i.flow.id+"-"+ds(t),title:`Hoy te llega ${i.flow.name}`,text:`${money(i.amount)}${p0&&(p0.save||p0.inv)?` · aparta ${money(p0.save)} a tu fondo de ahorro y ${money(p0.inv)} a inversión`:""}`,to:"plan"}); });
   }catch(e){ console.error(e); }
+  all("card").filter(isVales).forEach(c=>{ const n=valesNext(c); if(n&&daysBetween(t,n.date)<=0) out.push({lvl:"info",key:"vales-"+c.id+"-"+ds(n.date),title:`Hoy te llegan tus vales de ${c.name}`,text:`${money(n.amount)}. Cuando te lleguen, toca “Ya me llegó la recarga”.`,to:"tarjetas"}); });
   const pace=spendPace(); if(pace) out.push(pace);
   if(!all("exp").some(e=>e.date===todayS())) out.push({lvl:"info",key:"log-"+todayS(),title:"¿Ya registraste tus gastos de hoy?",text:"Anótalos para que tu plan esté al día.",to:"newExp"});
   const order={high:0,mid:1,warn:1,info:2,good:3};
@@ -1227,6 +1232,7 @@ function buildReminders(){
       add(addDays(o.due,-3),`${o.name} vence en 3 días`,`Pago total ${money(o.amount)} · fecha límite ${fDateS(ds(o.due))}`,`card3-${o.card.id}-${ds(o.due)}`,"#tarjetas");
       add(o.due,`Hoy vence ${o.name}`,`Pago total ${money(o.amount)}. Si ya lo pagaste, márcalo en la app.`,`card0-${o.card.id}-${ds(o.due)}`,"#tarjetas");
       if(o.payOn&&+o.payOn<+addDays(o.due,-3)) add(o.payOn,`Hoy te conviene pagar ${o.name}`,`Pago total ${money(o.amount)} · vence el ${fDateS(ds(o.due))}`,`cardpay-${o.card.id}-${ds(o.due)}`,"#tarjetas"); });
+    all("card").filter(isVales).forEach(c=>{ const r=c.recarga||{}; if(!(+r.amount>0)||!r.next) return; occurrences({freq:r.freq||"mensual",day:pd(r.next).getDate(),date:r.next,amount:+r.amount},t,end).forEach(o=>add(o.date,`Hoy te llegan tus vales de ${c.name}`,`${money(+r.amount)} · regístralos en la app`,`vales-${c.id}-${ds(o.date)}`,"#tarjetas")); });
     nextIncomes(21).forEach(i=>add(i.date,`Hoy te llega ${i.flow.name}`,`${money(i.amount)} · abre la app para apartar a tus fondos`,`inc-${i.flow.id}-${ds(i.date)}`,"#plan"));
   }catch(e){ console.error(e); }
   return out.sort((a,b)=>a.on.localeCompare(b.on));
@@ -1593,8 +1599,8 @@ function ccTile(c){
       <div class="spread small"><span>Disponible ${money(st.avail)}</span><span class="digits">•••• ${esc(c.last4||"")}</span></div></div></button>`;
   }
   return `<button class="cc" style="background:${cardBg(c.color)};${cardInk(c.color)}" data-act="openCard" data-id="${c.id}" type="button">${bg}
-    <div class="spread"><span class="bank">${esc(c.name)}</span><span class="type">${c.type==="efectivo"?"Efectivo":"Débito"}</span></div>
-    <div><div class="type">Saldo estimado</div><div class="big">${money(st.balance)}</div></div>
+    <div class="spread"><span class="bank">${esc(c.name)}</span><span class="type">${c.type==="efectivo"?"Efectivo":isVales(c)?"Vales":"Débito"}</span></div>
+    <div><div class="type">${isVales(c)?"Saldo de vales":"Saldo estimado"}</div><div class="big">${money(st.balance)}</div></div>
     <div class="spread small"><span>Gastado ${money(st.spent)}</span><span class="digits">${c.last4?"•••• "+esc(c.last4):""}</span></div></button>`;
 }
 function utilChip(u){ return u>=.7?`<span class="chip bad">${Math.round(u*100)}% usado</span>`:u>=.3?`<span class="chip warn">${Math.round(u*100)}% usado</span>`:`<span class="chip good">${Math.round(u*100)}% usado</span>`; }
@@ -1615,7 +1621,7 @@ function vTarjetas(){
         <div><span>Uso</span><span>${utilChip(st.util)}</span></div>
         <div style="grid-column:1/-1"><button type="button" class="btn sm" data-act="stmtPaid" data-id="${c.id}">Ya pagué el corte del ${fDateS(ds(st.stmtCut))}</button></div>
         ${st.loanDue>0?`<div><span>Préstamos en esta tarjeta</span><span class="num">${money(st.loanDue)}</span></div><div><span>Total a pagar el ${fDateS(ds(st.nextPay))}</span><span class="num" style="color:var(--accent)">${money(st.payTotal+st.loanDue)}</span></div>`:""}
-      </div>`:`<div class="card-meta"><div><span>Saldo capturado (${fDateS(c.initialDate||todayS())})</span><span class="num">${money(+c.initialBalance||0)}</span></div><div><span>Depósitos</span><span class="num">${money(st.dep)}</span></div><div><span>Gastos</span><span class="num">${money(st.spent)}</span></div>${st.paidOut?`<div><span>Pagos de tarjetas</span><span class="num">${money(st.paidOut)}</span></div>`:""}${st.loanOut?`<div><span>Pagos de préstamos</span><span class="num">${money(st.loanOut)}</span></div>`:""}<div><span>Cuenta para tus pagos</span><span class="chip good">sí</span></div></div>`}
+      </div>`:`<div class="card-meta"><div><span>Saldo capturado (${fDateS(c.initialDate||todayS())})</span><span class="num">${money(+c.initialBalance||0)}</span></div><div><span>${isVales(c)?"Recargas":"Depósitos"}</span><span class="num">${money(st.dep)}</span></div><div><span>Gastos</span><span class="num">${money(st.spent)}</span></div>${st.paidOut?`<div><span>Pagos de tarjetas</span><span class="num">${money(st.paidOut)}</span></div>`:""}${st.loanOut?`<div><span>Pagos de préstamos</span><span class="num">${money(st.loanOut)}</span></div>`:""}${isVales(c)?(()=>{ const n=valesNext(c); return `<div><span>Próxima recarga</span><span class="num">${n?`${money(n.amount)} · ${fDateS(ds(n.date))}`:"—"}</span></div><div><span>Cuenta para tus pagos</span><span class="chip">no, solo compras</span></div><div style="grid-column:1/-1"><button type="button" class="btn sm" data-act="valesIn" data-id="${c.id}">Ya me llegó la recarga</button></div>`; })():`<div><span>Cuenta para tus pagos</span><span class="chip good">sí</span></div>`}</div>`}
     </div>`;}).join("")}</div>`;
 }
 function cardDetail(id){
@@ -1639,7 +1645,7 @@ function cardDetail(id){
     <div class="note acc"><b>Pago total antes del ${fDate(ds(st.nextPay))}: <span class="num">${money(st.payTotal)}</span></b><br>
       <span class="num">${money(Math.max(0,st.rev))}</span> de saldo (todas tus compras normales, aunque sean de después del corte) + <span class="num">${money(st.msiDue)}</span> de mensualidades de este mes. Las mensualidades que faltan de tus compras a meses no se incluyen.${st.loanDue>0?`<br>Con tus préstamos en esta tarjeta: <b class="num">${money(st.payTotal+st.loanDue)}</b>.`:""}</div>
     <h3>Compras a meses sin intereses</h3>${plansHtml}`:""}
-    ${st.isCredit?"":`<div class="note acc"><b>Saldo estimado: <span class="num">${money(st.balance)}</span></b><div class="small" style="margin-top:4px">Tu saldo del ${fDate(c.initialDate||todayS())} (${money(+c.initialBalance||0)}) más depósitos, menos gastos y pagos hechos desde esta cuenta. Este dinero cuenta como disponible para tus pagos.</div>
+    ${st.isCredit?"":`<div class="note acc"><b>Saldo estimado: <span class="num">${money(st.balance)}</span></b><div class="small" style="margin-top:4px">Tu saldo del ${fDate(c.initialDate||todayS())} (${money(+c.initialBalance||0)}) más ${isVales(c)?"recargas":"depósitos"}, menos gastos${isVales(c)?"":" y pagos hechos desde esta cuenta"}. ${isVales(c)?"Los vales sirven para tus compras; no cuentan como dinero para pagar tarjetas o recibos.":"Este dinero cuenta como disponible para tus pagos."}</div>
       <div class="row" style="margin-top:10px"><input type="number" id="dbBal" step="0.01" inputmode="decimal" placeholder="Saldo real de hoy" style="max-width:200px"><button class="btn sm pri" id="dbSet" type="button">Actualizar saldo</button></div></div>`}
     <h3>Pagos ${st.isCredit?"":"y depósitos"}</h3>
     ${pays.length?`<div class="list">${pays.map(p=>payRow(p,st)).join("")}</div>`:`<p class="muted">Sin pagos registrados.</p>`}
@@ -1651,7 +1657,7 @@ function cardDetail(id){
   attachDebitUpdate(c);
 }
 function fromOptions(sel){
-  const debs=all("card").filter(c=>c.type!=="credito").map(c=>({c,b:cardState(c).balance})).sort((a,b)=>b.b-a.b);
+  const debs=all("card").filter(CASH_TYPES).map(c=>({c,b:cardState(c).balance})).sort((a,b)=>b.b-a.b);
   let last=""; try{ last=localStorage.getItem("mc-from")||""; }catch(e){}
   const def=sel!==undefined?sel:(debs.some(x=>x.c.id===last)?last:(debs[0]?debs[0].c.id:""));
   return debs.map(x=>`<option value="${x.c.id}" ${x.c.id===def?"selected":""}>${esc(x.c.name)} (tienes ${money(x.b)})</option>`).join("")+`<option value="" ${def===""?"selected":""}>Efectivo u otra cuenta</option>`;
@@ -1946,7 +1952,7 @@ function loanForm(l){
     <div class="fgrid">
       <label class="f">Nombre<input type="text" id="lName" value="${esc(l.name||"")}" placeholder="Ej. Préstamo Banorte"></label>
       <label class="f">Tipo<select id="lType">${LOAN_TYPES.map(t=>`<option ${t===l.ltype?"selected":""}>${t}</option>`).join("")}</select></label>
-      <label class="f">Se paga con<select id="lCard"><option value="">Efectivo u otra cuenta</option>${all("card").filter(c=>c.type!=="efectivo").map(c=>`<option value="${c.id}" ${c.id===l.payCardId?"selected":""}>${esc(c.name)} (${c.type==="credito"?"crédito":"débito"})</option>`).join("")}</select></label>
+      <label class="f">Se paga con<select id="lCard"><option value="">Efectivo u otra cuenta</option>${all("card").filter(c=>c.type!=="efectivo"&&!isVales(c)).map(c=>`<option value="${c.id}" ${c.id===l.payCardId?"selected":""}>${esc(c.name)} (${c.type==="credito"?"crédito":"débito"})</option>`).join("")}</select></label>
     </div>
     <div class="fgrid">
       <label class="f"><span id="lCuotaT">Pago de cada vez</span><input type="number" id="lCuota" step="0.01" inputmode="decimal" value="${l.cuota||""}" placeholder="0.00"></label>
@@ -2127,7 +2133,7 @@ function futureForm(f){
       <label class="f">Categoría<select id="uCat">${CATS.map(c=>`<option ${c===f.category?"selected":""}>${c}</option>`).join("")}</select></label>
     </div>
     <div><div class="small muted" style="font-weight:700;margin-bottom:8px">¿Con qué lo puedes pagar?</div>
-      <div class="paychips">${cards.map(c=>`<label><input type="checkbox" class="uPay" value="${c.id}" ${chosen.has(c.id)?"checked":""}><span class="dot" style="background:${c.color}"></span>${esc(c.name)} <span class="muted small">${tipo[c.type]||""}</span></label>`).join("")}<label><input type="checkbox" class="uPay" value="efectivo" ${chosen.has("efectivo")?"checked":""}>Efectivo</label></div>
+      <div class="paychips">${cards.filter(c=>!isVales(c)).map(c=>`<label><input type="checkbox" class="uPay" value="${c.id}" ${chosen.has(c.id)?"checked":""}><span class="dot" style="background:${c.color}"></span>${esc(c.name)} <span class="muted small">${tipo[c.type]||""}</span></label>`).join("")}<label><input type="checkbox" class="uPay" value="efectivo" ${chosen.has("efectivo")?"checked":""}>Efectivo</label></div>
       <div class="small muted" style="margin-top:6px">Marca una o varias. Si no marcas ninguna, la app elige la que más te convenga.</div></div>
     <div><div class="small muted" style="font-weight:600;margin-bottom:6px">¿La tienda da meses sin intereses?</div>${seg("umsi",[["0","No"],["3","3"],["6","6"],["9","9"],["12","12"],["18","18"],["24","24"]],String(+f.msiMax||0))}</div>
     <label class="row small"><input type="checkbox" id="uSav" ${f.allowSavings?"checked":""}> Puede tomar dinero de mis apartados si hace falta</label>
@@ -2327,7 +2333,7 @@ function cardForm(c){
   let photo=c.photo||null;
   openDialog(isNew?"Nueva tarjeta":"Editar tarjeta",`
     <form id="cardF" class="view" style="gap:14px">
-    ${seg("ctype",[["credito","Crédito"],["debito","Débito"],["efectivo","Efectivo / cuenta"]],c.type)}
+    ${seg("ctype",[["credito","Crédito"],["debito","Débito"],["vales","Vales"],["efectivo","Efectivo"]],c.type)}
     <div class="fgrid">
       <label class="f">Nombre<input type="text" id="cName" required value="${esc(c.name||"")}" placeholder="Ej. BBVA Azul"></label>
       <label class="f">Últimos 4 dígitos<input type="text" id="cLast" maxlength="4" inputmode="numeric" value="${esc(c.last4||"")}"></label>
@@ -2339,6 +2345,14 @@ function cardForm(c){
       <div class="small muted" style="grid-column:1/-1">Pon las fechas completas de tu siguiente estado de cuenta (por ejemplo corte 1 dic y pago 21 dic). Los meses siguientes se calculan solos.</div>
       <label class="f">Tasa de interés anual %<input type="number" id="cRate" step="0.1" value="${c.rate||""}" placeholder="Ej. 54"></label>
     </div>
+    <div id="valesBox" class="view" style="gap:10px">
+      <div class="small muted">Vales de despensa o restaurante (Edenred, Sí Vale, Pluxee…). Sirven para tus compras, pero no para pagar tarjetas ni recibos, así que no cuentan como dinero disponible en tu plan.</div>
+      <div class="fgrid">
+        <label class="f">Recarga<input type="number" id="vAmt" step="0.01" inputmode="decimal" value="${(c.recarga&&c.recarga.amount)||""}" placeholder="Ej. 1500"></label>
+        <label class="f">Cada cuándo<select id="vFreq">${[["mensual","Mensual"],["quincenal","Quincenal (15 y fin de mes)"],["catorcenal","Cada 14 días"],["semanal","Semanal"]].map(([k,v])=>`<option value="${k}" ${((c.recarga&&c.recarga.freq)||"mensual")===k?"selected":""}>${v}</option>`).join("")}</select></label>
+        <label class="f">Próxima recarga<input type="date" id="vNext" value="${(c.recarga&&c.recarga.next)||""}"></label>
+      </div>
+    </div>
     <div class="fgrid">
       <label class="f"><span id="initLbl">Deuda actual (sin MSI)</span><input type="number" id="cInit" step="0.01" inputmode="decimal" value="${c.initialBalance||""}" placeholder="0.00"></label>
       <label class="f">A la fecha<input type="date" id="cInitD" value="${c.initialDate||todayS()}"></label>
@@ -2349,7 +2363,7 @@ function cardForm(c){
     <div class="small" id="cErr" style="color:var(--bad)"></div>
     </form>`,
     `<span></span><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="cSave">Guardar</button></div>`);
-  const upd=()=>{ const t=segVal("ctype"); $("#credOnly").hidden=t!=="credito"; $("#initLbl").textContent=t==="credito"?"Deuda actual (sin MSI)":"Saldo actual"; $("#initHelp").textContent=t==="credito"?"Si ya debes algo en esta tarjeta, pon aquí tu saldo normal. Las compras a meses que ya tengas regístralas como gasto a meses, con cuántas mensualidades ya pagaste.":""; };
+  const upd=()=>{ const t=segVal("ctype"); $("#credOnly").hidden=t!=="credito"; $("#valesBox").hidden=t!=="vales"; $("#initLbl").textContent=t==="credito"?"Deuda actual (sin MSI)":"Saldo actual"; $("#initHelp").textContent=t==="credito"?"Si ya debes algo en esta tarjeta, pon aquí tu saldo normal. Las compras a meses que ya tengas regístralas como gasto a meses, con cuántas mensualidades ya pagaste.":""; };
   $$('[data-seg="ctype"] button').forEach(b=>b.onclick=()=>{ $$('[data-seg="ctype"] button').forEach(x=>x.classList.remove("on")); b.classList.add("on"); upd(); }); upd();
   $$("#sw button").forEach(b=>b.onclick=()=>{ $$("#sw button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); });
   const drawPh=()=>{ $("#cPh").innerHTML=(photo?`<div class="ph"><img src="${esc(photoSrc(photo))}" alt=""><button type="button" id="rmPh" aria-label="Quitar">×</button></div>`:"")+`<label class="drop">${photo?"Cambiar":"＋ Foto"}<input type="file" accept="image/*" id="cFile" hidden></label>`;
@@ -2363,8 +2377,10 @@ function cardForm(c){
     if(t==="credito" && (!cutS||!payS)){ $("#cErr").textContent="Elige la fecha de tu próximo corte y la fecha límite de pago de ese corte. Vienen en tu estado de cuenta o en la app del banco."; return; }
     if(t==="credito" && (pd(payS)<=pd(cutS)||daysBetween(pd(cutS),pd(payS))>45)){ $("#cErr").textContent="La fecha límite de pago debe ser después del corte (normalmente 15 a 25 días después)."; return; }
     const cut=cutS?pd(cutS).getDate():0, pay=payS?pd(payS).getDate():0;
+    if(t==="vales"&&+$("#vAmt").value>0&&!$("#vNext").value){ $("#cErr").textContent="Pon la fecha de tu próxima recarga de vales."; return; }
     const obj={...(c.id?c:{}),kind:"card",type:t,name,last4:$("#cLast").value.trim(),limit:+$("#cLimit").value||0,cutDay:cut||0,payDay:pay||0,cycleCut:t==="credito"?cutS:"",cyclePay:t==="credito"?payS:"",rate:+$("#cRate").value||0,
       initialBalance:+$("#cInit").value||0,initialDate:$("#cInitD").value||todayS(),
+      recarga:t==="vales"?{amount:r2(+$("#vAmt").value||0),freq:$("#vFreq").value,next:$("#vNext").value}:null,
       balanceSetAt:((+$("#cInit").value||0)!==(+c.initialBalance||0)||($("#cInitD").value||todayS())!==c.initialDate||!c.id)?Date.now():(c.balanceSetAt||0),color:$("#sw .on")?.dataset.col||CARD_COLORS[0],photo,createdAt:c.createdAt||Date.now()};
     await put(obj); closeDialog(); toast(isNew?"Tarjeta agregada":"Tarjeta guardada");
   };
@@ -2450,7 +2466,7 @@ function payForm(cardId,planId){
   cardId=cardId||(cr.find(c=>c.type==="credito")||cr[0]).id;
   openDialog("Registrar pago",`
     <div class="fgrid">
-      <label class="f">Tarjeta o crédito<select id="pCard"><optgroup label="Tarjetas">${cr.map(c=>`<option value="${c.id}" ${c.id===cardId?"selected":""}>${esc(c.name)}${c.type==="debito"?" (depósito)":""}</option>`).join("")}</optgroup>${lo.length?`<optgroup label="Créditos y préstamos">${lo.map(l=>`<option value="loan:${l.id}">${esc(l.name)}</option>`).join("")}</optgroup>`:""}</select></label>
+      <label class="f">Tarjeta o crédito<select id="pCard"><optgroup label="Tarjetas">${cr.map(c=>`<option value="${c.id}" ${c.id===cardId?"selected":""}>${esc(c.name)}${c.type==="debito"?" (depósito)":isVales(c)?" (recarga de vales)":""}</option>`).join("")}</optgroup>${lo.length?`<optgroup label="Créditos y préstamos">${lo.map(l=>`<option value="loan:${l.id}">${esc(l.name)}</option>`).join("")}</optgroup>`:""}</select></label>
       <label class="f">Fecha<input type="date" id="pDate" value="${todayS()}"></label>
     </div>
     <div id="pQuick" class="row"></div>
@@ -2595,6 +2611,10 @@ document.addEventListener("click",async ev=>{
     case "newLoan": loanForm(); break;
     case "newFuture": futureForm(); break;
     case "planAdd": planAddMenu(); break;
+    case "valesIn": { const c=get(id); if(!c||!c.recarga) break; const n=valesNext(c); const amt=n?n.amount:+c.recarga.amount||0;
+      await put({kind:"pay",cardId:c.id,amount:r2(amt),date:todayS(),target:"auto",note:"Recarga de vales",createdAt:Date.now()});
+      const after=valesAfter(c,n&&n.date>today()?n.date:today()); await put({...get(c.id),recarga:{...c.recarga,next:after?ds(after):c.recarga.next}});
+      toast(`Recarga de ${money(amt)} registrada en ${c.name}`); break; }
     case "toggleNoMore": {
       const o=get(id); if(!o) break; await put({...o,noMore:!o.noMore});
       toast(!o.noMore?`Listo: ya no se aparta dinero a ${o.name}`:`${o.name} vuelve a recibir dinero`); break; }
