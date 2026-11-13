@@ -980,8 +980,8 @@ function occurrences(f,from,to){
   const amt=+f.amount||0;
   const start=f.date?pd(f.date):from;
   if(f.freq==="unico"){ const d=pd(f.date); if(d>=from&&d<=to) out.push(d); }
-  else if(f.freq==="semanal"||f.freq==="catorcenal"){
-    const step=f.freq==="semanal"?7:14; let d=new Date(start);
+  else if(f.freq==="semanal"||f.freq==="catorcenal"||f.freq==="cada28"){
+    const step=f.freq==="semanal"?7:f.freq==="cada28"?28:14; let d=new Date(start);
     while(d<from) d=addDays(d,step);
     for(;d<=to;d=addDays(d,step)) out.push(new Date(d));
   } else if(f.freq==="quincenal"){
@@ -998,9 +998,9 @@ function occurrences(f,from,to){
   }
   return out.map(d=>({date:d,amount:amt,flow:f}));
 }
-const FREQ = {unico:"Una vez",semanal:"Semanal",catorcenal:"Cada 14 días",quincenal:"Quincenal (15 y fin de mes)",mensual:"Mensual"};
+const FREQ = {unico:"Una vez",semanal:"Semanal",catorcenal:"Cada 14 días",cada28:"Cada 28 días",quincenal:"Quincenal (15 y fin de mes)",mensual:"Mensual"};
 
-const FREQ_MES={mensual:1,quincenal:2,catorcenal:26/12,semanal:52/12,unico:0};
+const FREQ_MES={mensual:1,quincenal:2,catorcenal:26/12,cada28:13/12,semanal:52/12,unico:0};
 function fixedPayments(){
   const flows=all("flow").filter(f=>f.type==="fijo"&&f.active!==false).map(f=>({kind:"fijo",id:f.id,name:f.name,monthly:r2((+f.amount||0)*(FREQ_MES[f.freq]??1)),amount:+f.amount||0,freq:FREQ[f.freq]||"",next:occurrences(f,today(),addDays(today(),62))[0]}));
   const loans=all("loan").map(l=>({l,st:loanState(l)})).filter(x=>x.st.next).map(x=>({kind:"prestamo",id:x.l.id,name:x.l.name,monthly:x.st.monthly,amount:x.st.amtOf(x.st.next.j),freq:(LOAN_FREQ[x.l.freq]||"").toLowerCase(),next:{date:x.st.next.date,amount:x.st.next.amt},j:x.st.next.j,n:x.st.n,card:get(x.l.payCardId)}));
@@ -2349,7 +2349,7 @@ function cardForm(c){
       <div class="small muted">Vales de despensa o restaurante (Edenred, Sí Vale, Pluxee…). Sirven para tus compras, pero no para pagar tarjetas ni recibos, así que no cuentan como dinero disponible en tu plan.</div>
       <div class="fgrid">
         <label class="f">Recarga<input type="number" id="vAmt" step="0.01" inputmode="decimal" value="${(c.recarga&&c.recarga.amount)||""}" placeholder="Ej. 1500"></label>
-        <label class="f">Cada cuándo<select id="vFreq">${[["mensual","Mensual"],["quincenal","Quincenal (15 y fin de mes)"],["catorcenal","Cada 14 días"],["semanal","Semanal"]].map(([k,v])=>`<option value="${k}" ${((c.recarga&&c.recarga.freq)||"mensual")===k?"selected":""}>${v}</option>`).join("")}</select></label>
+        <label class="f">Cada cuándo<select id="vFreq">${[["mensual","Mensual"],["quincenal","Quincenal (15 y fin de mes)"],["catorcenal","Cada 14 días"],["cada28","Cada 28 días"],["semanal","Semanal"]].map(([k,v])=>`<option value="${k}" ${((c.recarga&&c.recarga.freq)||"mensual")===k?"selected":""}>${v}</option>`).join("")}</select></label>
         <label class="f">Próxima recarga<input type="date" id="vNext" value="${(c.recarga&&c.recarga.next)||""}"></label>
       </div>
     </div>
