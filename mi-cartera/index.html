@@ -486,6 +486,8 @@ h2{font-weight:700;letter-spacing:-.01em;text-transform:uppercase;font-size:22px
 .subdet>summary::before{content:"▸ ";color:var(--accent)}
 .subdet[open]>summary::before{content:"▾ "}
 
+
+.linkbtn{display:inline-block;background:none;border:0;padding:6px 0 0;margin:0;color:var(--accent);font:inherit;font-size:12.5px;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 </style>
 
 </head>
@@ -1023,11 +1025,54 @@ function occurrences(f,from,to){
       m++; if(m>11){m=0;y++;} if(new Date(y,m,1)>to) break;
     }
   }
-  return out.map(d=>({date:d,amount:amt,flow:f}));
+  const paid=new Set(f.paid||[]);
+  return out.filter(d=>!paid.has(ds(d))).map(d=>({date:d,amount:amt,flow:f}));
 }
 const FREQ = {unico:"Una vez",semanal:"Semanal",catorcenal:"Cada 14 días",cada28:"Cada 28 días",quincenal:"Quincenal (15 y fin de mes)",mensual:"Mensual",anual:"Anual"};
 
 const FREQ_MES={mensual:1,quincenal:2,catorcenal:26/12,cada28:13/12,semanal:52/12,anual:1/12,unico:0};
+
+/* ================= ligar gastos y pagos con el plan ================= */
+// llave: fut:<id> · fijo:<id>:<fecha> · sub:<id>:<fecha> · loan:<id> · card:<id>
+function linkInfo(key){
+  if(!key) return null; const [type,id,date]=key.split(":"); const o=get(id); if(!o) return null;
+  if(type==="fut"){ if(o.done) return null; const r=recommendFutures().find(x=>x.f.id===id); const pk=r&&r.pick;
+    return {key,type,id,group:"Compras planeadas",label:`${o.name} · ${money(+o.amount||0)}${pk?` · ${fDateS(ds(pk.date))}`:""}`,amount:+o.amount||0,desc:o.name,category:o.category||"Otros",cardId:pk?(pk.type==="card"?pk.card.id:(pk.debit?pk.debit.id:"")):undefined,msi:pk&&pk.type==="card"?(pk.months||0):0,pay:false,
+      note:"Se marca como comprada y deja de salir en tu plan."}; }
+  if(type==="fijo"){ if(!date||(o.paid||[]).includes(date)) return null;
+    return {key,type,id,date,group:"Pagos fijos",label:`${o.name} · ${money(+o.amount||0)} · ${fDateS(date)}`,amount:+o.amount||0,desc:o.name,category:o.category||"Servicios",pay:false,
+      note:`El pago del ${fDate(date)} queda hecho y deja de salir en tu plan.`}; }
+  if(type==="sub"){ if(!date||(o.lastGenerated||"")>=date) return null;
+    return {key,type,id,date,group:"Suscripciones",label:`${o.name} · ${money(+o.amount||0)} · ${fDateS(date)}`,amount:+o.amount||0,desc:o.name,category:o.category||"Suscripciones",cardId:get(o.cardId)?o.cardId:"",pay:false,
+      note:`El cobro del ${fDate(date)} queda registrado${o.autoExpense!==false?" (ya no se registra solo)":""} y deja de salir en tu plan.`}; }
+  if(type==="loan"){ const st=loanState(o); if(!st.next) return null;
+    return {key,type,id,group:"Créditos y préstamos",label:`${o.name} · pago ${st.next.j} de ${st.n} · ${money(st.next.amt)} · ${fDateS(ds(st.next.date))}`,amount:st.next.amt,desc:`Pago de ${o.name}`,pay:true,viaCard:get(o.payCardId)||null,
+      note:`Se registra como el pago ${st.next.j} de ${st.n} de ${o.name} (no como gasto) y deja de salir en tu plan.`}; }
+  if(type==="card"){ if(o.type!=="credito") return null; const st=cardState(o); if(!(st.payTotal>0.009)) return null;
+    return {key,type,id,group:"Pago de tarjetas de crédito",label:`${o.name} · ${money(st.payTotal)} · vence ${fDateS(ds(st.nextPay))}`,amount:st.payTotal,desc:`Pago de ${o.name}`,pay:true,st,
+      note:`Se registra como pago de ${o.name} (no como gasto).`}; }
+  return null;
+}
+function planLinkOptions(){
+  const t=today(), from=addDays(t,-10), to=addDays(t,40); const keys=[];
+  all("future").filter(f=>!f.done).forEach(f=>keys.push("fut:"+f.id));
+  all("flow").filter(f=>f.type==="fijo"&&f.active!==false).forEach(f=>occurrences(f,from,to).slice(0,2).forEach(o=>keys.push(`fijo:${f.id}:${ds(o.date)}`)));
+  all("sub").filter(x=>x.active!==false).forEach(sb=>{ const occ=sb.autoExpense!==false?subPending(sb,to):subOcc(sb,from,to).filter(o=>ds(o.date)>(sb.lastGenerated||"")); if(occ[0]) keys.push(`sub:${sb.id}:${ds(occ[0].date)}`); });
+  all("loan").forEach(l=>keys.push("loan:"+l.id));
+  all("card").filter(c=>c.type==="credito").forEach(c=>keys.push("card:"+c.id));
+  return keys.map(linkInfo).filter(Boolean);
+}
+// la llave de una línea del plan de pagos
+function planLineKey(o){
+  if(!o||o.carried) return null;
+  if(o.kind==="tarjeta") return o.stmt&&o.stmt.first?`card:${o.card.id}`:null;
+  if(o.kind==="prestamo"){ const l=get(o.loanId); const st=l&&loanState(l); return st&&st.next&&st.next.j===o.loanJ?`loan:${o.loanId}`:null; }
+  if(o.kind==="fijo") return o.flowId?`fijo:${o.flowId}:${ds(o.date)}`:null;
+  if(o.kind==="sub") return o.sub?`sub:${o.sub.id}:${ds(o.date)}`:null;
+  if(o.kind==="futuro"||o.kind==="compra") return o.fut&&(o.kind==="compra"||!o.k)?`fut:${o.fut.id}`:null;
+  return null;
+}
+function planLineBtn(o){ const k=planLineKey(o); if(!k||!linkInfo(k)) return ""; return `<button type="button" class="linkbtn" data-act="payLink" data-key="${k}">${o.kind==="futuro"||o.kind==="compra"?"Ya lo compré":"Ya lo pagué"}</button>`; }
 
 /* ================= suscripciones ================= */
 const SUB_FREQ={mensual:"Mensual",anual:"Anual",cada28:"Cada 28 días",catorcenal:"Cada 14 días",quincenal:"Quincenal",semanal:"Semanal"};
@@ -1151,7 +1196,7 @@ const goalSaved=g=>{ const ac=goalAccounts(g); return ac.length?r2(ac.reduce((x,
 function saveConfig(){
   const s=settings(); const t=today();
   const since=ds(addDays(t,-90));
-  const regular=all("exp").filter(e=>e.date>=since&&e.date<=ds(t)&&!(+e.msi>1)&&!e.subId&&!isVales(get(e.cardId)));
+  const regular=all("exp").filter(e=>e.date>=since&&e.date<=ds(t)&&!(+e.msi>1)&&!e.subId&&!e.flowId&&!isVales(get(e.cardId)));
   const firstDate=regular.reduce((m,e)=>e.date<m?e.date:m,ds(t));
   const span=Math.max(30,daysBetween(pd(firstDate),t));
   const spendMonthly=regular.length?r2(regular.reduce((x,e)=>x+(+e.amount||0),0)/span*30):null;
@@ -1176,7 +1221,7 @@ function saveConfig(){
 function cashState(){
   const st=settings(); const captured=+st.cash||0; const date=st.cashDate||""; const setAt=+st.cashSetAt||0;
   const after=x=>{ if(!date) return false; const d=x.date||""; if(d>date) return true; if(d<date) return false; return (x.createdAt||0)>setAt; };
-  const spentList=all("exp").filter(e=>!e.cardId&&after(e));
+  const spentList=[...all("exp").filter(e=>!e.cardId&&after(e)),...["pay","loanpay","transfer"].flatMap(k=>all(k).filter(x=>x.fromId==="cash"&&after(x)))];
   const spent=r2(spentList.reduce((a,e)=>a+(+e.amount||0),0));
   return {captured,date,spent,count:spentList.length,balance:r2(captured-spent)};
 }
@@ -1208,7 +1253,7 @@ function buildPlan(opts={}){
   const cards=all("card").filter(c=>c.type==="credito");
   const stmts=cards.flatMap(c=>projectStatements(c,end));
   const loanObl=[];
-  all("loan").forEach(l=>{ const st=loanState(l); for(let j=st.done+1;j<=st.n;j++){ let d=st.dueOf(j); if(d>end) break; if(d<t) d=new Date(t); const amt=j===st.done+1?st.next.amt:st.amtOf(j); loanObl.push({kind:"prestamo",date:d,amount:amt,must:amt,name:l.name+(get(l.payCardId)?` (con ${get(l.payCardId).name})`:""),rate:+l.rate||0,loanJ:j,loanN:st.n}); } });
+  all("loan").forEach(l=>{ const st=loanState(l); for(let j=st.done+1;j<=st.n;j++){ let d=st.dueOf(j); if(d>end) break; if(d<t) d=new Date(t); const amt=j===st.done+1?st.next.amt:st.amtOf(j); loanObl.push({kind:"prestamo",loanId:l.id,date:d,amount:amt,must:amt,name:l.name+(get(l.payCardId)?` (con ${get(l.payCardId).name})`:""),rate:+l.rate||0,loanJ:j,loanN:st.n}); } });
   const cardObl=stmts.map(x=>({kind:"tarjeta",date:x.date,due:x.date,cut:x.cut,amount:x.total,must:x.msi,name:x.card.name,card:x.card,stmt:x,rate:+x.card.rate||0,futs:[]}));
   const futObl=[];
   if(!opts.noFutures) recommendFutures().forEach(r=>{ if(!r.pick) return; r.pick.payments.forEach((p,k)=>{ if(p.date>end) return;
@@ -1234,7 +1279,7 @@ function buildPlan(opts={}){
         co.amount=r2(co.amount+amt); (co.subs=co.subs||[]).push({sid:sb.id,name:sb.name,amt,date:d});
       } else subObl.push({kind:"sub",date:d,amount:amt,must:amt,name:sb.name,sub:sb,subCard:c||null,rate:0});
     }); });
-  const obligations=[...loanObl,...futObl,...subObl,...fixed.map(o=>({kind:"fijo",date:o.date,amount:o.amount,name:o.flow.name,must:o.amount,rate:0})),...cardObl];
+  const obligations=[...loanObl,...futObl,...subObl,...fixed.map(o=>({kind:"fijo",flowId:o.flow.id,date:o.date,amount:o.amount,name:o.flow.name,must:o.amount,rate:0})),...cardObl];
   const simulate=()=>{
     const obl=obligations.slice().sort((a,b)=>a.date-b.date);
     const starts=[{date:t,amount:avail0,label:"Dinero disponible hoy",isCash:true}];
@@ -1860,7 +1905,7 @@ function payRow(p,st){
   const parts=(st.allocs[p.id]||[]);
   const label={mensualidad:"mensualidad de",adelanto:"adelanto a",saldo:"saldo normal",favor:"saldo a favor",deposito:"depósito",noreg:"de compras que no estaban registradas en la app",previo:"ya incluido en tu deuda capturada"};
   return `<div class="item" style="cursor:default;align-items:flex-start"><span class="thumb" style="background:var(--good-soft);color:var(--good)">$</span>
-    <div class="main"><div class="spread"><span class="title">Pago ${fDateS(p.date)}${p.note?` · ${esc(p.note)}`:""}${get(p.fromId)?` · desde ${esc(get(p.fromId).name)}`:""}</span><span class="num" style="color:var(--good)">${money(p.amount)}</span></div>
+    <div class="main"><div class="spread"><span class="title">Pago ${fDateS(p.date)}${p.note?` · ${esc(p.note)}`:""}${get(p.fromId)?` · desde ${esc(get(p.fromId).name)}`:p.fromId==="cash"?" · desde efectivo":""}</span><span class="num" style="color:var(--good)">${money(p.amount)}</span></div>
       ${st.isCredit?`<div class="alloc"><span>Liberó <b class="num">${money(p.amount)}</b> de crédito:</span>${parts.map(a=>{ const pl=st.plans.find(x=>x.id===a.to); return `<span>· <span class="num">${money(a.amt)}</span> ${label[a.kind]} ${pl?esc(pl.exp.desc||"compra a meses"):""}</span>`; }).join("")}</div>`:""}
     </div><button class="btn sm ghost" data-act="delPay" data-id="${p.id}" title="Borrar pago" aria-label="Borrar pago">✕</button></div>`;
 }
@@ -1956,7 +2001,7 @@ function vPlan(){
       <div class="num">${p.isCash?"":`<span style="color:var(--good)">+${money(p.income)}</span> · `}disponible ${money(p.availStart)}</div></div>
     <div class="period-b">
       ${p.lines.length?p.lines.map(l=>{ const o=l.o;
-        if(o.kind==="compra") return `<div class="pline"><div class="what"><b>${planLineTitle(o)}</b><div class="small muted">Cómprala este día (${fDate(ds(o.date))}) · se paga el ${fDate(ds(o.pick.due))} con tu tarjeta</div></div><div class="num muted" style="text-align:right;white-space:nowrap">${money(o.full)}<div class="chip">con tarjeta</div></div></div>`;
+        if(o.kind==="compra") return `<div class="pline"><div class="what"><b>${planLineTitle(o)}</b><div class="small muted">Cómprala este día (${fDate(ds(o.date))}) · se paga el ${fDate(ds(o.pick.due))} con tu tarjeta</div>${planLineBtn(o)}</div><div class="num muted" style="text-align:right;white-space:nowrap">${money(o.full)}<div class="chip">con tarjeta</div></div></div>`;
         const title=(o.carried?"Completar: ":"")+planLineTitle(o);
         let info="";
         if(o.carried) info=`<div class="small muted">Resto que no alcanzaste a pagar antes</div>`;
@@ -1966,7 +2011,7 @@ function vPlan(){
           ${(o.futs||[]).map(fu=>`<div class="small" style="color:var(--accent)">Incluye ${esc(fu.name)} (compra ${esc(futMethod({type:"card",card:o.card,months:fu.months}))}) <span class="chip acc">planeada</span>${fu.months?` ${fu.k+1} de ${fu.months} MSI`:""}: ${money(fu.amt)}${fu.fromSav.length?` · toma ${fu.fromSav.map(x=>`${money(x.amt)} de ${esc(x.acc.name)}`).join(" y ")}`:""}</div>`).join("")}`;
         else info=`<div class="small muted">${o.kind==="futuro"?"cómprala el":o.kind==="sub"?"se cobra el":"vence"} ${fDate(ds(o.date))}${o.kind==="sub"?(o.subCard?" · ten el saldo listo en esa cuenta":" · de tu efectivo"):""}</div>${o.kind==="futuro"&&o.fromSav&&o.fromSav.length?`<div class="small" style="color:var(--accent)">${o.fromSav.map(x=>`Toma ${money(x.amt)} de ${esc(x.acc.name)}`).join(" · ")}</div>`:""}`;
         const shortTxt=l.short>0.009?(l.carriedTo?`<div class="small" style="color:var(--warn)">Pagas ${money(l.pay)} ahora y el resto (${money(l.short)}) lo completas el ${fDateS(ds(l.carriedTo))}${l.interest?` · intereses aprox. ${money(l.interest)}`:""}</div>`:`<div class="small" style="color:var(--bad)">Faltan ${money(l.short)} al final del plan${l.interest?` · intereses aprox. ${money(l.interest)}`:""}</div>`):"";
-        return `<div class="pline"><div class="what"><b>${title}</b>${info}${shortTxt}</div>
+        return `<div class="pline"><div class="what"><b>${title}</b>${info}${shortTxt}${planLineBtn(o)}</div>
         <div class="num" style="text-align:right;white-space:nowrap">${money(l.pay)}${l.short>0.009?`<div class="chip ${l.carriedTo?"warn":"bad"}">${l.carriedTo?"parcial":"falta"}</div>`:`<div class="chip good">completo</div>`}</div></div>`; }).join("")
       :`<div class="muted small">Sin pagos en este periodo.</div>`}
       ${(p.goals||[]).map(x=>goalLine(p,x.g,x.amt,0,x.acc)).join("")}${(p.goalsDone||[]).map(x=>goalLine(p,x.g,0,x.amt,goalAccounts(x.g)[0])).join("")}
@@ -2327,7 +2372,7 @@ function futureForm(f){
 }
 function buyFuture(id){
   const f=get(id); if(!f) return; const r=recommendFutures().find(x=>x.f.id===id); const p=r&&r.pick;
-  expForm({fromFuture:id,amount:f.amount,desc:f.name,category:f.category||"Otros",date:todayS(),cardId:p&&p.type==="card"?p.card.id:(p&&p.debit?p.debit.id:""),msi:p&&p.type==="card"?p.months:0,photos:[],notes:f.notes||""});
+  expForm({link:"fut:"+id,fromFuture:id,amount:f.amount,desc:f.name,category:f.category||"Otros",date:todayS(),cardId:p&&p.type==="card"?p.card.id:(p&&p.debit?p.debit.id:""),msi:p&&p.type==="card"?p.months:0,photos:[],notes:f.notes||""});
 }
 
 /* ---------- Apartados ---------- */
@@ -2565,21 +2610,31 @@ function expForm(e){
   const cards=all("card");
   const isNew=!e||!e.id; e=Object.assign({date:todayS(),category:"Súper",cardId:(cards[0]||{}).id||"",msi:0,photos:[]},e||{});
   let photos=(e.photos||[]).slice();
+  const linked=e.futId?get(e.futId):e.flowId?get(e.flowId):e.subId?get(e.subId):null;
+  const lopts=linked?[]:planLinkOptions().filter(x=>isNew||!x.pay);
+  if(e.link&&!lopts.some(x=>x.key===e.link)){ const li=linkInfo(e.link); if(li) lopts.unshift(li); }
+  const lmap=Object.fromEntries(lopts.map(x=>[x.key,x]));
+  const groups=[...new Set(lopts.map(x=>x.group))];
+  const allCardOpts=`${cards.map(c=>`<option value="${c.id}">${esc(c.name)} (${c.type==="credito"?"crédito":c.type==="debito"?"débito":isVales(c)?"vales":"efectivo"})</option>`).join("")}<option value="">Efectivo (en mano)</option>`;
+  const payFromOpts=`${cards.filter(CASH_TYPES).map(c=>`<option value="${c.id}">${esc(c.name)} (tienes ${money(cardState(c).balance)})</option>`).join("")}<option value="">Efectivo (en mano)</option>`;
   openDialog(isNew?"Nuevo gasto":"Editar gasto",`
+    ${linked?`<div class="note acc small">Ligado a tu plan: <b>${esc(linked.name||"")}</b>${e.flowDate||e.subDate?` (${fDateS(e.flowDate||e.subDate)})`:""}. Ya no sale como pendiente.</div>`:""}
+    ${lopts.length?`<label class="f">¿Es algo de tu plan de pagos?<select id="eLink"><option value="">No, es un gasto normal</option>${groups.map(g=>`<optgroup label="${esc(g)}">${lopts.filter(x=>x.group===g).map(x=>`<option value="${esc(x.key)}" ${x.key===e.link?"selected":""}>${esc(x.label)}</option>`).join("")}</optgroup>`).join("")}</select></label>
+    <div class="note small" id="eLinkNote" hidden></div>`:""}
     <div class="fgrid">
       <label class="f">Monto<input type="number" id="eAmt" step="0.01" inputmode="decimal" value="${e.amount||""}" placeholder="0.00" required></label>
       <label class="f">Fecha<input type="date" id="eDate" value="${e.date}"></label>
     </div>
     <label class="f">Descripción<input type="text" id="eDesc" value="${esc(e.desc||"")}" placeholder="Ej. Despensa Walmart"></label>
     <div class="fgrid">
-      <label class="f">Categoría<select id="eCat">${CATS.map(c=>`<option ${c===e.category?"selected":""}>${c}</option>`).join("")}</select></label>
-      <label class="f">Pagado con<select id="eCard">${cards.map(c=>`<option value="${c.id}" ${c.id===e.cardId?"selected":""}>${esc(c.name)} (${c.type==="credito"?"crédito":c.type==="debito"?"débito":"efectivo"})</option>`).join("")}<option value="" ${!e.cardId?"selected":""}>Efectivo (en mano)</option></select></label>
+      <label class="f" id="eCatL">Categoría<select id="eCat">${CATS.map(c=>`<option ${c===e.category?"selected":""}>${c}</option>`).join("")}</select></label>
+      <label class="f" id="eCardL"><span id="eCardT">Pagado con</span><select id="eCard">${allCardOpts}</select></label>
     </div>
     <div id="msiBox"><div class="small muted" style="font-weight:600;margin-bottom:6px">Forma de pago</div>
       ${seg("msi",[["0","Una exhibición"],["3","3 MSI"],["6","6 MSI"],["9","9 MSI"],["12","12 MSI"],["18","18"],["24","24"]],String(+e.msi||0))}
       <label class="f" id="msiPbL" style="margin-top:10px">Mensualidades que ya pagaste<input type="number" id="msiPb" min="0" step="1" inputmode="numeric" value="${+e.msiPaidBefore||0}"></label>
       <div class="small muted" id="msiInfo" style="margin-top:6px"></div></div>
-    <div><div class="small muted" style="font-weight:600;margin-bottom:6px">Fotos del ticket o la compra</div><div class="photos" id="ePh"></div></div>
+    <div id="ePhW"><div class="small muted" style="font-weight:600;margin-bottom:6px">Fotos del ticket o la compra</div><div class="photos" id="ePh"></div></div>
     <label class="f">Notas<textarea id="eNote">${esc(e.notes||"")}</textarea></label>
     <div class="small" id="eErr" style="color:var(--bad)"></div>`,
     `<div class="confirm" id="delZone">${isNew?"":`<button class="btn danger" data-act="askDelete" data-id="${e.id}">Borrar</button>`}</div><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="eSave">Guardar</button></div>`);
@@ -2592,7 +2647,25 @@ function expForm(e){
       : `Pagarás <b class="num">${money(a/m)}</b> al mes durante ${m} meses. Se apartan <b class="num">${money(a)}</b> de tu crédito y cada mensualidad pagada libera ${money(a/m)}. Si ya pagaste algunas, escríbelas arriba.`)
       : cred&&a? `Se suma a tu saldo y entra completo en tu próximo pago total.`:""; };
   $$('[data-seg="msi"] button').forEach(b=>b.onclick=()=>{ $$('[data-seg="msi"] button').forEach(x=>x.classList.remove("on")); b.classList.add("on"); updMsi(); });
-  $("#eCard").onchange=updMsi; $("#eAmt").oninput=updMsi; $("#msiPb").oninput=updMsi; updMsi();
+  $("#eCard").value=get(e.cardId)?e.cardId:"";
+  const setMsi=m=>{ $$('[data-seg="msi"] button').forEach(x=>x.classList.toggle("on",x.dataset.v===String(+m||0))); };
+  let mode="exp";
+  const updLink=()=>{ const li=lmap[$("#eLink")?$("#eLink").value:""]; const n=$("#eLinkNote"); if(!n) return;
+    if(!li){ n.hidden=true; return; } n.hidden=false; let txt=li.note;
+    if(li.type==="card"){ const a=+$("#eAmt").value||0, st=li.st; if(a>=st.payTotal-0.5){ const nc=nextCutAfter(get(li.id),st.stmtCut), np=nextPayOnOrAfter(get(li.id),addDays(nc,1)); txt+=` Con esto queda pagado tu corte; tu siguiente pago será el del corte del ${fDateS(ds(nc))} (vence ${fDateS(ds(np))}).`; } else if(a>0) txt+=` Te quedarían ${money(r2(st.payTotal-a))} por pagar de este corte.`; }
+    if(li.type==="loan"&&li.viaCard) txt+=` Se carga a ${li.viaCard.name}, como lo tienes configurado.`;
+    const src=$("#eCard").value, sc=get(src), a2=+$("#eAmt").value||0;
+    if(!(li.type==="loan"&&li.viaCard)&&a2>0&&(!sc||CASH_TYPES(sc))){ const bal=sc?cardState(sc).balance:cashState().balance; if(a2>bal+0.009) txt+=` Ojo: en ${sc?sc.name:"efectivo"} tienes ${money(bal)}.`; }
+    n.innerHTML=esc(txt); };
+  const applyLink=(prefill)=>{ const li=lmap[$("#eLink")?$("#eLink").value:""]; const pay=!!(li&&li.pay); const prev=$("#eCard").value;
+    if((pay?"pay":"exp")!==mode){ mode=pay?"pay":"exp"; $("#eCard").innerHTML=pay?payFromOpts:allCardOpts; if([...$("#eCard").options].some(o=>o.value===prev)) $("#eCard").value=prev; }
+    $("#eCatL").hidden=pay; $("#ePhW").hidden=pay; $("#eCardT").textContent=pay?"Pagado desde":"Pagado con"; $("#eCardL").hidden=!!(li&&li.type==="loan"&&li.viaCard);
+    if(li&&prefill){ $("#eAmt").value=li.amount||""; $("#eDesc").value=li.desc||""; if(li.category&&CATS.includes(li.category)) $("#eCat").value=li.category;
+      if(li.cardId!==undefined&&[...$("#eCard").options].some(o=>o.value===li.cardId)) $("#eCard").value=li.cardId; if(li.msi!==undefined) setMsi(li.msi); }
+    updMsi(); updLink(); };
+  if($("#eLink")) $("#eLink").onchange=()=>applyLink(true);
+  $("#eCard").onchange=()=>{ updMsi(); updLink(); }; $("#eAmt").oninput=()=>{ updMsi(); updLink(); }; $("#msiPb").oninput=updMsi;
+  applyLink(!!e.link&&!e.amount); updMsi();
   const drawPh=()=>{ $("#ePh").innerHTML=photos.map((p,i)=>`<div class="ph"><img src="${esc(photoSrc(p))}" data-zoom="${i}" alt="Foto ${i+1}"><button type="button" data-rm="${i}" aria-label="Quitar foto">×</button></div>`).join("")+`<label class="drop">＋ Foto<br>o imagen<input type="file" accept="image/*" multiple id="eFile" hidden></label>`;
     $$("#ePh [data-rm]").forEach(b=>b.onclick=()=>{ photos.splice(+b.dataset.rm,1); drawPh(); });
     $$("#ePh [data-zoom]").forEach(im=>im.onclick=()=>openLightbox(im.src));
@@ -2600,13 +2673,30 @@ function expForm(e){
   drawPh();
   $("#eSave").onclick=async()=>{
     const amt=+$("#eAmt").value; if(!(amt>0)){ $("#eErr").textContent="Escribe un monto mayor a cero."; return; }
+    const li=lmap[$("#eLink")?$("#eLink").value:""]; const date0=$("#eDate").value||todayS();
+    if(li&&li.pay){
+      const src=$("#eCard").value; const fromId=src||"cash";
+      if(li.type==="loan"){ const ln=get(li.id);
+        await put({kind:"loanpay",loanId:li.id,amount:r2(amt),date:date0,fromId:ln&&ln.payCardId?"":fromId,note:$("#eDesc").value.trim(),createdAt:Date.now()});
+        closeDialog(); toast(`Pago de ${ln?ln.name:"crédito"} registrado`); return; }
+      if(li.type==="card"){ const c=get(li.id); const st=cardState(c);
+        await put({kind:"pay",cardId:c.id,amount:r2(amt),date:date0,fromId,target:"auto",note:$("#eDesc").value.trim()||`Pago de ${c.name}`,createdAt:Date.now()});
+        if(amt>=st.payTotal-0.5){ const nc=nextCutAfter(c,st.stmtCut), np=nextPayOnOrAfter(c,addDays(nc,1)); await put({...get(c.id),cycleCut:ds(nc),cyclePay:ds(np)}); toast(`Pago registrado. Tu siguiente pago de ${c.name} es el ${fDateS(ds(np))}`); }
+        else toast(`Pago de ${money(amt)} registrado en ${c.name}`);
+        closeDialog(); return; }
+    }
+    const linkFields=!li?{}:li.type==="fut"?{futId:li.id}:li.type==="fijo"?{flowId:li.id,flowDate:li.date}:li.type==="sub"?{subId:li.id,subDate:li.date,linkPrev:get(li.id).lastGenerated||""}:{};
     const c=get($("#eCard").value); const msi=c&&c.type==="credito"?+segVal("msi"):0;
     let pb=msi>1?Math.floor(+$("#msiPb").value||0):0;
     if(pb<0||pb>msi){ $("#eErr").textContent=`Las mensualidades pagadas deben ser de 0 a ${msi}.`; return; }
     const asOf = pb>0 ? (pb===(+e.msiPaidBefore||0)&&e.msiAsOf ? e.msiAsOf : todayS()) : "";
-    const saved=await put({...(e.id?e:{}),kind:"exp",amount:r2(amt),date:$("#eDate").value||todayS(),desc:$("#eDesc").value.trim(),category:$("#eCat").value,cardId:$("#eCard").value,msi,msiPaidBefore:pb,msiAsOf:asOf,photos,notes:$("#eNote").value.trim(),createdAt:e.createdAt||Date.now()});
-    if(e.fromFuture){ const fu=get(e.fromFuture); if(fu) await put({...fu,done:true,doneDate:saved.date,expId:saved.id}); }
-    closeDialog(); toast(isNew?"Gasto agregado":"Gasto guardado");
+    const {link:_lk,fromFuture:_ff,...e0}=e;
+    const saved=await put({...(e.id?e0:{}),...linkFields,kind:"exp",amount:r2(amt),date:$("#eDate").value||todayS(),desc:$("#eDesc").value.trim(),category:$("#eCat").value,cardId:$("#eCard").value,msi,msiPaidBefore:pb,msiAsOf:asOf,photos,notes:$("#eNote").value.trim(),createdAt:e.createdAt||Date.now()});
+    const futLink=li&&li.type==="fut"?li.id:e.fromFuture;
+    if(futLink){ const fu=get(futLink); if(fu) await put({...fu,done:true,doneDate:saved.date,expId:saved.id}); }
+    if(li&&li.type==="fijo"){ const f=get(li.id); if(f) await put({...f,paid:[...new Set([...(f.paid||[]),li.date])].sort().slice(-36)}); }
+    if(li&&li.type==="sub"){ const sb=get(li.id); if(sb&&(sb.lastGenerated||"")<li.date) await put({...sb,lastGenerated:li.date}); }
+    closeDialog(); toast(li?`Listo: ${li.desc} ya no sale como pendiente`:isNew?"Gasto agregado":"Gasto guardado");
   };
 }
 function expDetail(id){
@@ -2785,6 +2875,7 @@ document.addEventListener("click",async ev=>{
     case "newLoan": loanForm(); break;
     case "newFuture": futureForm(); break;
     case "newSub": subForm(null,t.dataset.card||""); break;
+    case "payLink": { const k=t.dataset.key; if(k&&k.startsWith("fut:")) buyFuture(k.slice(4)); else expForm({link:k}); break; }
     case "editSub": subForm(get(id)); break;
     case "planAdd": planAddMenu(); break;
     case "cashEdit": cashForm(); break;
@@ -2836,7 +2927,10 @@ document.addEventListener("click",async ev=>{
       if(o&&o.kind==="goal"){ for(const a of all("account").filter(a=>a.goalId===id)) await put({...a,goalId:"",purpose:"ahorro"}); }
       if(o&&o.kind==="loan"){ for(const x of all("loanpay").filter(p=>p.loanId===id)) await del(x.id); }
       if(o&&o.kind==="card"){ for(const x of [...all("exp").filter(e=>e.cardId===id),...all("pay").filter(p=>p.cardId===id)]) await del(x.id); for(const x of all("sub").filter(x=>x.cardId===id)) await put({...x,cardId:""}); }
-      if(o&&o.kind==="exp"){ for(const p of all("pay").filter(p=>p.target===id)) await put({...p,target:"auto"}); }
+      if(o&&o.kind==="exp"){ for(const p of all("pay").filter(p=>p.target===id)) await put({...p,target:"auto"});
+        for(const fu of all("future").filter(f=>f.expId===id)) await put({...fu,done:false,doneDate:"",expId:""});
+        if(o.flowId&&o.flowDate){ const f=get(o.flowId); if(f) await put({...f,paid:(f.paid||[]).filter(d=>d!==o.flowDate)}); }
+        if(o.subId&&o.subDate&&!o.id.startsWith("sub-")){ const sb=get(o.subId); if(sb&&sb.lastGenerated===o.subDate) await put({...sb,lastGenerated:o.linkPrev||""}); } }
       await del(id); closeDialog(); toast("Borrado"); break; }
   }
 });
