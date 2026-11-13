@@ -488,6 +488,14 @@ h2{font-weight:700;letter-spacing:-.01em;text-transform:uppercase;font-size:22px
 
 
 .linkbtn{display:inline-block;background:none;border:0;padding:6px 0 0;margin:0;color:var(--accent);font:inherit;font-size:12.5px;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+
+.loancols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:4px}
+.loancols>*{display:flex;flex-direction:column;gap:1px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 10px;min-width:0;text-align:left;font:inherit;color:inherit}
+.loancols>button{cursor:pointer;border:1.5px dashed color-mix(in srgb,var(--fg) 35%,transparent)}
+.loancols span{font-size:11px;color:var(--muted);font-weight:600;line-height:1.2}
+.loancols b{font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.loancols small{font-size:11px;color:var(--muted);line-height:1.2}
+.loancols .good b,.loancols .good small{color:var(--good)}
 </style>
 
 </head>
@@ -1032,6 +1040,42 @@ const FREQ = {unico:"Una vez",semanal:"Semanal",catorcenal:"Cada 14 días",cada2
 
 const FREQ_MES={mensual:1,quincenal:2,catorcenal:26/12,cada28:13/12,semanal:52/12,anual:1/12,unico:0};
 
+/* ================= créditos: pagar más para terminar antes ================= */
+function loanLineNote(l){ const o=l.o; const parts=[];
+  if(o.covered>0.009) parts.push(o.amount<=0.009?`Ya lo cubriste con lo que adelantaste (${money(o.covered)}).`:`Ya adelantaste ${money(o.covered)} de este pago; debes ${money(o.amount)}.`);
+  if(l.want&&l.wantExtra>0.009){
+    if(l.extra>=l.wantExtra-0.009) parts.push(`<b>Te alcanza para lo que quieres pagar:</b> ${money(l.pay)} (debes ${money(o.amount)} y adelantas ${money(l.extra)}).`);
+    else if(l.extra>0.009) parts.push(`Querías pagar ${money(l.want)}; <b>este periodo te alcanza para ${money(l.pay)}</b>. Los ${money(l.extra)} extra se adelantan a tu siguiente pago.`);
+    else if(l.noRoom) parts.push(`Querías pagar ${money(l.want)}, pero <b>este periodo solo alcanza lo que debes</b> (${money(o.amount)}) por tus otros pagos y gastos.`);
+  }
+  return parts.length?`<div class="small" style="color:var(--good)">${parts.join(" ")}</div>`:""; }
+// lo que el plan sugiere para el siguiente pago de un crédito
+function loanSuggest(l){ const st=loanState(l); if(!st.next) return null;
+  try{ for(const per of buildPlan().periods) for(const ln of per.lines){ if(ln.o.kind==="prestamo"&&!ln.o.carried&&ln.o.loanId===l.id&&ln.o.loanJ===st.next.j) return {pay:r2(Math.max(ln.pay,0)),req:ln.o.amount,extra:ln.extra||0,want:ln.want||0,wantExtra:ln.wantExtra||0,noRoom:!!ln.noRoom,short:ln.short||0,date:ln.o.date}; } }catch(e){ console.error(e); }
+  return null; }
+// si pagas `want` cada vez, ¿en cuántos pagos terminas?
+function loanFinish(l,want){ const st=loanState(l); if(!st.next) return null; const left=st.n-st.done;
+  if(!(want>0)) return {k:left,date:st.dueOf(st.n),left,saved:0};
+  let rem=st.remaining, k=0; while(rem>0.009&&k<600){ rem=r2(rem-want); k++; }
+  k=Math.min(k,left); return {k,date:st.dueOf(st.done+k),left,saved:Math.max(0,left-k),end:st.dueOf(st.n)}; }
+function loanWantForm(id){
+  const l=get(id); if(!l) return; const st=loanState(l); if(!st.next){ toast("Este crédito ya está pagado"); return; }
+  openDialog(`¿Cuánto te gustaría pagar? · ${esc(l.name)}`,`
+    <div class="note">Tu siguiente pago es de <b class="num">${money(st.next.amt)}</b> (${fDate(ds(st.next.date))}). Pon cuánto te gustaría pagar cada vez para terminar antes: el plan revisa tus otros pagos y gastos de cada periodo y te dice si te alcanza para eso, solo para lo que debes, o para algo en medio. Lo que pagues de más se adelanta a tus siguientes pagos.</div>
+    <label class="f">Me gustaría pagar cada vez<input type="number" id="wAmt" step="50" inputmode="decimal" value="${+l.want||""}" placeholder="Ej. ${money(Math.ceil(st.next.amt*1.5/100)*100).replace(".00","")}"></label>
+    <div id="wInfo"></div>
+    <div class="small muted">Si tu crédito cobra intereses, pide en tu banco que los pagos extra se apliquen a capital para reducir el plazo; así además pagas menos intereses.</div>
+    <div class="small" id="wErr" style="color:var(--bad)"></div>`,
+    `<div class="confirm">${+l.want?`<button class="btn" id="wClear">Quitar</button>`:""}</div><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="wSave">Guardar</button></div>`);
+  const info=()=>{ const w=+$("#wAmt").value||0; if(!w){ $("#wInfo").innerHTML=""; return; }
+    if(w<=st.next.amt+0.009){ $("#wInfo").innerHTML=`<div class="note warn small">Pon más de lo que debes (${money(st.next.amt)}) para terminar antes.</div>`; return; }
+    const f=loanFinish(l,w); $("#wInfo").innerHTML=`<div class="note good small">Si pagas <b class="num">${money(w)}</b> cada vez, terminarías en <b>${f.k} pago${f.k===1?"":"s"}</b> (por ahí del <b>${fDate(ds(f.date))}</b>) en vez de ${f.left} (${fDate(ds(f.end))})${f.saved?`: <b>${f.saved} pago${f.saved===1?"":"s"} menos</b>`:""}.</div>`; };
+  $("#wAmt").oninput=info; info();
+  $("#wSave").onclick=async()=>{ const w=+$("#wAmt").value||0; if(w&&w<=st.next.amt+0.009){ $("#wErr").textContent=`Pon más de ${money(st.next.amt)}, o déjalo vacío.`; return; }
+    await put({...get(id),want:r2(w)}); closeDialog(); toast(w?`Listo: el plan buscará pagar ${money(w)} a ${l.name} cuando te alcance`:"Guardado"); };
+  if($("#wClear")) $("#wClear").onclick=async()=>{ await put({...get(id),want:0}); closeDialog(); toast("Listo"); };
+}
+
 /* ================= ligar gastos y pagos con el plan ================= */
 // llave: fut:<id> · fijo:<id>:<fecha> · sub:<id>:<fecha> · loan:<id> · card:<id>
 function linkInfo(key){
@@ -1045,9 +1089,9 @@ function linkInfo(key){
   if(type==="sub"){ if(!date||(o.lastGenerated||"")>=date) return null;
     return {key,type,id,date,group:"Suscripciones",label:`${o.name} · ${money(+o.amount||0)} · ${fDateS(date)}`,amount:+o.amount||0,desc:o.name,category:o.category||"Suscripciones",cardId:get(o.cardId)?o.cardId:"",pay:false,
       note:`El cobro del ${fDate(date)} queda registrado${o.autoExpense!==false?" (ya no se registra solo)":""} y deja de salir en tu plan.`}; }
-  if(type==="loan"){ const st=loanState(o); if(!st.next) return null;
-    return {key,type,id,group:"Créditos y préstamos",label:`${o.name} · pago ${st.next.j} de ${st.n} · ${money(st.next.amt)} · ${fDateS(ds(st.next.date))}`,amount:st.next.amt,desc:`Pago de ${o.name}`,pay:true,viaCard:get(o.payCardId)||null,
-      note:`Se registra como el pago ${st.next.j} de ${st.n} de ${o.name} (no como gasto) y deja de salir en tu plan.`}; }
+  if(type==="loan"){ const st=loanState(o); if(!st.next) return null; const sg=loanSuggest(o); const sug=sg&&sg.pay>st.next.amt+0.009?sg.pay:st.next.amt;
+    return {key,type,id,group:"Créditos y préstamos",label:`${o.name} · pago ${st.next.j} de ${st.n} · ${money(st.next.amt)}${sug>st.next.amt?` (sugerido ${money(sug)})`:""} · ${fDateS(ds(st.next.date))}`,amount:sug,desc:`Pago de ${o.name}`,pay:true,viaCard:get(o.payCardId)||null,
+      note:`Se registra como el pago ${st.next.j} de ${st.n} de ${o.name} (no como gasto) y deja de salir en tu plan.${sug>st.next.amt?` Debes ${money(st.next.amt)}; el plan sugiere ${money(sug)} y lo extra se adelanta a tus siguientes pagos.`:""}`}; }
   if(type==="card"){ if(o.type!=="credito") return null; const st=cardState(o); if(!(st.payTotal>0.009)) return null;
     return {key,type,id,group:"Pago de tarjetas de crédito",label:`${o.name} · ${money(st.payTotal)} · vence ${fDateS(ds(st.nextPay))}`,amount:st.payTotal,desc:`Pago de ${o.name}`,pay:true,st,
       note:`Se registra como pago de ${o.name} (no como gasto).`}; }
@@ -1291,13 +1335,18 @@ function buildPlan(opts={}){
     obl.forEach(o=>{ const per=periods.slice().reverse().find(p=>o.date>=p.start) || periods[0]; per.obl.push(o); });
     let carry=0; let totalShort=0, totalInt=0; let pending=[];
     const sv=saveConfig(); let fundSim=sv.fundNow; const goalSim={};
+    // créditos: lo que adelantas en un pago se descuenta de los siguientes
+    const loanCredit={}, loanPaidSim={}, loanRem={}; all("loan").forEach(l=>{ loanRem[l.id]=loanState(l).remaining; });
     periods.forEach((per,idx)=>{
       let avail=r2(carry+per.income); per.availStart=avail;
       // lo que quedó pendiente del periodo anterior se completa primero
       const carried=pending.map(x=>({...x.o,carried:true,originLine:x.origin,date:new Date(per.start),amount:x.amt,must:x.amt}));
       pending=[];
       const lines=[];
-      for(const o of [...carried,...per.obl.slice().sort((a,b)=>a.date-b.date)]){ const take=Math.min(avail,o.must); avail=r2(avail-take); lines.push({o,pay:take,shortMust:r2(o.must-take),completions:[]}); }
+      for(const o0 of [...carried,...per.obl.slice().sort((a,b)=>a.date-b.date)]){ let o=o0;
+        if(o.kind==="prestamo"&&!o.carried&&(loanCredit[o.loanId]||0)>0.009){ const red=Math.min(loanCredit[o.loanId],o.amount); loanCredit[o.loanId]=r2(loanCredit[o.loanId]-red); o={...o,amount:r2(o.amount-red),must:r2(o.must-red),covered:r2(red)}; }
+        const take=Math.min(avail,o.must); avail=r2(avail-take); if(o.kind==="prestamo") loanPaidSim[o.loanId]=r2((loanPaidSim[o.loanId]||0)+take);
+        lines.push({o,pay:take,shortMust:r2(o.must-take),completions:[]}); }
       for(const l of lines.filter(l=>l.o.kind==="tarjeta").sort((a,b)=>(b.o.rate-a.o.rate)||(a.o.date-b.o.date))){ const need=r2(l.o.amount-l.pay); const take=Math.min(avail,need); l.pay=r2(l.pay+take); avail=r2(avail-take); }
       const next=periods[idx+1];
       lines.forEach(l=>{ l.short=r2(l.o.amount-l.pay);
@@ -1308,6 +1357,23 @@ function buildPlan(opts={}){
           else totalShort=r2(totalShort+l.short);
         } });
       const nextNeed = next ? next.obl.reduce((s,o)=>s+o.amount,0) - next.income : 0;
+      // ¿te alcanza para pagar lo que te gustaría a tus créditos? después de tus pagos, de lo que necesitas para el siguiente periodo,
+      // de tus gastos del día a día y de un mínimo de ahorro; si no alcanza todo, paga lo que se pueda y eso se adelanta al siguiente pago
+      const wl=lines.filter(l=>l.o.kind==="prestamo"&&!l.o.carried&&(+(get(l.o.loanId)||{}).want||0)>0);
+      wl.forEach(l=>{ l.want=+get(l.o.loanId).want; l.wantExtra=r2(Math.max(0,l.want-l.o.amount)); l.extra=0; l.noRoom=l.wantExtra>0.009&&(loanRem[l.o.loanId]||0)-(loanPaidSim[l.o.loanId]||0)>0.009; });
+      if(!opts.noFutures&&wl.length&&lines.every(l=>l.short<=0.009)){
+        const days=daysBetween(per.start,per.end)+1, inc0=per.inc||0;
+        const diaX=sv.spendMonthly!=null?r2(sv.spendMonthly*days/30):r2(inc0*0.35);
+        const minSave=(sv.fundStop&&sv.invStop)?0:r2(inc0*(sv.mode==="fijo"?(sv.savePct+sv.invPct):0.05));
+        let room=r2(avail-Math.max(0,nextNeed)-diaX-minSave);
+        for(const l of wl.slice().sort((a,b)=>(b.o.rate||0)-(a.o.rate||0))){
+          const id=l.o.loanId; const cap=r2(Math.max(0,(loanRem[id]||0)-(loanPaidSim[id]||0)));
+          let ex=Math.min(l.wantExtra,cap,Math.max(0,room));
+          if(ex<Math.min(l.wantExtra,cap)-0.009) ex=Math.floor(ex/50)*50;
+          if(ex>0.009){ l.extra=r2(ex); l.pay=r2(l.pay+ex); avail=r2(avail-ex); room=r2(room-ex); loanCredit[id]=r2((loanCredit[id]||0)+ex); loanPaidSim[id]=r2((loanPaidSim[id]||0)+ex); }
+          l.noRoom=l.extra<l.wantExtra-0.009&&cap>l.extra+0.009;
+        }
+      }
       let save=0, inv=0, why="";
       const base=per.inc||0; const pk=ds(per.start);
       per.saveDone=done[pk+"|ahorro"]||0; per.invDone=done[pk+"|inversion"]||0;
@@ -1406,7 +1472,7 @@ function buildAlerts(){
   try{
     recommendFutures().forEach(r=>{ const pk=r.pick; if(!pk) return; const n=daysBetween(t,pk.date); if(n<=1) out.push({lvl:n<=0?"high":"mid",key:"fut-"+r.f.id+"-"+ds(pk.date),title:`${n<=0?"Hoy":"Mañana"}: compra ${r.f.name}`,text:`${money(r.f.amount)} ${futMethod(pk)}. Cuando la hagas, toca “Ya lo compré”.`,to:"futuros"}); });
     all("flow").filter(f=>f.type==="fijo"&&f.active!==false).forEach(f=>{ const o=occurrences(f,t,d3)[0]; if(o) out.push({lvl:lv(o.date),key:"fijo-"+f.id+"-"+ds(o.date),title:`Paga ${f.name} ${when(o.date)}`,text:`${money(o.amount)} · pago fijo`,to:"plan"}); });
-    all("loan").forEach(l=>{ const st=loanState(l); if(!st.next) return; if(daysBetween(t,st.next.date)<=3) out.push({lvl:lv(st.next.date),key:"loan-"+l.id+"-"+st.next.j,title:`Pago de ${l.name} ${when(st.next.date)}`,text:`${money(st.next.amt)} · pago ${st.next.j} de ${st.n}${get(l.payCardId)?` · con ${get(l.payCardId).name}`:""}`,to:"creditos"}); });
+    all("loan").forEach(l=>{ const st=loanState(l); if(!st.next) return; if(daysBetween(t,st.next.date)<=3) out.push({lvl:lv(st.next.date),key:"loan-"+l.id+"-"+st.next.j,title:`Pago de ${l.name} ${when(st.next.date)}`,text:`${money(st.next.amt)} · pago ${st.next.j} de ${st.n}${get(l.payCardId)?` · con ${get(l.payCardId).name}`:""}${(()=>{ const sg=loanSuggest(l); return sg&&sg.extra>0.009?` · si puedes, paga ${money(sg.pay)}`:""; })()}`,to:"creditos"}); });
     const plan=buildPlan();
     (plan.cardObl||[]).forEach(o=>{ if(o.amount<=0.009||o.carried) return; const nDue=daysBetween(t,o.due), nPay=daysBetween(t,o.payOn||o.due);
       if(nDue>=0&&nDue<=3) out.push({lvl:lv(o.due),key:"card-"+o.card.id+"-"+ds(o.due),title:`${o.name} vence ${when(o.due)}`,text:`Pago total ${money(o.amount)}. Si ya lo pagaste, toca “Ya pagué el corte”.`,to:"tarjetas"});
@@ -1621,7 +1687,7 @@ function vResumen(){
   const accTot=all("account").reduce((s,a)=>s+(+a.balance||0),0);
   const owe=r2(debt+loanRem);
   const t0=today(), mEnd=new Date(t0.getFullYear(),t0.getMonth()+1,0);
-  const monthLines=plan.periods.flatMap(p=>p.lines).filter(l=>!l.o.carried&&l.o.kind!=="compra"&&(l.o.due||l.o.date)<=mEnd).map(l=>({date:l.o.date,due:l.o.due,name:l.o.kind==="tarjeta"?"Tarjeta "+l.o.name:l.o.kind==="futuro"?l.o.name+" (planeada)":l.o.name,amt:r2(l.o.full||l.o.amount),kind:l.o.kind,futs:l.o.futs,subs:l.o.subs,method:l.o.kind==="futuro"?futMethod(l.o.pick):l.o.kind==="sub"?(l.o.subCard?"en "+l.o.subCard.name:"en efectivo"):""})).filter(x=>x.amt>0.009).sort((a,b)=>a.date-b.date);
+  const monthLines=plan.periods.flatMap(p=>p.lines).filter(l=>!l.o.carried&&l.o.kind!=="compra"&&(l.o.due||l.o.date)<=mEnd).map(l=>({date:l.o.date,due:l.o.due,name:l.o.kind==="tarjeta"?"Tarjeta "+l.o.name:l.o.kind==="futuro"?l.o.name+" (planeada)":l.o.name,amt:r2(l.o.full||(l.o.kind==="prestamo"?Math.max(l.o.amount,l.pay):l.o.amount)),kind:l.o.kind,futs:l.o.futs,subs:l.o.subs,method:l.o.kind==="futuro"?futMethod(l.o.pick):l.o.kind==="sub"?(l.o.subCard?"en "+l.o.subCard.name:"en efectivo"):""})).filter(x=>x.amt>0.009).sort((a,b)=>a.date-b.date);
   const monthTot=r2(monthLines.reduce((s,x)=>s+x.amt,0));
   const incMonth=nextIncomes(45).filter(i=>i.date<=mEnd); const incTot=r2(incMonth.reduce((s,i)=>s+i.amount,0));
   const nextInc=nextIncomes(45)[0];
@@ -2009,10 +2075,10 @@ function vPlan(){
           <div class="small muted">Puedes pagarla del ${fDateS(ds(o.window?o.window.from:o.date))} al ${fDate(ds(o.due))} (fecha límite) · pago total ${money(o.amount)}${o.stmt&&o.stmt.msi?` (incluye ${money(o.stmt.msi)} de MSI del mes)`:""}${o.stmt&&o.stmt.first?"":" · estimado"}</div>
           ${(o.subs||[]).length?`<div class="small muted">Incluye suscripciones: ${o.subs.map(x=>`${esc(x.name)} ${money(x.amt)} (${fDateS(ds(x.date))})`).join(" · ")}</div>`:""}
           ${(o.futs||[]).map(fu=>`<div class="small" style="color:var(--accent)">Incluye ${esc(fu.name)} (compra ${esc(futMethod({type:"card",card:o.card,months:fu.months}))}) <span class="chip acc">planeada</span>${fu.months?` ${fu.k+1} de ${fu.months} MSI`:""}: ${money(fu.amt)}${fu.fromSav.length?` · toma ${fu.fromSav.map(x=>`${money(x.amt)} de ${esc(x.acc.name)}`).join(" y ")}`:""}</div>`).join("")}`;
-        else info=`<div class="small muted">${o.kind==="futuro"?"cómprala el":o.kind==="sub"?"se cobra el":"vence"} ${fDate(ds(o.date))}${o.kind==="sub"?(o.subCard?" · ten el saldo listo en esa cuenta":" · de tu efectivo"):""}</div>${o.kind==="futuro"&&o.fromSav&&o.fromSav.length?`<div class="small" style="color:var(--accent)">${o.fromSav.map(x=>`Toma ${money(x.amt)} de ${esc(x.acc.name)}`).join(" · ")}</div>`:""}`;
+        else info=`${o.kind==="prestamo"?loanLineNote(l):""}<div class="small muted">${o.kind==="futuro"?"cómprala el":o.kind==="sub"?"se cobra el":"vence"} ${fDate(ds(o.date))}${o.kind==="sub"?(o.subCard?" · ten el saldo listo en esa cuenta":" · de tu efectivo"):""}</div>${o.kind==="futuro"&&o.fromSav&&o.fromSav.length?`<div class="small" style="color:var(--accent)">${o.fromSav.map(x=>`Toma ${money(x.amt)} de ${esc(x.acc.name)}`).join(" · ")}</div>`:""}`;
         const shortTxt=l.short>0.009?(l.carriedTo?`<div class="small" style="color:var(--warn)">Pagas ${money(l.pay)} ahora y el resto (${money(l.short)}) lo completas el ${fDateS(ds(l.carriedTo))}${l.interest?` · intereses aprox. ${money(l.interest)}`:""}</div>`:`<div class="small" style="color:var(--bad)">Faltan ${money(l.short)} al final del plan${l.interest?` · intereses aprox. ${money(l.interest)}`:""}</div>`):"";
         return `<div class="pline"><div class="what"><b>${title}</b>${info}${shortTxt}${planLineBtn(o)}</div>
-        <div class="num" style="text-align:right;white-space:nowrap">${money(l.pay)}${l.short>0.009?`<div class="chip ${l.carriedTo?"warn":"bad"}">${l.carriedTo?"parcial":"falta"}</div>`:`<div class="chip good">completo</div>`}</div></div>`; }).join("")
+        <div class="num" style="text-align:right;white-space:nowrap">${money(l.pay)}${l.short>0.009?`<div class="chip ${l.carriedTo?"warn":"bad"}">${l.carriedTo?"parcial":"falta"}</div>`:`<div class="chip good">completo</div>`}${l.extra>0.009?`<div class="chip acc" style="margin-top:4px">+${money(l.extra)} adelanto</div>`:""}</div></div>`; }).join("")
       :`<div class="muted small">Sin pagos en este periodo.</div>`}
       ${(p.goals||[]).map(x=>goalLine(p,x.g,x.amt,0,x.acc)).join("")}${(p.goalsDone||[]).map(x=>goalLine(p,x.g,0,x.amt,goalAccounts(x.g)[0])).join("")}
       ${fundLine(p,"ahorro",plan.sv)}
@@ -2153,7 +2219,13 @@ function vCreditos(){
     <div class="panel"><div class="list">${sts.map(x=>`<div class="item" data-act="openLoan" data-id="${x.loan.id}" style="flex-direction:column;align-items:stretch;gap:6px">
       <div class="spread"><b><span class="dot" style="background:${x.loan.color};margin-right:6px"></span>${esc(x.loan.name)} <span class="chip">${esc(x.loan.ltype||"")}</span>${get(x.loan.payCardId)?` <span class="chip acc">${esc(get(x.loan.payCardId).name)}</span>`:""}</b>${loanChip(x)}</div>
       <div class="bar"><i style="width:${x.paidAmt/(x.totalToPay||1)*100}%;background:${x.loan.color}"></i></div>
-      <div class="spread small muted"><span>${x.done} de ${x.n} pagos · ${x.variable?`pago variable${x.next?`, el siguiente ${money(x.amtOf(x.next.j))}`:""}`:`${money(x.cuota)} ${(LOAN_FREQ[x.loan.freq]||"").toLowerCase()}`}</span><span>falta <b class="num" style="color:var(--fg)">${money(x.remaining)}</b></span></div></div>`).join("")}</div></div>
+      <div class="spread small muted"><span>${x.done} de ${x.n} pagos · ${x.variable?`pago variable${x.next?`, el siguiente ${money(x.amtOf(x.next.j))}`:""}`:`${money(x.cuota)} ${(LOAN_FREQ[x.loan.freq]||"").toLowerCase()}`}</span><span>falta <b class="num" style="color:var(--fg)">${money(x.remaining)}</b></span></div>
+      ${x.next?(()=>{ const w=+x.loan.want||0; const sg=loanSuggest(x.loan); const f=w?loanFinish(x.loan,w):null;
+        const why=!sg?"fuera de tu plan":sg.short>0.009?"no alcanza completo":!w?"lo que debes":sg.extra>=sg.wantExtra-0.009?"te alcanza":sg.extra>0.009?`+${money(sg.extra)} de adelanto`:"solo lo que debes";
+        return `<div class="loancols">
+        <div><span>Debes pagar</span><b class="num">${money(x.next.amt)}</b><small>${fDateS(ds(x.next.date))}</small></div>
+        <button type="button" data-act="loanWant" data-id="${x.loan.id}"><span>Te gustaría pagar</span><b class="num">${w?money(w):"Poner"}</b><small>${f&&f.saved?`${f.saved} pago${f.saved===1?"":"s"} menos`:"para terminar antes"}</small></button>
+        <div class="${sg&&sg.extra>0.009?"good":""}"><span>El plan sugiere</span><b class="num">${sg?money(sg.pay):"—"}</b><small>${why}</small></div></div>`; })():""}</div>`).join("")}</div></div>
     <div class="panel"><div class="panel-h"><h3>Todo lo que debes</h3><span class="small muted">tarjetas y créditos</span></div><div class="chart-box"><canvas id="chDebt"></canvas></div></div>
   </div>`;
 }
@@ -2177,6 +2249,7 @@ function loanForm(l){
       <label class="f"><span id="lCuotaT">Pago de cada vez</span><input type="number" id="lCuota" step="0.01" inputmode="decimal" value="${l.cuota||""}" placeholder="0.00"></label>
       <label class="f">Cada cuándo<select id="lFreq">${Object.entries(LOAN_FREQ).map(([k,v])=>`<option value="${k}" ${k===l.freq?"selected":""}>${v}</option>`).join("")}</select></label>
     </div>
+    <label class="f">Me gustaría pagar cada vez (opcional)<input type="number" id="lWant" step="50" inputmode="decimal" value="${+l.want||""}" placeholder="Para terminar antes"></label>
     <div class="fgrid">
       <label class="f">Número total de pagos<input type="number" id="lTotal" min="1" step="1" inputmode="numeric" value="${l.total||""}" placeholder="Ej. 24"></label>
       <label class="f">Pagos que ya hiciste<input type="number" id="lPb" min="0" step="1" inputmode="numeric" value="${l.paidBefore||0}"></label>
@@ -2223,7 +2296,7 @@ function loanForm(l){
     if(o.pb>o.n){ $("#lErr").textContent=`Los pagos que ya hiciste deben ser de 0 a ${o.n}.`; return; }
     const schedule=o.v?Array.from({length:o.n},(_,i)=>r2(sch[i+1]||0)):[];
     const base=o.c>0?o.c:(schedule.find(x=>x>0)||0);
-    await put({...(l.id?l:{}),kind:"loan",name,ltype:$("#lType").value,payCardId:$("#lCard").value,cuota:r2(base),variable:o.v,schedule,freq:$("#lFreq").value,total:o.n,paidBefore:o.pb,nextDate:$("#lNext").value||todayS(),principal:o.pr,rate:+$("#lRate").value||0,color:$("#lsw .on")?.dataset.col||CARD_COLORS[0],createdAt:l.createdAt||Date.now()});
+    await put({...(l.id?l:{}),kind:"loan",name,ltype:$("#lType").value,payCardId:$("#lCard").value,cuota:r2(base),variable:o.v,schedule,freq:$("#lFreq").value,total:o.n,paidBefore:o.pb,nextDate:$("#lNext").value||todayS(),principal:o.pr,rate:+$("#lRate").value||0,want:r2(+$("#lWant").value||0),color:$("#lsw .on")?.dataset.col||CARD_COLORS[0],createdAt:l.createdAt||Date.now()});
     closeDialog(); toast(isNew?"Crédito agregado":"Crédito guardado");
   };
 }
@@ -2238,6 +2311,7 @@ function loanDetail(id){
       <div class="kpi"><span class="lbl">${st.variable?"Siguiente pago (variable)":"Pago "+(LOAN_FREQ[l.freq]||"").toLowerCase()}</span><span class="num">${money(st.next?st.amtOf(st.next.j):st.cuota)}</span></div>
     </div>
     <div class="bar"><i style="width:${st.paidAmt/(st.totalToPay||1)*100}%;background:${l.color}"></i></div>
+    ${st.next?(()=>{ const sg=loanSuggest(l); const w=+l.want||0; return `<div class="note ${w?"good":""}"><b>Debes pagar ${money(st.next.amt)}</b> el ${fDate(ds(st.next.date))}.${w?` Te gustaría pagar <b>${money(w)}</b>${sg?`; con tus gastos de ese periodo, el plan sugiere <b>${money(sg.pay)}</b>${sg.extra>0.009?` (${money(sg.extra)} se adelantan)`:""}`:""}.`:""} <a href="#" data-act="loanWant" data-id="${l.id}">${w?"Cambiar":"¿Quieres pagar más para terminar antes?"}</a></div>`; })():""}
     ${get(l.payCardId)?`<div class="note acc">Se paga con <b>${esc(get(l.payCardId).name)}</b>${get(l.payCardId).type==="credito"?". Su pago se suma a lo que tienes que pagar de esa tarjeta.":". Cada pago se descuenta del saldo de esa cuenta."}</div>`:""}
     ${st.principal?`<div class="note">Te prestaron <b class="num">${money(st.principal)}</b> y pagarás en total <b class="num">${money(st.totalToPay)}</b>: <b class="num">${money(st.interest)}</b> son intereses y comisiones${l.rate?` (tasa anual ${l.rate}%)`:""}.</div>`:""}
     ${st.overdue?`<div class="note bad">Tienes <b>${st.overdue}</b> pago(s) con fecha vencida. Si ya los pagaste, regístralos con “Registrar pago”.</div>`:""}
@@ -2912,6 +2986,7 @@ document.addEventListener("click",async ev=>{
     case "openAccount": accountDetail(id); break;
     case "editLoan": loanForm(get(id)); break;
     case "openLoan": loanDetail(id); break;
+    case "loanWant": loanWantForm(id); break;
     case "payLoan": loanPayForm(id); break;
     case "editGoal": goalForm(get(id)); break;
     case "openGoal": goalDetail(id); break;
