@@ -486,10 +486,6 @@ h2{font-weight:700;letter-spacing:-.01em;text-transform:uppercase;font-size:22px
 .subdet>summary::before{content:"▸ ";color:var(--accent)}
 .subdet[open]>summary::before{content:"▾ "}
 
-.subquick{display:flex;gap:6px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none;-webkit-overflow-scrolling:touch;align-items:center}
-.subquick::-webkit-scrollbar{display:none}
-.subquick>*{flex:0 0 auto}
-.subquick .chip{border:0;cursor:pointer;font:inherit;font-size:12.5px;font-weight:600;padding:7px 12px}
 </style>
 
 </head>
@@ -1079,16 +1075,13 @@ function subForm(sb,cardId){
   sb=Object.assign({freq:"mensual",date:todayS(),cardId:cardId||"",category:"Suscripciones",active:true,autoExpense:true},sb||{});
   const cards=all("card");
   openDialog(isNew?"Nueva suscripción":"Editar suscripción",`
+    <label class="f">Nombre<select id="sbPick"><option value="" ${!sb.name?"selected":""}>Elige una…</option>${SUB_NAMES.map(n=>`<option ${n===sb.name?"selected":""}>${esc(n)}</option>`).join("")}<option value="__otra" ${sb.name&&!SUB_NAMES.includes(sb.name)?"selected":""}>Otra (escríbela)</option></select></label>
+    <label class="f" id="sbNameL">¿Cuál?<input type="text" id="sbName" value="${esc(sb.name&&!SUB_NAMES.includes(sb.name)?sb.name:"")}" placeholder="Escribe el nombre" autocomplete="off"></label>
     <div class="fgrid">
-      <label class="f">Nombre<input type="text" id="sbName" list="sbNames" value="${esc(sb.name||"")}" placeholder="Ej. Netflix, Spotify, iCloud" autocomplete="off"></label>
       <label class="f">Monto<input type="number" id="sbAmt" step="0.01" inputmode="decimal" value="${sb.amount||""}" placeholder="0.00"></label>
-    </div>
-    <datalist id="sbNames">${SUB_NAMES.map(n=>`<option value="${esc(n)}">`).join("")}</datalist>
-    ${isNew?(()=>{ const have=new Set(all("sub").map(x=>(x.name||"").trim().toLowerCase())); const opts=SUB_NAMES.filter(n=>!have.has(n.toLowerCase())); return opts.length?`<div class="subquick" id="sbQuick"><span class="small muted">Elige rápido:</span>${opts.map(n=>`<button type="button" class="chip" data-name="${esc(n)}">${esc(n)}</button>`).join("")}</div>`:""; })():""}
-    <div class="fgrid">
       <label class="f">Cada cuándo<select id="sbFreq">${Object.entries(SUB_FREQ).map(([k,v])=>`<option value="${k}" ${k===(sb.freq||"mensual")?"selected":""}>${v}</option>`).join("")}</select></label>
-      <label class="f">Próximo cobro<input type="date" id="sbDate" value="${sb.date||todayS()}"></label>
     </div>
+    <label class="f">Próximo cobro<input type="date" id="sbDate" value="${sb.date||todayS()}"></label>
     <label class="f">Se cobra en<select id="sbCard">${cards.map(c=>`<option value="${c.id}" ${c.id===sb.cardId?"selected":""}>${esc(c.name)} · ${c.type==="credito"?"crédito":isVales(c)?"vales":c.type==="efectivo"?"efectivo":"débito"}</option>`).join("")}<option value="" ${!sb.cardId||!get(sb.cardId)?"selected":""}>Efectivo (en mano)</option></select></label>
     <div class="note acc small" id="sbRoute"></div>
     <label class="f">Categoría<select id="sbCat">${CATS.map(c=>`<option ${c===(sb.category||"Suscripciones")?"selected":""}>${c}</option>`).join("")}</select></label>
@@ -1101,11 +1094,12 @@ function subForm(sb,cardId){
     const nx=dv?subOcc(tmp,today(),addDays(today(),400))[0]:null;
     $("#sbRoute").innerHTML=`${subRouteText(c,nx&&nx.date)}${amt>0?`<br><b>${money(r2(amt*SUB_FREQ_MES(f)))}</b> al mes${f!=="mensual"?` (${money(amt)} ${SUB_FREQ[f].toLowerCase()})`:""}.`:""}`; };
   ["#sbCard","#sbDate","#sbFreq"].forEach(k=>$(k).onchange=upd); $("#sbAmt").oninput=upd; upd();
-  setTimeout(()=>{ try{ if(isNew) $("#sbName").focus(); }catch(e){} },50);
-  if($("#sbQuick")) $("#sbQuick").onclick=e=>{ const b=e.target.closest("button[data-name]"); if(!b) return; $("#sbName").value=b.dataset.name; $$("#sbQuick .chip").forEach(x=>x.classList.toggle("acc",x===b)); try{ $("#sbAmt").focus(); }catch(_){} };
+  const updName=()=>{ $("#sbNameL").hidden=$("#sbPick").value!=="__otra"; if(!$("#sbNameL").hidden) try{ $("#sbName").focus(); }catch(e){} };
+  $("#sbPick").onchange=updName; $("#sbNameL").hidden=$("#sbPick").value!=="__otra";
   $("#sbSave").onclick=async()=>{
-    const name=$("#sbName").value.trim(), amt=+$("#sbAmt").value, date=$("#sbDate").value;
-    if(!name||!(amt>0)){ $("#sbErr").textContent="Escribe el nombre y el monto."; return; }
+    const pick=$("#sbPick").value; const name=(pick==="__otra"?$("#sbName").value:pick).trim(), amt=+$("#sbAmt").value, date=$("#sbDate").value;
+    if(!name){ $("#sbErr").textContent=pick==="__otra"?"Escribe el nombre de la suscripción.":"Elige la suscripción en Nombre."; return; }
+    if(!(amt>0)){ $("#sbErr").textContent="Pon el monto."; return; }
     if(!date){ $("#sbErr").textContent="Pon la fecha del próximo cobro."; return; }
     const auto=$("#sbAuto").checked, cid=$("#sbCard").value;
     // los cobros se registran solos desde hoy (los de antes ya los tienes o no aplican)
