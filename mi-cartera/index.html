@@ -475,6 +475,16 @@ h2{font-weight:700;letter-spacing:-.01em;text-transform:uppercase;font-size:22px
 .cashrow span{font-size:12.5px;color:var(--muted);font-weight:600}
 .cashrow b{font-size:22px;font-weight:800}
 .cashrow small{font-size:12px;color:var(--muted)}
+
+.subpanel .list{margin-top:10px}
+.subcards{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.subcards .chip{display:inline-flex;align-items:center;gap:5px}
+
+.subdet{margin-top:8px}
+.subdet>summary{cursor:pointer;font-size:13px;color:var(--muted);font-weight:600;list-style:none;padding:4px 0}
+.subdet>summary::-webkit-details-marker{display:none}
+.subdet>summary::before{content:"▸ ";color:var(--accent)}
+.subdet[open]>summary::before{content:"▾ "}
 </style>
 
 </head>
@@ -997,6 +1007,9 @@ function occurrences(f,from,to){
       [new Date(y,m,15),new Date(y,m,dim(y,m))].forEach(d=>{ if(d>=from&&d<=to&&d>=start) out.push(d); });
       m++; if(m>11){m=0;y++;} if(new Date(y,m,1)>to) break;
     }
+  } else if(f.freq==="anual"){
+    const sd=pd(f.date||ds(from));
+    for(let y=from.getFullYear()-1;y<=to.getFullYear();y++){ const d=new Date(y,sd.getMonth(),Math.min(sd.getDate(),dim(y,sd.getMonth()))); if(d>=from&&d<=to&&d>=start) out.push(d); }
   } else { // mensual
     for(let y=from.getFullYear(),m=from.getMonth(),i=0;i<30;i++){
       const d=new Date(y,m,Math.min(+f.day||1,dim(y,m)));
@@ -1006,13 +1019,116 @@ function occurrences(f,from,to){
   }
   return out.map(d=>({date:d,amount:amt,flow:f}));
 }
-const FREQ = {unico:"Una vez",semanal:"Semanal",catorcenal:"Cada 14 días",cada28:"Cada 28 días",quincenal:"Quincenal (15 y fin de mes)",mensual:"Mensual"};
+const FREQ = {unico:"Una vez",semanal:"Semanal",catorcenal:"Cada 14 días",cada28:"Cada 28 días",quincenal:"Quincenal (15 y fin de mes)",mensual:"Mensual",anual:"Anual"};
 
-const FREQ_MES={mensual:1,quincenal:2,catorcenal:26/12,cada28:13/12,semanal:52/12,unico:0};
+const FREQ_MES={mensual:1,quincenal:2,catorcenal:26/12,cada28:13/12,semanal:52/12,anual:1/12,unico:0};
+
+/* ================= suscripciones ================= */
+const SUB_FREQ={mensual:"Mensual",anual:"Anual",cada28:"Cada 28 días",catorcenal:"Cada 14 días",quincenal:"Quincenal",semanal:"Semanal"};
+const SUB_NAMES=["Netflix","Spotify","Disney+","Max","Prime Video","Apple Music","iCloud","Google One","YouTube Premium","ChatGPT","Xbox Game Pass","PlayStation Plus","Nintendo Switch Online","Crunchyroll","Paramount+","Vix Premium","Canva","Microsoft 365","Adobe","Gimnasio","Rappi Pro","Uber One","Mercado Pago / Meli+","Telcel / plan de celular"];
+function subOcc(sb,from,to){ if(!sb||!sb.date||from>to) return []; return occurrences({freq:sb.freq||"mensual",day:pd(sb.date).getDate(),date:sb.date,amount:+sb.amount||0,active:sb.active},from,to); }
+// cobros que todavía no están registrados como gasto (los de hoy se registran solos)
+function subPending(sb,to){
+  if(!sb||sb.active===false) return [];
+  let from=sb.autoExpense!==false?addDays(today(),1):today();
+  if(sb.lastGenerated){ const lg=addDays(pd(sb.lastGenerated),1); if(lg>from) from=lg; }
+  return subOcc(sb,from,to);
+}
+function subNext(sb){ if(!sb||sb.active===false) return null; let from=today(); if((sb.lastGenerated||"")>=todayS()) from=addDays(from,1); return subOcc(sb,from,addDays(from,400))[0]||null; }
+function subWhere(sb){ const c=get(sb.cardId); return c?c.name:"efectivo"; }
+function subMonthly(sb){ return r2((+sb.amount||0)*(SUB_FREQ_MES(sb.freq))); }
+function SUB_FREQ_MES(f){ return FREQ_MES[f||"mensual"]??1; }
+function subsActive(){ return all("sub").filter(x=>x.active!==false); }
+// en qué pago de la tarjeta cae un cobro con tarjeta de crédito
+// cae en el corte que le toca según el banco (si pagas antes de que se cobre, no lo incluye en ese pago)
+function subStatement(c,d){ const cut=cutOnOrAfter(c,d); return {cut,due:nextPayOnOrAfter(c,addDays(cut,1))}; }
+function subRouteText(c,d){
+  if(!c) return "Se resta de tu efectivo el día del cobro.";
+  if(isVales(c)) return `Se paga con tus vales de ${esc(c.name)}; no afecta tu plan de pagos.`;
+  if(c.type==="credito"){ if(!d) return `Se suma al pago total de ${esc(c.name)}.`; const x=subStatement(c,d); return `Entra en el corte del ${fDateS(ds(x.cut))} de ${esc(c.name)} y se paga junto con la tarjeta (fecha límite ${fDate(ds(x.due))}). En tu plan ya va sumado a ese pago.`; }
+  return `Sale de tu saldo de ${esc(c.name)} el día del cobro; el plan lo cuenta como pago fijo.`;
+}
+let subGenBusy=false;
+async function genSubs(){
+  if(subGenBusy||!S.loaded||S.mode==="signin"||S.mode==="init") return;
+  const t=today(), tS=todayS(); const todo=[];
+  all("sub").forEach(sb=>{ if(sb.active===false||sb.autoExpense===false||!sb.date||(sb.lastGenerated||"")>=tS) return;
+    let from=pd(sb.date); if(sb.since&&pd(sb.since)>from) from=pd(sb.since);
+    if(sb.lastGenerated){ const lg=addDays(pd(sb.lastGenerated),1); if(lg>from) from=lg; }
+    const occ=subOcc(sb,from,t); if(occ.length) todo.push({sb,occ}); });
+  if(!todo.length) return;
+  subGenBusy=true;
+  try{
+    for(const {sb,occ} of todo){
+      let n=0;
+      for(const o of occ){ const id=`sub-${sb.id}-${ds(o.date)}`; if(get(id)) continue;
+        await put({id,kind:"exp",amount:r2(+sb.amount||0),date:ds(o.date),desc:sb.name,category:sb.category||"Suscripciones",cardId:sb.cardId||"",msi:0,photos:[],subId:sb.id,note:"Cargo automático de suscripción",createdAt:Date.now()}); n++; }
+      const cur=get(sb.id); if(cur) await put({...cur,lastGenerated:ds(occ[occ.length-1].date)});
+      if(n) toast(`Se registró el cobro de ${sb.name} (${money(+sb.amount||0)}) en ${subWhere(sb)}`);
+    }
+  }catch(e){ console.error(e); }
+  finally{ subGenBusy=false; }
+}
+function subForm(sb,cardId){
+  const isNew=!sb||!sb.id;
+  sb=Object.assign({freq:"mensual",date:todayS(),cardId:cardId||"",category:"Suscripciones",active:true,autoExpense:true},sb||{});
+  const cards=all("card");
+  openDialog(isNew?"Nueva suscripción":"Editar suscripción",`
+    <div class="fgrid">
+      <label class="f">Nombre<input type="text" id="sbName" list="sbNames" value="${esc(sb.name||"")}" placeholder="Ej. Netflix, Spotify, iCloud" autocomplete="off"></label>
+      <label class="f">Monto<input type="number" id="sbAmt" step="0.01" inputmode="decimal" value="${sb.amount||""}" placeholder="0.00"></label>
+    </div>
+    <datalist id="sbNames">${SUB_NAMES.map(n=>`<option value="${esc(n)}">`).join("")}</datalist>
+    <div class="fgrid">
+      <label class="f">Cada cuándo<select id="sbFreq">${Object.entries(SUB_FREQ).map(([k,v])=>`<option value="${k}" ${k===(sb.freq||"mensual")?"selected":""}>${v}</option>`).join("")}</select></label>
+      <label class="f">Próximo cobro<input type="date" id="sbDate" value="${sb.date||todayS()}"></label>
+    </div>
+    <label class="f">Se cobra en<select id="sbCard">${cards.map(c=>`<option value="${c.id}" ${c.id===sb.cardId?"selected":""}>${esc(c.name)} · ${c.type==="credito"?"crédito":isVales(c)?"vales":c.type==="efectivo"?"efectivo":"débito"}</option>`).join("")}<option value="" ${!sb.cardId||!get(sb.cardId)?"selected":""}>Efectivo (en mano)</option></select></label>
+    <div class="note acc small" id="sbRoute"></div>
+    <label class="f">Categoría<select id="sbCat">${CATS.map(c=>`<option ${c===(sb.category||"Suscripciones")?"selected":""}>${c}</option>`).join("")}</select></label>
+    <label class="row small" style="font-weight:600"><input type="checkbox" id="sbAuto" ${sb.autoExpense!==false?"checked":""}> Registrar el cobro como gasto automáticamente ese día</label>
+    <label class="row small"><input type="checkbox" id="sbAct" ${sb.active!==false?"checked":""}> Activa (desmárcala si la cancelaste o la pausaste)</label>
+    <div class="small" id="sbErr" style="color:var(--bad)"></div>`,
+    `<div class="confirm" id="delZone">${isNew?"":`<button class="btn danger" data-act="askDelete" data-id="${sb.id}">Borrar</button>`}</div><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="sbSave">Guardar</button></div>`);
+  const upd=()=>{ const c=get($("#sbCard").value); const dv=$("#sbDate").value; const amt=+$("#sbAmt").value||0; const f=$("#sbFreq").value;
+    const tmp={...sb,date:dv||todayS(),freq:f,lastGenerated:isNew?"":sb.lastGenerated,active:true};
+    const nx=dv?subOcc(tmp,today(),addDays(today(),400))[0]:null;
+    $("#sbRoute").innerHTML=`${subRouteText(c,nx&&nx.date)}${amt>0?`<br><b>${money(r2(amt*SUB_FREQ_MES(f)))}</b> al mes${f!=="mensual"?` (${money(amt)} ${SUB_FREQ[f].toLowerCase()})`:""}.`:""}`; };
+  ["#sbCard","#sbDate","#sbFreq"].forEach(k=>$(k).onchange=upd); $("#sbAmt").oninput=upd; upd();
+  setTimeout(()=>{ try{ if(isNew) $("#sbName").focus(); }catch(e){} },50);
+  $("#sbSave").onclick=async()=>{
+    const name=$("#sbName").value.trim(), amt=+$("#sbAmt").value, date=$("#sbDate").value;
+    if(!name||!(amt>0)){ $("#sbErr").textContent="Escribe el nombre y el monto."; return; }
+    if(!date){ $("#sbErr").textContent="Pon la fecha del próximo cobro."; return; }
+    const auto=$("#sbAuto").checked, cid=$("#sbCard").value;
+    // los cobros se registran solos desde hoy (los de antes ya los tienes o no aplican)
+    const since=isNew||(auto&&sb.autoExpense===false)?todayS():(sb.since||todayS());
+    await put({...(sb.id?sb:{}),kind:"sub",name,amount:r2(amt),freq:$("#sbFreq").value,date,cardId:cid,category:$("#sbCat").value,autoExpense:auto,active:$("#sbAct").checked,since,createdAt:sb.createdAt||Date.now()});
+    closeDialog(); toast(isNew?`Suscripción guardada · se cobra en ${subWhere({cardId:cid})}`:"Guardado");
+  };
+}
+function subsPanel(list,opts={}){
+  const fold=!!opts.fold&&list.length>0;
+  const tot=r2(list.filter(x=>x.active!==false).reduce((a,x)=>a+subMonthly(x),0));
+  const byCard=new Map(); list.filter(x=>x.active!==false).forEach(x=>{ const k=get(x.cardId)?x.cardId:""; byCard.set(k,r2((byCard.get(k)||0)+subMonthly(x))); });
+  const rows=list.slice().sort((a,b)=>(a.active===false)-(b.active===false)||((subNext(a)||{date:new Date(9e15)}).date-(subNext(b)||{date:new Date(9e15)}).date)).map(x=>{ const c=get(x.cardId); const n=subNext(x);
+    return `<div class="item" data-act="editSub" data-id="${x.id}"><span class="thumb" style="background:${c?c.color:"#8a9a98"}22;color:${c?c.color:"#6b6b6b"}">${esc((x.name||"?").slice(0,2))}</span>
+      <div class="main"><div class="title">${esc(x.name)} ${x.active===false?`<span class="chip">pausada</span>`:`<span class="chip">${esc((SUB_FREQ[x.freq]||"Mensual").toLowerCase())}</span>`}</div>
+      <div class="row small muted" style="gap:6px"><span class="dot" style="background:${c?c.color:"#8a9a98"}"></span><span>en ${esc(c?c.name:"efectivo")}</span>${n&&x.active!==false?`<span>· próximo cobro ${fDateS(ds(n.date))}</span>`:""}</div></div>
+      <div class="num">${money(+x.amount||0)}</div></div>`; }).join("");
+  return `<div class="panel subpanel">
+    <div class="spread"><h3 style="margin:0">${opts.title||"Suscripciones"} <span class="muted small" style="font-weight:600">${money(tot)} al mes</span></h3><button class="btn sm" data-act="newSub"${opts.cardId?` data-card="${opts.cardId}"`:""}>＋ Suscripción</button></div>
+    ${fold?(()=>{ const nx=list.filter(x=>x.active!==false).map(x=>({x,n:subNext(x)})).filter(y=>y.n).sort((a,b)=>a.n.date-b.n.date)[0]; return `<details class="subdet"><summary>Ver ${list.length===1?"tu suscripción":`tus ${list.length} suscripciones`}${nx?` · próximo cobro: ${esc(nx.x.name)} el ${fDateS(ds(nx.n.date))}`:""}</summary>`; })():""}
+    ${!opts.cardId&&byCard.size>1?`<div class="subcards">${[...byCard.entries()].map(([k,v])=>{ const c=get(k); return `<span class="chip"><span class="dot" style="background:${c?c.color:"#8a9a98"}"></span> ${esc(c?c.name:"Efectivo")}: ${money(v)}/mes</span>`; }).join("")}</div>`:""}
+    ${list.length?`<div class="list">${rows}</div>`:`<p class="muted small" style="margin:8px 0 0">${opts.cardId?"No tienes suscripciones cobradas en esta tarjeta.":"¿Pagas Netflix, Spotify, iCloud, el gym…? Agrégalas y elige en qué tarjeta se cobran: se registran solas como gasto y se suman al pago de esa tarjeta en tu plan."}</p>`}
+    ${fold?"</details>":""}
+  </div>`;
+}
 function fixedPayments(){
   const flows=all("flow").filter(f=>f.type==="fijo"&&f.active!==false).map(f=>({kind:"fijo",id:f.id,name:f.name,monthly:r2((+f.amount||0)*(FREQ_MES[f.freq]??1)),amount:+f.amount||0,freq:FREQ[f.freq]||"",next:occurrences(f,today(),addDays(today(),62))[0]}));
   const loans=all("loan").map(l=>({l,st:loanState(l)})).filter(x=>x.st.next).map(x=>({kind:"prestamo",id:x.l.id,name:x.l.name,monthly:x.st.monthly,amount:x.st.amtOf(x.st.next.j),freq:(LOAN_FREQ[x.l.freq]||"").toLowerCase(),next:{date:x.st.next.date,amount:x.st.next.amt},j:x.st.next.j,n:x.st.n,card:get(x.l.payCardId)}));
-  const items=[...flows,...loans];
+  const subs=subsActive().map(x=>({kind:"sub",id:x.id,name:x.name,monthly:subMonthly(x),amount:+x.amount||0,freq:SUB_FREQ[x.freq]||"Mensual",next:subNext(x),card:get(x.cardId)}));
+  const items=[...flows,...loans,...subs];
   return {items,monthly:r2(items.reduce((s,x)=>s+x.monthly,0))};
 }
 function nextIncomes(days){ const t=today(); return all("flow").filter(f=>f.type==="ingreso").flatMap(f=>occurrences(f,t,addDays(t,days))).sort((a,b)=>a.date-b.date); }
@@ -1029,7 +1145,7 @@ const goalSaved=g=>{ const ac=goalAccounts(g); return ac.length?r2(ac.reduce((x,
 function saveConfig(){
   const s=settings(); const t=today();
   const since=ds(addDays(t,-90));
-  const regular=all("exp").filter(e=>e.date>=since&&e.date<=ds(t)&&!(+e.msi>1)&&!isVales(get(e.cardId)));
+  const regular=all("exp").filter(e=>e.date>=since&&e.date<=ds(t)&&!(+e.msi>1)&&!e.subId&&!isVales(get(e.cardId)));
   const firstDate=regular.reduce((m,e)=>e.date<m?e.date:m,ds(t));
   const span=Math.max(30,daysBetween(pd(firstDate),t));
   const spendMonthly=regular.length?r2(regular.reduce((x,e)=>x+(+e.amount||0),0)/span*30):null;
@@ -1101,7 +1217,18 @@ function buildPlan(opts={}){
   }); });
   if(!opts.noFutures) recommendFutures().forEach(r=>{ const pk=r.pick; if(!pk||pk.type!=="card") return; const d=pk.date<t?new Date(t):pk.date; if(d>end) return;
     futObl.push({kind:"compra",date:d,amount:0,must:0,full:+r.f.amount||0,name:r.f.name,fut:r.f,pick:pk,rate:0}); });
-  const obligations=[...loanObl,...futObl,...fixed.map(o=>({kind:"fijo",date:o.date,amount:o.amount,name:o.flow.name,must:o.amount,rate:0})),...cardObl];
+  // suscripciones: con crédito se suman al pago de esa tarjeta; con débito o efectivo salen el día del cobro
+  const subObl=[];
+  all("sub").forEach(sb=>{ const c=get(sb.cardId); if(isVales(c)) return; const amt=r2(+sb.amount||0); if(!(amt>0)) return;
+    subPending(sb,end).forEach(o=>{ const d=o.date;
+      if(c&&c.type==="credito"){
+        const x=subStatement(c,d);
+        let co=cardObl.find(q=>q.card.id===c.id&&+q.due===+x.due)||cardObl.find(q=>q.card.id===c.id&&+q.cut===+x.cut);
+        if(!co){ if(x.due>end) return; co={kind:"tarjeta",date:x.due,due:x.due,cut:x.cut,amount:0,must:0,name:c.name,card:c,stmt:{msi:0,first:false,total:0},rate:+c.rate||0,futs:[]}; cardObl.push(co); }
+        co.amount=r2(co.amount+amt); (co.subs=co.subs||[]).push({sid:sb.id,name:sb.name,amt,date:d});
+      } else subObl.push({kind:"sub",date:d,amount:amt,must:amt,name:sb.name,sub:sb,subCard:c||null,rate:0});
+    }); });
+  const obligations=[...loanObl,...futObl,...subObl,...fixed.map(o=>({kind:"fijo",date:o.date,amount:o.amount,name:o.flow.name,must:o.amount,rate:0})),...cardObl];
   const simulate=()=>{
     const obl=obligations.slice().sort((a,b)=>a.date-b.date);
     const starts=[{date:t,amount:avail0,label:"Dinero disponible hoy",isCash:true}];
@@ -1235,6 +1362,8 @@ function buildAlerts(){
       else if(nPay===0) out.push({lvl:"mid",key:"cardpay-"+o.card.id+"-"+ds(o.due),title:`Hoy te conviene pagar ${o.name}`,text:`Pago total ${money(o.amount)} · vence el ${fDateS(ds(o.due))}`,to:"tarjetas"}); });
     nextIncomes(1).filter(i=>+i.date===+t).forEach(i=>{ const p0=plan.periods[0]; out.push({lvl:"info",key:"inc-"+i.flow.id+"-"+ds(t),title:`Hoy te llega ${i.flow.name}`,text:`${money(i.amount)}${p0&&(p0.save||p0.inv)?` · aparta ${money(p0.save)} a tu fondo de ahorro y ${money(p0.inv)} a inversión`:""}`,to:"plan"}); });
   }catch(e){ console.error(e); }
+  subsActive().forEach(sb=>{ const o=subOcc(sb,t,addDays(t,1))[0]; if(!o) return; const k=daysBetween(t,o.date); const c=get(sb.cardId); const done=k===0&&(sb.lastGenerated||"")>=todayS();
+    out.push({lvl:k===0&&!done?"mid":"info",key:"sub-"+sb.id+"-"+ds(o.date),title:`${k===0?"Hoy":"Mañana"} se cobra ${sb.name}`,text:`${money(+sb.amount||0)} en ${c?c.name:"efectivo"}${done?" · ya quedó registrado como gasto":c&&c.type!=="credito"&&!isVales(c)?` · ten saldo en ${c.name}`:""}`,to:"gastos"}); });
   all("card").filter(isVales).forEach(c=>{ const n=valesNext(c); if(n&&daysBetween(t,n.date)<=0) out.push({lvl:"info",key:"vales-"+c.id+"-"+ds(n.date),title:`Hoy te llegan tus vales de ${c.name}`,text:`${money(n.amount)}. Cuando te lleguen, toca “Ya me llegó la recarga”.`,to:"tarjetas"}); });
   const pace=spendPace(); if(pace) out.push(pace);
   if(!all("exp").some(e=>e.date===todayS())) out.push({lvl:"info",key:"log-"+todayS(),title:"¿Ya registraste tus gastos de hoy?",text:"Anótalos para que tu plan esté al día.",to:"newExp"});
@@ -1259,6 +1388,7 @@ function buildReminders(){
       add(o.due,`Hoy vence ${o.name}`,`Pago total ${money(o.amount)}. Si ya lo pagaste, márcalo en la app.`,`card0-${o.card.id}-${ds(o.due)}`,"#tarjetas");
       if(o.payOn&&+o.payOn<+addDays(o.due,-3)) add(o.payOn,`Hoy te conviene pagar ${o.name}`,`Pago total ${money(o.amount)} · vence el ${fDateS(ds(o.due))}`,`cardpay-${o.card.id}-${ds(o.due)}`,"#tarjetas"); });
     all("card").filter(isVales).forEach(c=>{ const r=c.recarga||{}; if(!(+r.amount>0)||!r.next) return; occurrences({freq:r.freq||"mensual",day:pd(r.next).getDate(),date:r.next,amount:+r.amount},t,end).forEach(o=>add(o.date,`Hoy te llegan tus vales de ${c.name}`,`${money(+r.amount)} · regístralos en la app`,`vales-${c.id}-${ds(o.date)}`,"#tarjetas")); });
+    subsActive().forEach(sb=>{ const c=get(sb.cardId); subOcc(sb,t,addDays(end,1)).forEach(o=>add(addDays(o.date,-1),`Mañana se cobra ${sb.name}`,`${money(+sb.amount||0)} en ${c?c.name:"efectivo"}${c&&c.type!=="credito"&&!isVales(c)?" · que tengas saldo":""}`,`sub1-${sb.id}-${ds(o.date)}`,"#gastos")); });
     nextIncomes(21).forEach(i=>add(i.date,`Hoy te llega ${i.flow.name}`,`${money(i.amount)} · abre la app para apartar a tus fondos`,`inc-${i.flow.id}-${ds(i.date)}`,"#plan"));
   }catch(e){ console.error(e); }
   return out.sort((a,b)=>a.on.localeCompare(b.on));
@@ -1360,6 +1490,7 @@ function scheduleRender(){ if(rq) return; rq=true; requestAnimationFrame(()=>{ r
 function render(){
   if(S.items.get("settings")?.tema && S.items.get("settings").tema!==(document.documentElement.dataset.tema||"suave")) applyTema(S.items.get("settings").tema);
   cacheState.clear(); recoCache=null; delete planCache.base; delete planCache.full;
+  if(S.loaded&&!subGenBusy&&all("sub").length) genSubs();
   const v=(location.hash||"#resumen").slice(1);
   view=["resumen","tarjetas","gastos","pagos","creditos","futuros","plan","ahorros"].includes(v)?v:"resumen";
   const PARENT={pagos:"tarjetas",futuros:"plan"}; const TITLES={resumen:"Inicio",tarjetas:"Tarjetas",pagos:"Pagos y MSI",gastos:"Gastos",creditos:"Créditos",plan:"Plan de pagos",futuros:"Compras futuras",ahorros:"Ahorros"};
@@ -1439,13 +1570,13 @@ function vResumen(){
   const accTot=all("account").reduce((s,a)=>s+(+a.balance||0),0);
   const owe=r2(debt+loanRem);
   const t0=today(), mEnd=new Date(t0.getFullYear(),t0.getMonth()+1,0);
-  const monthLines=plan.periods.flatMap(p=>p.lines).filter(l=>!l.o.carried&&l.o.kind!=="compra"&&(l.o.due||l.o.date)<=mEnd).map(l=>({date:l.o.date,due:l.o.due,name:l.o.kind==="tarjeta"?"Tarjeta "+l.o.name:l.o.kind==="futuro"?l.o.name+" (planeada)":l.o.name,amt:r2(l.o.full||l.o.amount),kind:l.o.kind,futs:l.o.futs,method:l.o.kind==="futuro"?futMethod(l.o.pick):""})).filter(x=>x.amt>0.009).sort((a,b)=>a.date-b.date);
+  const monthLines=plan.periods.flatMap(p=>p.lines).filter(l=>!l.o.carried&&l.o.kind!=="compra"&&(l.o.due||l.o.date)<=mEnd).map(l=>({date:l.o.date,due:l.o.due,name:l.o.kind==="tarjeta"?"Tarjeta "+l.o.name:l.o.kind==="futuro"?l.o.name+" (planeada)":l.o.name,amt:r2(l.o.full||l.o.amount),kind:l.o.kind,futs:l.o.futs,subs:l.o.subs,method:l.o.kind==="futuro"?futMethod(l.o.pick):l.o.kind==="sub"?(l.o.subCard?"en "+l.o.subCard.name:"en efectivo"):""})).filter(x=>x.amt>0.009).sort((a,b)=>a.date-b.date);
   const monthTot=r2(monthLines.reduce((s,x)=>s+x.amt,0));
   const incMonth=nextIncomes(45).filter(i=>i.date<=mEnd); const incTot=r2(incMonth.reduce((s,i)=>s+i.amount,0));
   const nextInc=nextIncomes(45)[0];
   const cashNow=cashAvailable().total; const left=r2(cashNow+incTot-monthTot);
   const mesN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"][t0.getMonth()];
-  const kindTxt={tarjeta:"pago total (saldo + MSI del mes)",prestamo:"pago fijo · crédito",fijo:"pago fijo",futuro:"compra planeada"};
+  const kindTxt={tarjeta:"pago total (saldo + MSI del mes)",prestamo:"pago fijo · crédito",fijo:"pago fijo",futuro:"compra planeada",sub:"suscripción"};
   const al=buildAlerts(); const alTop=al.filter(a=>a.lvl!=="info"||a.key.startsWith("inc-")).slice(0,3);
   return `
   ${al.length?`<button type="button" class="alertstrip" data-act="openAlerts">${'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>'}<div><b>${al.length} aviso${al.length===1?"":"s"}</b><span>${esc((alTop[0]||al[0]).title)}${al.length>1?` y ${al.length-1} más`:""}</span></div><span class="chev">›</span></button>`:""}
@@ -1460,7 +1591,7 @@ function vResumen(){
       <div class="stat"><span>Te llega este mes</span><b>${money(incTot)}</b></div>
       <div class="stat"><span>Te quedaría</span><b style="color:${left<0?"var(--bad)":"#1F1F1F"}">${money(left)}</b></div>
     </div>
-    ${monthLines.length?`<details class="mdetails"><summary>Ver los ${monthLines.length} pagos del mes</summary><div class="plist">${monthLines.map(x=>`<div class="pr"><div class="dt"><b>${x.date.getDate()}</b><span>${MES[x.date.getMonth()]}</span></div><div class="nm">${esc(x.name)}<small>${x.kind==="tarjeta"?`págala este día · vence ${fDateS(ds(x.due))}${x.futs&&x.futs.length?" · incluye compra planeada":""}`:(kindTxt[x.kind]||"")+(x.method?" · "+esc(x.method):"")}</small></div><div class="am">${money(x.amt)}</div></div>`).join("")}</div></details>`:""}
+    ${monthLines.length?`<details class="mdetails"><summary>Ver los ${monthLines.length} pagos del mes</summary><div class="plist">${monthLines.map(x=>`<div class="pr"><div class="dt"><b>${x.date.getDate()}</b><span>${MES[x.date.getMonth()]}</span></div><div class="nm">${esc(x.name)}<small>${x.kind==="tarjeta"?`págala este día · vence ${fDateS(ds(x.due))}${x.futs&&x.futs.length?" · incluye compra planeada":""}${x.subs&&x.subs.length?` · incluye ${x.subs.length===1?"suscripción":x.subs.length+" suscripciones"}`:""}`:(kindTxt[x.kind]||"")+(x.method?" · "+esc(x.method):"")}</small></div><div class="am">${money(x.amt)}</div></div>`).join("")}</div></details>`:""}
     <div class="refreshline"><span>Actualizado ${(()=>{const d=new Date();return d.getHours()+":"+String(d.getMinutes()).padStart(2,"0");})()}</span><button type="button" class="btn sm btnRefresh2">↻ Actualizar</button></div>
   </section>
   ${!all("flow").some(f=>f.type==="ingreso")?`<div class="note acc"><b>Agrega tu sueldo una sola vez.</b> Dime cuánto te pagan, cada cuándo y la fecha de tu último pago; la app calcula sola tus siguientes pagos y los usa para planear. <a href="#" data-act="newSalary">Agregar sueldo</a></div>`:""}
@@ -1609,7 +1740,7 @@ function expList(list){
     return `<div class="item" data-act="openExp" data-id="${e.id}">
       ${ph?`<img class="thumb" src="${esc(photoSrc(ph))}" alt="">`:`<span class="thumb" style="background:${catColor(e.category)}22;color:${catColor(e.category)}">${esc((e.category||"?").slice(0,2))}</span>`}
       <div class="main"><div class="title">${esc(e.desc||e.category)}</div>
-        <div class="row small muted" style="gap:6px"><span>${fDateS(e.date)}</span><span class="dot" style="background:${c?c.color:"#8a9a98"}"></span><span>${esc(c?c.name:"Efectivo")}</span>${msi}${(e.photos||[]).length>1?`<span class="chip">${e.photos.length} fotos</span>`:""}</div></div>
+        <div class="row small muted" style="gap:6px"><span>${fDateS(e.date)}</span><span class="dot" style="background:${c?c.color:"#8a9a98"}"></span><span>${esc(c?c.name:"Efectivo")}</span>${msi}${e.subId?`<span class="chip">suscripción</span>`:""}${(e.photos||[]).length>1?`<span class="chip">${e.photos.length} fotos</span>`:""}</div></div>
       <div class="num" style="font-weight:500">${money(e.amount)}</div></div>`;
   }).join("")}</div>`;
 }
@@ -1675,6 +1806,7 @@ function cardDetail(id){
     <h3>Compras a meses sin intereses</h3>${plansHtml}`:""}
     ${st.isCredit?"":`<div class="note acc"><b>Saldo estimado: <span class="num">${money(st.balance)}</span></b><div class="small" style="margin-top:4px">Tu saldo del ${fDate(c.initialDate||todayS())} (${money(+c.initialBalance||0)}) más ${isVales(c)?"recargas":"depósitos"}, menos gastos${isVales(c)?"":" y pagos hechos desde esta cuenta"}. ${isVales(c)?"Los vales sirven para tus compras; no cuentan como dinero para pagar tarjetas o recibos.":"Este dinero cuenta como disponible para tus pagos."}</div>
       <div class="row" style="margin-top:10px"><input type="number" id="dbBal" step="0.01" inputmode="decimal" placeholder="Saldo real de hoy" style="max-width:200px"><button class="btn sm pri" id="dbSet" type="button">Actualizar saldo</button></div></div>`}
+    ${(()=>{ const ls=all("sub").filter(x=>x.cardId===c.id); return ls.length||!isVales(c)?subsPanel(ls,{cardId:c.id,title:"Suscripciones en esta tarjeta"}):""; })()}
     <h3>Pagos ${st.isCredit?"":"y depósitos"}</h3>
     ${pays.length?`<div class="list">${pays.map(p=>payRow(p,st)).join("")}</div>`:`<p class="muted">Sin pagos registrados.</p>`}
     <h3>Fotos de los gastos (${photos.length})</h3>
@@ -1734,6 +1866,7 @@ function vGastos(){
   const tot=list.reduce((s,e)=>s+(+e.amount||0),0);
   const withPh=list.filter(e=>(e.photos||[]).length);
   return `<div class="spread"><h2>Gastos</h2><button class="btn pri" data-act="newExp">＋ Gasto</button></div>
+  ${subsPanel(all("sub"),{fold:true})}
   <div class="panel"><div class="filters">
     <input type="search" id="fq" placeholder="Buscar descripción" value="${esc(gf.q)}">
     <select id="fcard"><option value="">Todas las tarjetas</option>${all("card").map(c=>`<option value="${c.id}" ${gf.card===c.id?"selected":""}>${esc(c.name)}</option>`).join("")}<option value="cash" ${gf.card==="cash"?"selected":""}>Efectivo</option></select>
@@ -1787,6 +1920,7 @@ function planLineTitle(o){
   if(o.kind==="tarjeta") return "Paga "+esc(o.name);
   if(o.kind==="prestamo") return "Pago de "+esc(o.name)+` <span class="chip">pago fijo · ${o.loanJ} de ${o.loanN}</span>`;
   if(o.kind==="fijo") return esc(o.name)+` <span class="chip">pago fijo</span>`;
+  if(o.kind==="sub") return esc(o.name)+` <span class="chip">suscripción · ${o.subCard?esc(o.subCard.name):"efectivo"}</span>`;
   return esc(o.name);
 }
 function vPlan(){
@@ -1819,8 +1953,9 @@ function vPlan(){
         if(o.carried) info=`<div class="small muted">Resto que no alcanzaste a pagar antes</div>`;
         else if(o.kind==="tarjeta") info=`<div class="small"><b style="color:var(--accent)">Págala el ${fDate(ds(o.date))}</b>${o.why?` · ${esc(o.why)}`:""}</div>
           <div class="small muted">Puedes pagarla del ${fDateS(ds(o.window?o.window.from:o.date))} al ${fDate(ds(o.due))} (fecha límite) · pago total ${money(o.amount)}${o.stmt&&o.stmt.msi?` (incluye ${money(o.stmt.msi)} de MSI del mes)`:""}${o.stmt&&o.stmt.first?"":" · estimado"}</div>
+          ${(o.subs||[]).length?`<div class="small muted">Incluye suscripciones: ${o.subs.map(x=>`${esc(x.name)} ${money(x.amt)} (${fDateS(ds(x.date))})`).join(" · ")}</div>`:""}
           ${(o.futs||[]).map(fu=>`<div class="small" style="color:var(--accent)">Incluye ${esc(fu.name)} (compra ${esc(futMethod({type:"card",card:o.card,months:fu.months}))}) <span class="chip acc">planeada</span>${fu.months?` ${fu.k+1} de ${fu.months} MSI`:""}: ${money(fu.amt)}${fu.fromSav.length?` · toma ${fu.fromSav.map(x=>`${money(x.amt)} de ${esc(x.acc.name)}`).join(" y ")}`:""}</div>`).join("")}`;
-        else info=`<div class="small muted">${o.kind==="futuro"?"cómprala el":"vence"} ${fDate(ds(o.date))}</div>${o.kind==="futuro"&&o.fromSav&&o.fromSav.length?`<div class="small" style="color:var(--accent)">${o.fromSav.map(x=>`Toma ${money(x.amt)} de ${esc(x.acc.name)}`).join(" · ")}</div>`:""}`;
+        else info=`<div class="small muted">${o.kind==="futuro"?"cómprala el":o.kind==="sub"?"se cobra el":"vence"} ${fDate(ds(o.date))}${o.kind==="sub"?(o.subCard?" · ten el saldo listo en esa cuenta":" · de tu efectivo"):""}</div>${o.kind==="futuro"&&o.fromSav&&o.fromSav.length?`<div class="small" style="color:var(--accent)">${o.fromSav.map(x=>`Toma ${money(x.amt)} de ${esc(x.acc.name)}`).join(" · ")}</div>`:""}`;
         const shortTxt=l.short>0.009?(l.carriedTo?`<div class="small" style="color:var(--warn)">Pagas ${money(l.pay)} ahora y el resto (${money(l.short)}) lo completas el ${fDateS(ds(l.carriedTo))}${l.interest?` · intereses aprox. ${money(l.interest)}`:""}</div>`:`<div class="small" style="color:var(--bad)">Faltan ${money(l.short)} al final del plan${l.interest?` · intereses aprox. ${money(l.interest)}`:""}</div>`):"";
         return `<div class="pline"><div class="what"><b>${title}</b>${info}${shortTxt}</div>
         <div class="num" style="text-align:right;white-space:nowrap">${money(l.pay)}${l.short>0.009?`<div class="chip ${l.carriedTo?"warn":"bad"}">${l.carriedTo?"parcial":"falta"}</div>`:`<div class="chip good">completo</div>`}</div></div>`; }).join("")
@@ -1900,6 +2035,7 @@ function planAddMenu(){
     <button type="button" data-act="newFuture"><b>Compra futura</b><span>Algo que tienes que comprar o pagar; te digo cuándo y con qué</span></button>
     <button type="button" data-act="newSalary"><b>Sueldo o ingreso</b><span>Una vez, y la app calcula los siguientes</span></button>
     <button type="button" data-act="newFlow" data-type="fijo"><b>Pago fijo</b><span>Renta, luz, internet, colegiatura…</span></button>
+    <button type="button" data-act="newSub"><b>Suscripción</b><span>Netflix, Spotify, iCloud… y en qué tarjeta se cobra</span></button>
     <button type="button" data-act="newLoan"><b>Crédito o préstamo</b><span>Sus pagos cuentan como pagos fijos</span></button>
     <button type="button" data-act="cashEdit"><b>Mi efectivo</b><span>Cuánto efectivo tienes hoy</span></button>
     <button type="button" data-act="planSettings"><b>Tu dinero y ajustes</b><span>Efectivo en mano, % para ahorrar y hasta cuándo planear</span></button>
@@ -1925,8 +2061,8 @@ function planSettingsForm(){
     <div class="spread"><h3>Ingresos</h3><button class="btn sm" data-act="newSalary">＋ Ingreso</button></div>
     ${inc.length?`<div class="list">${inc.map(row).join("")}</div>`:`<p class="muted small">Aún no tienes ingresos.</p>`}
     ${(()=>{ const fp=fixedPayments();
-      return `<div class="spread"><h3>Pagos fijos <span class="muted small" style="font-weight:600">${money(fp.monthly)} al mes</span></h3><div class="row" style="gap:6px"><button class="btn sm" data-act="newFlow" data-type="fijo">＋ Pago fijo</button><button class="btn sm" data-act="newLoan">＋ Crédito</button></div></div>
-      ${fp.items.length?`<div class="list">${fp.items.map(x=>`<div class="item" data-act="${x.kind==="prestamo"?"openLoan":"editFlow"}" data-id="${x.id}"><div class="main"><div class="title">${esc(x.name)} ${x.kind==="prestamo"?`<span class="chip">crédito · ${x.j} de ${x.n}</span>`:""}</div><div class="small muted">${esc(x.freq)}${x.next?` · siguiente ${fDateS(ds(x.next.date))}`:""}${x.card?` · con ${esc(x.card.name)}`:""} · ${money(x.monthly)} al mes</div></div><div class="num">${money(x.amount)}</div></div>`).join("")}</div>`:`<p class="muted small">Renta, luz, internet, créditos… lo que pagas sí o sí cada mes.</p>`}`; })()}`,
+      return `<div class="spread"><h3>Pagos fijos <span class="muted small" style="font-weight:600">${money(fp.monthly)} al mes</span></h3><div class="row" style="gap:6px"><button class="btn sm" data-act="newFlow" data-type="fijo">＋ Pago fijo</button><button class="btn sm" data-act="newSub">＋ Suscripción</button><button class="btn sm" data-act="newLoan">＋ Crédito</button></div></div>
+      ${fp.items.length?`<div class="list">${fp.items.map(x=>`<div class="item" data-act="${x.kind==="prestamo"?"openLoan":x.kind==="sub"?"editSub":"editFlow"}" data-id="${x.id}"><div class="main"><div class="title">${esc(x.name)} ${x.kind==="prestamo"?`<span class="chip">crédito · ${x.j} de ${x.n}</span>`:x.kind==="sub"?`<span class="chip">suscripción</span>`:""}</div><div class="small muted">${esc(x.freq)}${x.next?` · siguiente ${fDateS(ds(x.next.date))}`:""}${x.card?` · ${x.kind==="sub"?"en":"con"} ${esc(x.card.name)}`:x.kind==="sub"?" · en efectivo":""} · ${money(x.monthly)} al mes</div></div><div class="num">${money(x.amount)}</div></div>`).join("")}</div>`:`<p class="muted small">Renta, luz, internet, créditos… lo que pagas sí o sí cada mes.</p>`}`; })()}`,
     `<span></span><div class="row"><button class="btn" data-act="close">Cerrar</button><button class="btn pri" id="sSave">Guardar</button></div>`);
   const updMode=()=>{ const f=$("#sMode").value==="fijo"; $("#sPctL").hidden=!f; $("#sInvL").hidden=!f; $("#sGoalL").hidden=!f; $("#sAutoInfo").hidden=f; }; $("#sMode").onchange=updMode; updMode();
   $("#sSave").onclick=async()=>{ await put({...settings(),kind:"settings",id:"settings",fundGoal:+$("#sFundGoal").value||0,invGoal:+$("#sInvGoal").value||0,...((+$("#sCash").value||0)!==cashState().balance?{cash:+$("#sCash").value||0,cashDate:todayS(),cashSetAt:Date.now()}:{}),saveMode:$("#sMode").value,savePct:Math.min(100,Math.max(0,+$("#sPct").value||0)),invPct:Math.min(100,Math.max(0,+$("#sInv").value||0)),goalPct:Math.min(100,Math.max(0,+$("#sGoalPct").value||0)),savingsPct:Math.min(100,Math.max(0,+$("#sPct").value||0)),horizon:+$("#sHor").value||60}); closeDialog(); toast("Guardado"); };
@@ -2639,6 +2775,8 @@ document.addEventListener("click",async ev=>{
     case "newGoal": goalForm(); break;
     case "newLoan": loanForm(); break;
     case "newFuture": futureForm(); break;
+    case "newSub": subForm(null,t.dataset.card||""); break;
+    case "editSub": subForm(get(id)); break;
     case "planAdd": planAddMenu(); break;
     case "cashEdit": cashForm(); break;
     case "valesIn": { const c=get(id); if(!c||!c.recarga) break; const n=valesNext(c); const amt=n?n.amount:+c.recarga.amount||0;
@@ -2688,7 +2826,7 @@ document.addEventListener("click",async ev=>{
       const o=get(id);
       if(o&&o.kind==="goal"){ for(const a of all("account").filter(a=>a.goalId===id)) await put({...a,goalId:"",purpose:"ahorro"}); }
       if(o&&o.kind==="loan"){ for(const x of all("loanpay").filter(p=>p.loanId===id)) await del(x.id); }
-      if(o&&o.kind==="card"){ for(const x of [...all("exp").filter(e=>e.cardId===id),...all("pay").filter(p=>p.cardId===id)]) await del(x.id); }
+      if(o&&o.kind==="card"){ for(const x of [...all("exp").filter(e=>e.cardId===id),...all("pay").filter(p=>p.cardId===id)]) await del(x.id); for(const x of all("sub").filter(x=>x.cardId===id)) await put({...x,cardId:""}); }
       if(o&&o.kind==="exp"){ for(const p of all("pay").filter(p=>p.target===id)) await put({...p,target:"auto"}); }
       await del(id); closeDialog(); toast("Borrado"); break; }
   }
@@ -2760,7 +2898,10 @@ async function loadSample(){
   const futs=[{id:"ej-u1",kind:"future",name:"Laptop (ejemplo)",amount:18000,category:"Tecnología",by:d(45),payWith:"auto",msiMax:12,allowSavings:true,savingsIds:[],createdAt:70},
     {id:"ej-u2",kind:"future",name:"Regalos de Navidad (ejemplo)",amount:4000,category:"Otros",from:d(10),by:d(40),payWith:"auto",msiMax:0,allowSavings:true,savingsIds:["ej-a1"],createdAt:71},
     {id:"ej-u3",kind:"future",name:"Seguro del auto (ejemplo)",amount:6500,category:"Transporte",by:d(25),payWith:"efectivo",msiMax:0,allowSavings:false,savingsIds:[],createdAt:72}];
-  for(const o of [c1,c2,c3,...ex,...pays,...flows,...goals,...loans,...accsEj,...futs,st]) await put(o);
+  const subsEj=[{id:"ej-sub1",kind:"sub",name:"Netflix",amount:219,freq:"mensual",date:d(6),cardId:c1.id,category:"Suscripciones",autoExpense:true,active:true,since:todayS(),createdAt:1},
+    {id:"ej-sub2",kind:"sub",name:"Spotify",amount:129,freq:"mensual",date:d(3),cardId:c3.id,category:"Suscripciones",autoExpense:true,active:true,since:todayS(),createdAt:2},
+    {id:"ej-sub3",kind:"sub",name:"iCloud",amount:49,freq:"mensual",date:d(12),cardId:c2.id,category:"Suscripciones",autoExpense:true,active:true,since:todayS(),createdAt:3}];
+  for(const o of [c1,c2,c3,...ex,...pays,...flows,...goals,...loans,...accsEj,...futs,...subsEj,st]) await put(o);
   toast("Datos de ejemplo cargados. Bórralos en Opciones cuando quieras.");
 }
 
