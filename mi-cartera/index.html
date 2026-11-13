@@ -467,6 +467,14 @@ h2{font-weight:700;letter-spacing:-.01em;text-transform:uppercase;font-size:22px
 @media (max-width:560px){.catrow{grid-template-columns:10px minmax(70px,1fr) 1fr auto;gap:8px;font-size:13px}}
 
 @media (max-width:560px){.hide-sm{display:none}}
+
+.statbtn{border:0;text-align:left;cursor:pointer;font:inherit;color:inherit}
+.statbtn small{display:block;font-size:11.5px;margin-top:2px;opacity:.75;text-decoration:underline;text-underline-offset:2px}
+.cashrow{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--surface);border-radius:var(--r);padding:16px 18px}
+.cashrow>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cashrow span{font-size:12.5px;color:var(--muted);font-weight:600}
+.cashrow b{font-size:22px;font-weight:800}
+.cashrow small{font-size:12px;color:var(--muted)}
 </style>
 
 </head>
@@ -1043,9 +1051,27 @@ function saveConfig(){
   const invStop=!!s.invStop||(invAccs.length>0&&invAccs.every(a=>a.noMore));
   return {fundStop,invStop,goals,goalPct:(s.goalPct??5)/100,invTarget,invYield,fundAuto:!(+s.fundGoal>0),mode:s.saveMode||"auto",savePct:(s.savePct??s.savingsPct??10)/100,invPct:(s.invPct??5)/100,spendMonthly,fixedMonthly,fundNow,invNow,fundTarget,monthlyNeed,saveAcc:best(saveAccs),invAcc:best(invAccs)};
 }
+function cashState(){
+  const st=settings(); const captured=+st.cash||0; const date=st.cashDate||""; const setAt=+st.cashSetAt||0;
+  const after=x=>{ if(!date) return false; const d=x.date||""; if(d>date) return true; if(d<date) return false; return (x.createdAt||0)>setAt; };
+  const spentList=all("exp").filter(e=>!e.cardId&&after(e));
+  const spent=r2(spentList.reduce((a,e)=>a+(+e.amount||0),0));
+  return {captured,date,spent,count:spentList.length,balance:r2(captured-spent)};
+}
+function cashForm(){
+  const cs=cashState();
+  openDialog("Tu efectivo",`
+    <label class="f">¿Cuánto efectivo tienes hoy?<input type="number" id="cashNow" step="0.01" inputmode="decimal" value="${cs.balance>0?cs.balance:""}" placeholder="0.00"></label>
+    <div class="note small">${cs.date?`Tenías ${money(cs.captured)} el ${fDate(cs.date)}${cs.spent?` y desde entonces gastaste ${money(cs.spent)} en efectivo (${cs.count} gasto${cs.count===1?"":"s"})`:""}. `:""}Cuando registres un gasto con <b>“Pagado con: Efectivo”</b>, se resta solo. Este dinero cuenta como disponible para tus pagos.</div>
+    <div class="small" id="cashErr" style="color:var(--bad)"></div>`,
+    `<span></span><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="cashSave">Guardar</button></div>`);
+  setTimeout(()=>{ try{ $("#cashNow").focus(); $("#cashNow").select(); }catch(e){} },50);
+  $("#cashSave").onclick=async()=>{ const v=$("#cashNow").value; if(v===""||isNaN(+v)||+v<0){ $("#cashErr").textContent="Escribe cuánto efectivo tienes (puede ser 0)."; return; }
+    await put({...settings(),id:"settings",kind:"settings",cash:r2(+v),cashDate:todayS(),cashSetAt:Date.now()}); closeDialog(); toast(`Efectivo actualizado: ${money(+v)}`); };
+}
 function cashAvailable(){
   const debits=all("card").filter(CASH_TYPES).map(c=>({card:c,bal:cardState(c).balance}));
-  const cash=+settings().cash||0;
+  const cash=cashState().balance;
   const usable=all("account").filter(a=>accUsable(a)&&accAvailable(a,today())).map(a=>({acc:a,bal:+a.balance||0}));
   return {cash,debits,usable,total:r2(cash+debits.reduce((s,d)=>s+d.bal,0)+usable.reduce((s,d)=>s+d.bal,0))};
 }
@@ -1430,7 +1456,7 @@ function vResumen(){
     ${monthTot>0?`<div class="meter" title="Cuánto cubres con tu dinero y tus ingresos del mes"><i style="width:${Math.min(100,(cashNow+incTot)/monthTot*100)}%"></i></div><div class="sub2" style="font-size:12px;margin-top:6px">${cashNow+incTot>=monthTot?"Con tu dinero y tus ingresos cubres todo el mes":`Con tu dinero y tus ingresos cubres el ${Math.round((cashNow+incTot)/monthTot*100)}% del mes`}</div>`:""}
     <div class="row-stats">
       <div class="stat"><span>${nextInc?`Próximo sueldo · ${["dom","lun","mar","mié","jue","vie","sáb"][nextInc.date.getDay()]} ${fDateS(ds(nextInc.date))}`:"Tu sueldo"}</span><b>${nextInc?money(nextInc.amount):`<a href="#" data-act="newSalary">Agregar sueldo</a>`}</b></div>
-      <div class="stat"><span>Tienes hoy</span><b>${money(cashNow)}</b></div>
+      <button type="button" class="stat statbtn" data-act="cashEdit"><span>Tienes hoy</span><b>${money(cashNow)}</b><small>efectivo ${money(cashState().balance)} · editar</small></button>
       <div class="stat"><span>Te llega este mes</span><b>${money(incTot)}</b></div>
       <div class="stat"><span>Te quedaría</span><b style="color:${left<0?"var(--bad)":"#1F1F1F"}">${money(left)}</b></div>
     </div>
@@ -1607,7 +1633,9 @@ function utilChip(u){ return u>=.7?`<span class="chip bad">${Math.round(u*100)}%
 function vTarjetas(){
   const cards=all("card");
   if(!cards.length) return emptyAll();
+  const cs=cashState();
   return `<div class="spread"><h2>Tus tarjetas</h2><button class="btn pri" data-act="newCard">＋ Tarjeta</button></div>
+  <div class="cashrow"><div><span>Efectivo en mano</span><b class="num">${money(cs.balance)}</b><small>${cs.date?`actualizado el ${fDateS(cs.date)}${cs.spent?` · gastaste ${money(cs.spent)} desde entonces`:""}`:"pon cuánto efectivo tienes"}</small></div><button type="button" class="btn sm pri" data-act="cashEdit">${cs.date?"Actualizar":"Poner mi efectivo"}</button></div>
   <div class="grid g-cards">${cards.map(c=>{
     const st=cardState(c);
     return `<div class="panel" style="padding:12px;display:flex;flex-direction:column;gap:0">${ccTile(c)}
@@ -1873,6 +1901,7 @@ function planAddMenu(){
     <button type="button" data-act="newSalary"><b>Sueldo o ingreso</b><span>Una vez, y la app calcula los siguientes</span></button>
     <button type="button" data-act="newFlow" data-type="fijo"><b>Pago fijo</b><span>Renta, luz, internet, colegiatura…</span></button>
     <button type="button" data-act="newLoan"><b>Crédito o préstamo</b><span>Sus pagos cuentan como pagos fijos</span></button>
+    <button type="button" data-act="cashEdit"><b>Mi efectivo</b><span>Cuánto efectivo tienes hoy</span></button>
     <button type="button" data-act="planSettings"><b>Tu dinero y ajustes</b><span>Efectivo en mano, % para ahorrar y hasta cuándo planear</span></button>
   </div>`);
 }
@@ -1883,7 +1912,7 @@ function planSettingsForm(){
   openDialog("Tu dinero y ajustes",`
     <div class="note">Dinero disponible hoy: <b class="num">${money(ca.total)}</b>${ca.debits.length||ca.usable.length?`<div class="small muted" style="margin-top:4px">${[...ca.debits.map(d=>`${esc(d.card.name)} ${money(d.bal)}`),...ca.usable.map(d=>`${esc(d.acc.name)} ${money(d.bal)} (apartado)`)].join(" · ")}. Para cambiarlo, actualiza el saldo de cada cuenta; en cada apartado puedes elegir si cuenta aquí.</div>`:""}</div>
     <div class="fgrid">
-      <label class="f">Efectivo en mano<input type="number" id="sCash" step="0.01" inputmode="decimal" value="${s.cash||""}" placeholder="0.00"></label>
+      <label class="f">Efectivo en mano (hoy)<input type="number" id="sCash" step="0.01" inputmode="decimal" value="${cashState().balance||""}" placeholder="0.00"></label>
       <label class="f">Ahorro e inversión<select id="sMode"><option value="auto" ${(s.saveMode||"auto")==="auto"?"selected":""}>Automático, según lo que sobre</option><option value="fijo" ${s.saveMode==="fijo"?"selected":""}>Porcentaje fijo de cada ingreso</option></select></label>
       <label class="f" id="sPctL">% para tu fondo de ahorro<input type="number" id="sPct" min="0" max="100" value="${s.savePct??s.savingsPct??10}"></label>
       <label class="f" id="sInvL">% para invertir<input type="number" id="sInv" min="0" max="100" value="${s.invPct??5}"></label>
@@ -1900,7 +1929,7 @@ function planSettingsForm(){
       ${fp.items.length?`<div class="list">${fp.items.map(x=>`<div class="item" data-act="${x.kind==="prestamo"?"openLoan":"editFlow"}" data-id="${x.id}"><div class="main"><div class="title">${esc(x.name)} ${x.kind==="prestamo"?`<span class="chip">crédito · ${x.j} de ${x.n}</span>`:""}</div><div class="small muted">${esc(x.freq)}${x.next?` · siguiente ${fDateS(ds(x.next.date))}`:""}${x.card?` · con ${esc(x.card.name)}`:""} · ${money(x.monthly)} al mes</div></div><div class="num">${money(x.amount)}</div></div>`).join("")}</div>`:`<p class="muted small">Renta, luz, internet, créditos… lo que pagas sí o sí cada mes.</p>`}`; })()}`,
     `<span></span><div class="row"><button class="btn" data-act="close">Cerrar</button><button class="btn pri" id="sSave">Guardar</button></div>`);
   const updMode=()=>{ const f=$("#sMode").value==="fijo"; $("#sPctL").hidden=!f; $("#sInvL").hidden=!f; $("#sGoalL").hidden=!f; $("#sAutoInfo").hidden=f; }; $("#sMode").onchange=updMode; updMode();
-  $("#sSave").onclick=async()=>{ await put({...settings(),kind:"settings",id:"settings",fundGoal:+$("#sFundGoal").value||0,invGoal:+$("#sInvGoal").value||0,cash:+$("#sCash").value||0,saveMode:$("#sMode").value,savePct:Math.min(100,Math.max(0,+$("#sPct").value||0)),invPct:Math.min(100,Math.max(0,+$("#sInv").value||0)),goalPct:Math.min(100,Math.max(0,+$("#sGoalPct").value||0)),savingsPct:Math.min(100,Math.max(0,+$("#sPct").value||0)),horizon:+$("#sHor").value||60}); closeDialog(); toast("Guardado"); };
+  $("#sSave").onclick=async()=>{ await put({...settings(),kind:"settings",id:"settings",fundGoal:+$("#sFundGoal").value||0,invGoal:+$("#sInvGoal").value||0,...((+$("#sCash").value||0)!==cashState().balance?{cash:+$("#sCash").value||0,cashDate:todayS(),cashSetAt:Date.now()}:{}),saveMode:$("#sMode").value,savePct:Math.min(100,Math.max(0,+$("#sPct").value||0)),invPct:Math.min(100,Math.max(0,+$("#sInv").value||0)),goalPct:Math.min(100,Math.max(0,+$("#sGoalPct").value||0)),savingsPct:Math.min(100,Math.max(0,+$("#sPct").value||0)),horizon:+$("#sHor").value||60}); closeDialog(); toast("Guardado"); };
 }
 afterRender.plan=()=>{
   const plan=buildPlan();
@@ -2399,7 +2428,7 @@ function expForm(e){
     <label class="f">Descripción<input type="text" id="eDesc" value="${esc(e.desc||"")}" placeholder="Ej. Despensa Walmart"></label>
     <div class="fgrid">
       <label class="f">Categoría<select id="eCat">${CATS.map(c=>`<option ${c===e.category?"selected":""}>${c}</option>`).join("")}</select></label>
-      <label class="f">Pagado con<select id="eCard">${cards.map(c=>`<option value="${c.id}" ${c.id===e.cardId?"selected":""}>${esc(c.name)} (${c.type==="credito"?"crédito":c.type==="debito"?"débito":"efectivo"})</option>`).join("")}<option value="" ${!e.cardId?"selected":""}>Efectivo (sin tarjeta)</option></select></label>
+      <label class="f">Pagado con<select id="eCard">${cards.map(c=>`<option value="${c.id}" ${c.id===e.cardId?"selected":""}>${esc(c.name)} (${c.type==="credito"?"crédito":c.type==="debito"?"débito":"efectivo"})</option>`).join("")}<option value="" ${!e.cardId?"selected":""}>Efectivo (en mano)</option></select></label>
     </div>
     <div id="msiBox"><div class="small muted" style="font-weight:600;margin-bottom:6px">Forma de pago</div>
       ${seg("msi",[["0","Una exhibición"],["3","3 MSI"],["6","6 MSI"],["9","9 MSI"],["12","12 MSI"],["18","18"],["24","24"]],String(+e.msi||0))}
@@ -2611,6 +2640,7 @@ document.addEventListener("click",async ev=>{
     case "newLoan": loanForm(); break;
     case "newFuture": futureForm(); break;
     case "planAdd": planAddMenu(); break;
+    case "cashEdit": cashForm(); break;
     case "valesIn": { const c=get(id); if(!c||!c.recarga) break; const n=valesNext(c); const amt=n?n.amount:+c.recarga.amount||0;
       await put({kind:"pay",cardId:c.id,amount:r2(amt),date:todayS(),target:"auto",note:"Recarga de vales",createdAt:Date.now()});
       const after=valesAfter(c,n&&n.date>today()?n.date:today()); await put({...get(c.id),recarga:{...c.recarga,next:after?ds(after):c.recarga.next}});
