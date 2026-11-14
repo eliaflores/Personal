@@ -1049,9 +1049,15 @@ const isIncomeRec=p=>p&&p.kind==="pay"&&(p.cardId==="cash"||(get(p.cardId)&&get(
 function incKind(p){ if(p.inc==="transfer") return "transfer"; if(p.inc==="ingreso") return "ingreso"; if(p.note==="Recarga de vales") return "vales"; return "deposito"; }
 function incLabel(p){ const k=incKind(p); return k==="transfer"?`Transferencia desde ${accName(p.fromId)}`:k==="ingreso"?(p.source||"Ingreso"):k==="vales"?"Recarga de vales":"Depósito"; }
 function moneyAccOpts(sel){
-  const cs=all("card").filter(c=>c.type!=="credito");
-  return cs.map(c=>`<option value="${c.id}" ${c.id===sel?"selected":""}>${esc(c.name)} (${isVales(c)?"vales":c.type==="efectivo"?"efectivo":"débito"} · ${money(cardState(c).balance)})</option>`).join("")+`<option value="cash" ${sel==="cash"?"selected":""}>Efectivo en mano (${money(cashState().balance)})</option>`;
+  const cs=all("card").filter(c=>c.type!=="credito"), accs=all("account");
+  return `<optgroup label="Tarjetas y efectivo">${cs.map(c=>`<option value="${c.id}" ${c.id===sel?"selected":""}>${esc(c.name)} (${isVales(c)?"vales":c.type==="efectivo"?"efectivo":"débito"} · ${money(cardState(c).balance)})</option>`).join("")}<option value="cash" ${sel==="cash"?"selected":""}>Efectivo en mano (${money(cashState().balance)})</option></optgroup>`
+    +(accs.length?`<optgroup label="Apartados">${accs.map(a=>`<option value="${a.id}" ${a.id===sel?"selected":""}>${esc(a.name)} (${esc(a.inst||"apartado")} · ${money(+a.balance||0)})</option>`).join("")}</optgroup>`:"");
 }
+const isAcc=id=>{ const a=get(id); return !!a&&a.kind==="account"; };
+function accBalance(id){ if(id==="cash") return cashState().balance; const o=get(id); if(!o) return 0; return o.kind==="account"?(+o.balance||0):cardState(o).balance; }
+// los apartados guardan su saldo: cada movimiento deja una línea ligada (ref) para poder corregirlo o borrarlo
+async function accAdjust(id,delta,date,ref,other,type){ const a=get(id); if(!a) return; await put({...a,balance:r2((+a.balance||0)+delta),history:(a.history||[]).concat([{date,amount:r2(delta),type:type||"transferencia",ref,other:other||""}])}); }
+async function accRevert(ref){ if(!ref) return; for(const a0 of all("account")){ const a=get(a0.id); const hs=(a.history||[]).filter(h=>h.ref===ref); if(!hs.length) continue; const d=hs.reduce((x,h)=>x+(+h.amount||0),0); await put({...a,balance:r2((+a.balance||0)-d),history:a.history.filter(h=>h.ref!==ref)}); } }
 // ingresos de tu plan (sueldo, etc.) cercanos que aún no registras
 function incomeExpected(){ const t=today(); const out=[];
   all("flow").filter(f=>f.type==="ingreso"&&f.active!==false).forEach(f=>occurrences(f,addDays(t,-10),addDays(t,10)).forEach(o=>out.push({key:`${f.id}:${ds(o.date)}`,flow:f,date:o.date,amount:o.amount})));
@@ -1060,7 +1066,7 @@ async function unlinkIncome(rec){ if(!rec||!rec.flowId||!rec.flowDate) return; c
 function moneyMenu(){
   openDialog("¿Qué quieres registrar?",`<div class="addmenu">
     <button type="button" data-act="newInc"><b>Ingreso o depósito</b><span>Sueldo, venta, reembolso, regalo… en qué cuenta entró</span></button>
-    <button type="button" data-act="newTransfer"><b>Transferencia entre mis cuentas</b><span>De una tarjeta a otra, o depositar o sacar efectivo</span></button>
+    <button type="button" data-act="newTransfer"><b>Transferencia entre mis cuentas</b><span>De una tarjeta a otra (ej. Mercado Pago → BBVA), de un apartado a tu tarjeta, o depositar o sacar efectivo</span></button>
     <button type="button" data-act="newPay"><b>Pago de tarjeta o crédito</b><span>Lo que le pagaste a tu tarjeta de crédito o a un préstamo</span></button>
   </div>`);
 }
@@ -1092,14 +1098,17 @@ function incForm(rec,opts={}){
   const linkSel=()=>$("#iLink")?$("#iLink").value:"";
   const upd=()=>{ const t=segVal("itype"); $("#iIncBox").hidden=t!=="ingreso"; $("#iFromL").hidden=t!=="transfer"; $("#iToT").textContent=t==="transfer"?"Hacia":"¿En qué cuenta entró?";
     const lk=t==="ingreso"?linkSel():""; const x=expOpts.find(e=>e.key===lk);
-    $("#iHint").innerHTML=t==="transfer"?`Sale de <b>${esc(accName($("#iFrom").value))}</b> y entra a <b>${esc(accName($("#iTo").value))}</b>; tu dinero total no cambia. Si depositaste efectivo al banco, elige desde <b>Efectivo en mano</b>.`
+    const fr=$("#iFrom").value, to=$("#iTo").value, a0=+$("#iAmt").value||0;
+    const extra=t!=="transfer"?"":(isAcc(fr)&&!accUsable(get(fr))&&!(isAcc(to)&&!accUsable(get(to)))?" Ese dinero estaba apartado; ahora cuenta como disponible para tus pagos.":isAcc(to)&&!accUsable(get(to))&&!(isAcc(fr)&&!accUsable(get(fr)))?" Ese dinero queda apartado y ya no cuenta para tus pagos.":"")
+      +(a0>0&&a0>accBalance(fr)+0.009?` <b>Ojo:</b> en ${esc(accName(fr))} tienes ${money(accBalance(fr))}.`:"");
+    $("#iHint").innerHTML=t==="transfer"?`Sale de <b>${esc(accName(fr))}</b> y entra a <b>${esc(accName(to))}</b>; tu dinero total no cambia.${extra} Si depositaste efectivo al banco, elige desde <b>Efectivo en mano</b>.`
       :x?`Se suma al saldo de <b>${esc(accName($("#iTo").value))}</b> y tu plan ya no cuenta otra vez ${esc(x.flow.name)} del ${fDateS(ds(x.date))}, porque ya está en tu saldo.`
       :`Se suma al saldo de <b>${esc(accName($("#iTo").value))}</b> y queda en tu historial de ingresos.`; };
   const applyLink=()=>{ const x=expOpts.find(e=>e.key===linkSel()); if(x){ if(!$("#iAmt").value||isNew) $("#iAmt").value=x.amount; if(!rec.date) $("#iDate").value=ds(x.date)>todayS()?todayS():ds(x.date); if(/sueldo|n[oó]mina|quincena/i.test(x.flow.name)) $("#iSrc").value="Sueldo"; } upd(); };
   $$('[data-seg="itype"] button').forEach(b=>b.onclick=()=>{ $$('[data-seg="itype"] button').forEach(x=>x.classList.remove("on")); b.classList.add("on"); upd(); });
   if($("#iLink")) $("#iLink").onchange=()=>{ autoLinked=false; applyLink(); };
   $("#iSrc").onchange=()=>{ if(autoLinked&&$("#iSrc").value!=="Sueldo"&&$("#iLink")){ const x=expOpts.find(e=>e.key===linkSel()); $("#iLink").value=""; if(x&&+$("#iAmt").value===+x.amount) $("#iAmt").value=""; autoLinked=false; } upd(); };
-  ["#iFrom","#iTo"].forEach(k=>$(k).onchange=upd);
+  ["#iFrom","#iTo"].forEach(k=>$(k).onchange=upd); $("#iAmt").oninput=upd;
   if(isNew&&link0) applyLink(); else upd();
   $("#iSave").onclick=async()=>{
     const t=segVal("itype"), amt=+$("#iAmt").value, date=$("#iDate").value||todayS(), to=$("#iTo").value, from=$("#iFrom").value;
@@ -1107,8 +1116,11 @@ function incForm(rec,opts={}){
     if(t==="transfer"&&to===from){ $("#iErr").textContent="Elige dos cuentas distintas."; return; }
     const lk=t==="ingreso"?linkSel():""; const [fid,fdate]=lk?lk.split(":"):["",""];
     if(rec.flowId&&(rec.flowId!==fid||rec.flowDate!==fdate)) await unlinkIncome(rec);
-    await put({...(rec.id?rec:{}),kind:"pay",cardId:to,amount:r2(amt),date,target:"auto",inc:t,source:t==="ingreso"?$("#iSrc").value:"",fromId:t==="transfer"?from:"",note:$("#iDesc").value.trim(),flowId:fid||"",flowDate:fdate||"",createdAt:rec.createdAt||Date.now()});
+    const rid=rec.id||uid(); if(rec.id) await accRevert(rec.id);
+    await put({...(rec.id?rec:{}),id:rid,kind:"pay",cardId:to,amount:r2(amt),date,target:"auto",inc:t,source:t==="ingreso"?$("#iSrc").value:"",fromId:t==="transfer"?from:"",note:$("#iDesc").value.trim(),flowId:fid||"",flowDate:fdate||"",createdAt:rec.createdAt||Date.now()});
     if(fid){ const f=get(fid); if(f) await put({...f,paid:[...new Set([...(f.paid||[]),fdate])].sort().slice(-60)}); }
+    if(isAcc(to)) await accAdjust(to,amt,date,rid,t==="transfer"?accName(from):($("#iSrc").value||"Ingreso"),t==="transfer"?"transferencia":"deposito");
+    if(t==="transfer"&&isAcc(from)) await accAdjust(from,-amt,date,rid,accName(to),"transferencia");
     closeDialog(); toast(t==="transfer"?`Transferencia registrada: ${money(amt)} a ${accName(to)}`:`Ingreso registrado: ${money(amt)} en ${accName(to)}`);
   };
 }
@@ -2000,7 +2012,7 @@ function vTarjetas(){
   const cards=all("card");
   if(!cards.length) return emptyAll();
   const cs=cashState();
-  return `<div class="spread"><h2>Tus tarjetas</h2><button class="btn pri" data-act="newCard">＋ Tarjeta</button></div>
+  return `<div class="spread"><h2>Tus tarjetas</h2><div class="row" style="gap:6px"><button class="btn" data-act="newTransfer">⇄ Transferir</button><button class="btn pri" data-act="newCard">＋ Tarjeta</button></div></div>
   <div class="cashrow"><div><span>Efectivo en mano</span><b class="num">${money(cs.balance)}</b><small>${cs.date?`actualizado el ${fDateS(cs.date)}${cs.spent?` · gastaste ${money(cs.spent)} desde entonces`:""}`:"pon cuánto efectivo tienes"}</small></div><div class="row" style="gap:6px"><button type="button" class="btn sm" data-act="cashMoves">Movimientos</button><button type="button" class="btn sm pri" data-act="cashEdit">${cs.date?"Actualizar":"Poner mi efectivo"}</button></div></div>
   <div class="grid g-cards">${cards.map(c=>{
     const st=cardState(c);
@@ -2614,15 +2626,15 @@ function accountForm(a){
 }
 function accountDetail(id){
   const a=get(id); if(!a) return;
-  const typ={inicial:"Saldo inicial",deposito:"Depósito",retiro:"Retiro",rendimiento:"Rendimientos / ajuste"};
+  const typ={inicial:"Saldo inicial",deposito:"Depósito",retiro:"Retiro",rendimiento:"Rendimientos / ajuste",transferencia:"Transferencia"};
   openDialog(esc(a.name),`
     <div class="spread"><span class="num" style="font-size:26px">${money(a.balance)}</span><span class="chip">${esc(a.inst)}</span></div>
     <div class="small muted">${a.rate?`Rinde ${a.rate}% anual · aprox. ${money((+a.balance||0)*a.rate/100/12)} al mes antes de impuestos · `:""}${a.liquid===false?`Disponible ${a.availFrom?"desde el "+fDate(a.availFrom):"al vencer el plazo"}`:"Disponible cuando quieras"}</div>
     <div class="fgrid"><label class="f">Desde (al depositar)<select id="acFrom">${fromOptions()}</select></label></div>
     <div class="fgrid"><label class="f">Monto<input type="number" id="acAmt" step="0.01" inputmode="decimal"></label><label class="f">Fecha<input type="date" id="acDate" value="${todayS()}"></label></div>
-    <div class="row"><button class="btn pri" id="acDep">＋ Depositar</button><button class="btn" id="acRet">− Retirar</button><button class="btn" id="acSet">Corregir saldo a este monto</button></div>
+    <div class="row"><button class="btn pri" id="acDep">＋ Depositar</button><button class="btn" id="acRet">− Retirar</button><button class="btn" id="acSet">Corregir saldo a este monto</button><button class="btn" data-act="newTransfer" data-from="${a.id}">⇄ Pasar a una tarjeta</button></div>
     <h3>Movimientos</h3>
-    ${(a.history||[]).length?`<div class="list">${a.history.slice().reverse().map(h=>`<div class="item" style="cursor:default"><div class="main"><div class="title">${typ[h.type]||"Movimiento"}</div><div class="small muted">${fDate(h.date)}</div></div><span class="num" style="color:${h.amount<0?"var(--bad)":"var(--good)"}">${h.amount<0?"":"+"}${money(h.amount)}</span></div>`).join("")}</div>`:`<p class="muted small">Sin movimientos.</p>`}`,
+    ${(a.history||[]).length?`<div class="list">${a.history.slice().reverse().map(h=>`<div class="item" style="cursor:default"><div class="main"><div class="title">${typ[h.type]||"Movimiento"}${h.other?` ${h.type==="deposito"?"·":h.amount<0?"a":"de"} ${esc(h.other)}`:""}</div><div class="small muted">${fDate(h.date)}</div></div><span class="num" style="color:${h.amount<0?"var(--bad)":"var(--good)"}">${h.amount<0?"":"+"}${money(h.amount)}</span></div>`).join("")}</div>`:`<p class="muted small">Sin movimientos.</p>`}`,
     `<div class="confirm" id="delZone"><button class="btn danger" data-act="askDelete" data-id="${a.id}">Borrar</button></div><button class="btn" data-act="editAccount" data-id="${a.id}">Editar</button>`);
   const mv=async(type)=>{ const v=+$("#acAmt").value; if(!(v>=0)||$("#acAmt").value==="") return; let amt=type==="retiro"?-v:type==="rendimiento"?r2(v-(+a.balance||0)):v; if(!amt) return;
     await put({...a,balance:r2((+a.balance||0)+amt),history:(a.history||[]).concat([{date:$("#acDate").value||todayS(),amount:r2(amt),type}])});
@@ -2658,7 +2670,7 @@ function vAccounts(){
   if(!accs.length) return `<div class="spread"><h2>Ahorros</h2></div>${fundsHtml()}<div class="panel empty"><b>¿Dónde tienes guardado tu dinero?</b><span>Agrega tus apartados e inversiones: Mercado Pago, Openbank, GBM+, Nu, Klar, Cetes… con su saldo y rendimiento. Así sabes cuánto tienes y la app puede usarlos para tus compras futuras si se lo permites.</span><button class="btn pri" data-act="newAccount">＋ Apartado</button></div>`;
   const tot=accs.reduce((s,a)=>s+(+a.balance||0),0), liq=accs.filter(a=>accAvailable(a,today())).reduce((s,a)=>s+(+a.balance||0),0);
   const yieldM=accs.reduce((s,a)=>s+(+a.balance||0)*(+a.rate||0)/100/12,0);
-  return `<div class="spread"><h2>Ahorros</h2><button class="btn pri" data-act="newAccount">＋ Apartado</button></div>
+  return `<div class="spread"><h2>Ahorros</h2><div class="row" style="gap:6px"><button class="btn" data-act="newTransfer">⇄ Transferir</button><button class="btn pri" data-act="newAccount">＋ Apartado</button></div></div>
   <div class="grid g-kpi">
     <div class="panel kpi"><span class="lbl">En apartados</span><span class="val num">${money(tot)}</span><span class="sub">${accs.length} apartado(s)</span></div>
     <div class="panel kpi"><span class="lbl">Disponible hoy</span><span class="val num">${money(liq)}</span><span class="sub">${money(tot-liq)} a plazo</span></div>
@@ -3063,7 +3075,7 @@ document.addEventListener("click",async ev=>{
     case "editExp": expForm(get(id)); break;
     case "openExp": expDetail(id); break;
     case "newPay": payForm(t.dataset.card,t.dataset.plan); break;
-    case "delPay": { if(t.dataset.sure){ await unlinkIncome(get(id)); await del(id); toast("Pago borrado"); closeDialog(); } else { t.dataset.sure="1"; t.textContent="¿Borrar?"; t.classList.add("danger"); } break; }
+    case "delPay": { if(t.dataset.sure){ await unlinkIncome(get(id)); await accRevert(id); await del(id); toast("Pago borrado"); closeDialog(); } else { t.dataset.sure="1"; t.textContent="¿Borrar?"; t.classList.add("danger"); } break; }
     case "newFlow": flowForm(null,t.dataset.type); break;
     case "newSalary": flowForm({type:"ingreso",name:"Sueldo",freq:"catorcenal",date:todayS(),active:true},"ingreso"); break;
     case "editFlow": flowForm(get(id)); break;
@@ -3132,6 +3144,7 @@ document.addEventListener("click",async ev=>{
       if(o&&o.kind==="loan"){ for(const x of all("loanpay").filter(p=>p.loanId===id)) await del(x.id); }
       if(o&&o.kind==="card"){ for(const x of [...all("exp").filter(e=>e.cardId===id),...all("pay").filter(p=>p.cardId===id)]) await del(x.id); for(const x of all("sub").filter(x=>x.cardId===id)) await put({...x,cardId:""}); }
       if(o&&o.kind==="pay"&&o.flowId) await unlinkIncome(o);
+      if(o&&o.kind==="pay") await accRevert(id);
       if(o&&o.kind==="exp"){ for(const p of all("pay").filter(p=>p.target===id)) await put({...p,target:"auto"});
         for(const fu of all("future").filter(f=>f.expId===id)) await put({...fu,done:false,doneDate:"",expId:""});
         if(o.flowId&&o.flowDate){ const f=get(o.flowId); if(f) await put({...f,paid:(f.paid||[]).filter(d=>d!==o.flowDate)}); }
