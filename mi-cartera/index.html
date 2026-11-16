@@ -1048,12 +1048,50 @@ const accName=id=>id==="cash"?"Efectivo en mano":(get(id)?get(id).name:"otra cue
 const isIncomeRec=p=>p&&p.kind==="pay"&&(p.cardId==="cash"||(get(p.cardId)&&get(p.cardId).type!=="credito"));
 function incKind(p){ if(p.inc==="transfer") return "transfer"; if(p.inc==="ingreso") return "ingreso"; if(p.note==="Recarga de vales") return "vales"; return "deposito"; }
 function incLabel(p){ const k=incKind(p); return k==="transfer"?`Transferencia desde ${accName(p.fromId)}`:k==="ingreso"?(p.source||"Ingreso"):k==="vales"?"Recarga de vales":"Depósito"; }
-function moneyAccOpts(sel){
-  const cs=all("card").filter(c=>c.type!=="credito"), accs=all("account");
+function moneyAccOpts(sel,exclude){
+  const cs=all("card").filter(c=>c.type!=="credito"), accs=all("account").filter(a=>a.id!==exclude);
   return `<optgroup label="Tarjetas y efectivo">${cs.map(c=>`<option value="${c.id}" ${c.id===sel?"selected":""}>${esc(c.name)} (${isVales(c)?"vales":c.type==="efectivo"?"efectivo":"débito"} · ${money(cardState(c).balance)})</option>`).join("")}<option value="cash" ${sel==="cash"?"selected":""}>Efectivo en mano (${money(cashState().balance)})</option></optgroup>`
     +(accs.length?`<optgroup label="Apartados">${accs.map(a=>`<option value="${a.id}" ${a.id===sel?"selected":""}>${esc(a.name)} (${esc(a.inst||"apartado")} · ${money(+a.balance||0)})</option>`).join("")}</optgroup>`:"");
 }
 const isAcc=id=>{ const a=get(id); return !!a&&a.kind==="account"; };
+// a qué tarjeta va normalmente el dinero de un apartado: la de débito del mismo banco
+function guessDest(a){
+  const key=`${a.inst||""} ${a.name||""}`.toLowerCase(); const cs=all("card").filter(c=>c.type==="debito"||c.type==="efectivo");
+  const words=["bbva","mercado pago","mercado","nu","openbank","banorte","santander","hsbc","banamex","citibanamex","scotiabank","azteca","spin","klar","stori","hey","inbursa","banregio","didi","uala","ualá","rappi","cetes","gbm"];
+  const has=(txt,w)=>new RegExp("(^|[^a-záéíóúñ])"+w+"($|[^a-záéíóúñ])").test(txt);
+  for(const w of words){ if(has(key,w)){ const c=cs.find(c=>has(c.name.toLowerCase(),w)); if(c) return c.id; } }
+  return (cs.find(c=>c.type==="debito")||cs[0]||{}).id||"cash";
+}
+// retiros de apartados que no llegaron a ninguna cuenta
+function looseRetiros(accId){ const out=[]; all("account").filter(a=>!accId||a.id===accId).forEach(a=>(a.history||[]).forEach((h,i)=>{ if(h.type==="retiro"&&!h.ref&&(+h.amount||0)<0) out.push({a,h,i}); })); return out.sort((x,y)=>(y.h.date||"").localeCompare(x.h.date||"")); }
+// retirar de un apartado: el dinero llega a la cuenta que elijas
+async function accWithdraw(a,amt,date,to){
+  const rid=uid();
+  if(to){ await put({id:rid,kind:"pay",cardId:to,fromId:a.id,amount:r2(amt),date,target:"auto",inc:"transfer",note:"Retiro de apartado",createdAt:Date.now()});
+    await accAdjust(a.id,-amt,date,rid,accName(to),"retiro"); if(isAcc(to)) await accAdjust(to,amt,date,rid,accName(a.id),"transferencia"); }
+  else await put({...get(a.id),balance:r2((+get(a.id).balance||0)-amt),history:(get(a.id).history||[]).concat([{date,amount:r2(-amt),type:"retiro"}])});
+}
+function fixRetirosForm(accId,back){
+  const list=looseRetiros(accId); if(!list.length){ toast("No hay retiros pendientes de asignar"); if(back) accountDetail(back); return; }
+  openDialog("¿A dónde fue el dinero?",`
+    <div class="note small">Estos retiros salieron de tus apartados pero no llegaron a ninguna cuenta. Elige a dónde fue cada uno para que se sume a esa tarjeta (o a tu efectivo).</div>
+    <div class="view" style="gap:12px">${list.map((x,k)=>{ const dest=guessDest(x.a); const c=get(dest);
+      const pre=c&&c.kind==="card"&&(c.initialDate||"")>(x.h.date||"");
+      return `<div class="panel" style="padding:12px 14px;margin:0"><div class="spread"><b>${esc(x.a.name)}</b><b class="num">${money(-x.h.amount)}</b></div><div class="small muted">Retiro del ${fDate(x.h.date)}</div>
+        <label class="f" style="margin-top:8px">Fue a<select class="frTo" data-k="${k}"><option value="">No sé / dejarlo así</option>${moneyAccOpts(dest,x.a.id)}</select></label>
+        <div class="small muted frNote" data-k="${k}">${pre?`Ojo: capturaste el saldo de ${esc(c.name)} el ${fDateS(c.initialDate)}, después de este retiro; si ese saldo ya lo incluía, elige "No sé / dejarlo así".`:""}</div></div>`; }).join("")}</div>`,
+    `<span></span><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="frSave">Guardar</button></div>`);
+  $$(".frTo").forEach(sel=>sel.onchange=()=>{ const x=list[+sel.dataset.k]; const c=get(sel.value); const n=$(`.frNote[data-k="${sel.dataset.k}"]`);
+    n.innerHTML=c&&c.kind==="card"&&(c.initialDate||"")>(x.h.date||"")?`Este retiro es de antes de la fecha del saldo que capturaste en ${esc(c.name)} (${fDateS(c.initialDate)}), así que ya va incluido en ese saldo; solo queda en el historial.`:""; });
+  $("#frSave").onclick=async()=>{ let n=0;
+    for(const sel of $$(".frTo")){ const to=sel.value; if(!to) continue; const x=list[+sel.dataset.k]; const a=get(x.a.id); const h=(a.history||[])[x.i]; if(!h||h.ref) continue;
+      const rid=uid(); const amt=r2(-h.amount);
+      await put({id:rid,kind:"pay",cardId:to,fromId:a.id,amount:amt,date:h.date,target:"auto",inc:"transfer",note:"Retiro de apartado",createdAt:pd(h.date).getTime()});
+      const hist=a.history.slice(); hist[x.i]={...h,ref:rid,other:accName(to)}; await put({...a,history:hist});
+      if(isAcc(to)) await accAdjust(to,amt,h.date,rid,accName(a.id),"transferencia");
+      n++; }
+    closeDialog(); toast(n?`Listo: ${n} retiro${n===1?"":"s"} ya se ${n===1?"refleja":"reflejan"} en tus cuentas`:"Sin cambios"); if(back) accountDetail(back); };
+}
 function accBalance(id){ if(id==="cash") return cashState().balance; const o=get(id); if(!o) return 0; return o.kind==="account"?(+o.balance||0):cardState(o).balance; }
 // los apartados guardan su saldo: cada movimiento deja una línea ligada (ref) para poder corregirlo o borrarlo
 async function accAdjust(id,delta,date,ref,other,type){ const a=get(id); if(!a) return; await put({...a,balance:r2((+a.balance||0)+delta),history:(a.history||[]).concat([{date,amount:r2(delta),type:type||"transferencia",ref,other:other||""}])}); }
@@ -1090,7 +1128,7 @@ function incForm(rec,opts={}){
       <label class="f">Fecha<input type="date" id="iDate" value="${rec.date||todayS()}"></label>
     </div>
     <label class="f" id="iFromL">Desde<select id="iFrom">${moneyAccOpts(rec.fromId||opts.from||"cash")}</select></label>
-    <label class="f"><span id="iToT">¿En qué cuenta entró?</span><select id="iTo">${moneyAccOpts(rec.cardId||opts.to||firstDeb)}</select></label>
+    <label class="f"><span id="iToT">¿En qué cuenta entró?</span><select id="iTo">${moneyAccOpts(rec.cardId||opts.to||(opts.from&&isAcc(opts.from)?guessDest(get(opts.from)):firstDeb))}</select></label>
     <label class="f">Descripción (opcional)<input type="text" id="iDesc" value="${esc(rec.note||"")}" placeholder="Ej. quincena, venta de ropa, depósito en cajero"></label>
     <div class="note small" id="iHint"></div>
     <div class="small" id="iErr" style="color:var(--bad)"></div>`,
@@ -2630,13 +2668,15 @@ function accountDetail(id){
   openDialog(esc(a.name),`
     <div class="spread"><span class="num" style="font-size:26px">${money(a.balance)}</span><span class="chip">${esc(a.inst)}</span></div>
     <div class="small muted">${a.rate?`Rinde ${a.rate}% anual · aprox. ${money((+a.balance||0)*a.rate/100/12)} al mes antes de impuestos · `:""}${a.liquid===false?`Disponible ${a.availFrom?"desde el "+fDate(a.availFrom):"al vencer el plazo"}`:"Disponible cuando quieras"}</div>
-    <div class="fgrid"><label class="f">Desde (al depositar)<select id="acFrom">${fromOptions()}</select></label></div>
+    <div class="fgrid"><label class="f">Desde (al depositar)<select id="acFrom">${fromOptions()}</select></label><label class="f">A dónde va (al retirar)<select id="acTo">${moneyAccOpts(guessDest(a),a.id)}<option value="">Ninguna (solo restar del apartado)</option></select></label></div>
+    ${looseRetiros(a.id).length?`<div class="note warn small">Tienes ${looseRetiros(a.id).length} retiro(s) de este apartado que no llegaron a ninguna cuenta. <a href="#" data-act="fixRetiros" data-id="${a.id}">Decir a dónde fueron</a></div>`:""}
     <div class="fgrid"><label class="f">Monto<input type="number" id="acAmt" step="0.01" inputmode="decimal"></label><label class="f">Fecha<input type="date" id="acDate" value="${todayS()}"></label></div>
     <div class="row"><button class="btn pri" id="acDep">＋ Depositar</button><button class="btn" id="acRet">− Retirar</button><button class="btn" id="acSet">Corregir saldo a este monto</button><button class="btn" data-act="newTransfer" data-from="${a.id}">⇄ Pasar a una tarjeta</button></div>
     <h3>Movimientos</h3>
-    ${(a.history||[]).length?`<div class="list">${a.history.slice().reverse().map(h=>`<div class="item" style="cursor:default"><div class="main"><div class="title">${typ[h.type]||"Movimiento"}${h.other?` ${h.type==="deposito"?"·":h.amount<0?"a":"de"} ${esc(h.other)}`:""}</div><div class="small muted">${fDate(h.date)}</div></div><span class="num" style="color:${h.amount<0?"var(--bad)":"var(--good)"}">${h.amount<0?"":"+"}${money(h.amount)}</span></div>`).join("")}</div>`:`<p class="muted small">Sin movimientos.</p>`}`,
+    ${(a.history||[]).length?`<div class="list">${a.history.slice().reverse().map(h=>`<div class="item" style="cursor:default"><div class="main"><div class="title">${typ[h.type]||"Movimiento"}${h.other?` ${h.type==="deposito"?"·":h.amount<0?"a":"de"} ${esc(h.other)}`:""}</div><div class="small muted">${fDate(h.date)}${h.type==="retiro"&&!h.ref&&h.amount<0?` · <a href="#" data-act="fixRetiros" data-id="${a.id}">¿a dónde fue?</a>`:""}</div></div><span class="num" style="color:${h.amount<0?"var(--bad)":"var(--good)"}">${h.amount<0?"":"+"}${money(h.amount)}</span></div>`).join("")}</div>`:`<p class="muted small">Sin movimientos.</p>`}`,
     `<div class="confirm" id="delZone"><button class="btn danger" data-act="askDelete" data-id="${a.id}">Borrar</button></div><button class="btn" data-act="editAccount" data-id="${a.id}">Editar</button>`);
   const mv=async(type)=>{ const v=+$("#acAmt").value; if(!(v>=0)||$("#acAmt").value==="") return; let amt=type==="retiro"?-v:type==="rendimiento"?r2(v-(+a.balance||0)):v; if(!amt) return;
+    if(type==="retiro"){ const to=$("#acTo").value; await accWithdraw(a,v,$("#acDate").value||todayS(),to); accountDetail(id); toast(to?`Retiro de ${money(v)} a ${accName(to)}`:"Retiro guardado"); return; }
     await put({...a,balance:r2((+a.balance||0)+amt),history:(a.history||[]).concat([{date:$("#acDate").value||todayS(),amount:r2(amt),type}])});
     if(type==="deposito"&&$("#acFrom").value) await put({kind:"transfer",fromId:$("#acFrom").value,accountId:a.id,amount:r2(amt),date:$("#acDate").value||todayS(),purpose:accPurpose(a),periodStart:"",createdAt:Date.now()});
     accountDetail(id); toast("Guardado"); };
@@ -2670,7 +2710,9 @@ function vAccounts(){
   if(!accs.length) return `<div class="spread"><h2>Ahorros</h2></div>${fundsHtml()}<div class="panel empty"><b>¿Dónde tienes guardado tu dinero?</b><span>Agrega tus apartados e inversiones: Mercado Pago, Openbank, GBM+, Nu, Klar, Cetes… con su saldo y rendimiento. Así sabes cuánto tienes y la app puede usarlos para tus compras futuras si se lo permites.</span><button class="btn pri" data-act="newAccount">＋ Apartado</button></div>`;
   const tot=accs.reduce((s,a)=>s+(+a.balance||0),0), liq=accs.filter(a=>accAvailable(a,today())).reduce((s,a)=>s+(+a.balance||0),0);
   const yieldM=accs.reduce((s,a)=>s+(+a.balance||0)*(+a.rate||0)/100/12,0);
+  const lr=looseRetiros();
   return `<div class="spread"><h2>Ahorros</h2><div class="row" style="gap:6px"><button class="btn" data-act="newTransfer">⇄ Transferir</button><button class="btn pri" data-act="newAccount">＋ Apartado</button></div></div>
+  ${lr.length?`<div class="note warn"><b>${lr.length} retiro${lr.length===1?"":"s"} de tus apartados (${money(lr.reduce((x,r)=>x-(+r.h.amount||0),0))}) no ${lr.length===1?"llegó":"llegaron"} a ninguna cuenta.</b> <a href="#" data-act="fixRetiros">Decir a dónde fueron</a> para que se sumen a tu tarjeta de débito.</div>`:""}
   <div class="grid g-kpi">
     <div class="panel kpi"><span class="lbl">En apartados</span><span class="val num">${money(tot)}</span><span class="sub">${accs.length} apartado(s)</span></div>
     <div class="panel kpi"><span class="lbl">Disponible hoy</span><span class="val num">${money(liq)}</span><span class="sub">${money(tot-liq)} a plazo</span></div>
@@ -3122,6 +3164,7 @@ document.addEventListener("click",async ev=>{
     case "openLoan": loanDetail(id); break;
     case "loanWant": loanWantForm(id); break;
     case "moneyMenu": moneyMenu(); break;
+    case "fixRetiros": { const inDlg=!!t.closest("dialog"); fixRetirosForm(id||"",inDlg&&id?id:""); break; }
     case "newInc": incForm(null,{type:"ingreso",to:t.dataset.to}); break;
     case "newTransfer": incForm(null,{type:"transfer",from:t.dataset.from,to:t.dataset.to}); break;
     case "editInc": incForm(get(id)); break;
