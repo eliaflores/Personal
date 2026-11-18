@@ -126,7 +126,27 @@ const PRICE_RULES = [
   [/./, 'meta[property="product:price:amount"], meta[itemprop="price"], meta[property="og:price:amount"]', "content"],
 ];
 const ML_FRACTION = ".ui-pdp-price__second-line .andes-money-amount__fraction, .andes-money-amount__fraction";
-let microlinkOff = false;   // si se acaba el límite del día, no seguir intentando en esta corrida
+let microlinkOff = false;
+const isLogo = (u) => /logo|frontend-assets|nav-sprite|favicon|sprite|placeholder/i.test(String(u || ""));
+
+// Segundo respaldo: Jina Reader (gratis) abre la página con un navegador y devuelve el HTML ya cargado.
+let jinaOff = false;
+async function jina(url) {
+  if (jinaOff || process.env.JINA === "off") return null;
+  try {
+    const r = await fetch("https://r.jina.ai/" + url, { signal: AbortSignal.timeout(60000), headers: { "X-Return-Format": "html", "X-Timeout": "40", "X-Locale": "es-MX" } });
+    if (r.status === 429) { jinaOff = true; return { status: 429 }; }
+    const html = r.ok ? (await r.text()).slice(0, 4000000) : "";
+    const blocked = !html || looksBlocked(html, url);
+    const p = html && !blocked ? parse(html, url) : { price: NaN, image: "", currency: "" };
+    if (isLogo(p.image)) p.image = "";
+    if (process.env.DETALLE === "true") {
+      const tl = ((html.match(/<title[^>]*>([^<]*)/i) || [])[1] || "").trim().length;
+      console.log(`    jina: HTTP ${r.status}, página ${html.length} bytes, bloqueo=${blocked}, precio=${okPrice(p.price)}, foto=${!!p.image}, titulo=${tl} letras`);
+    }
+    return { status: r.status, ...p };
+  } catch { return { status: -1 }; }
+}   // si se acaba el límite del día, no seguir intentando en esta corrida
 async function microlink(url) {
   if (microlinkOff || process.env.MICROLINK === "off") return null;
   const q = new URLSearchParams({ url, meta: "true" });
@@ -140,7 +160,8 @@ async function microlink(url) {
     const d = (j && j.data) || {};
     let price = num(d.price);
     if (!okPrice(price)) price = num(d.fraction);
-    const image = (d.image && d.image.url) || "";
+    let image = (d.image && d.image.url) || "";
+    if (isLogo(image)) image = "";
     if (process.env.DETALLE === "true") {
       // Solo señales generales, sin el contenido de la página.
       const t = String(d.title || "") + " " + String(d.description || "");
@@ -176,6 +197,14 @@ async function leer(url) {
       via = `microlink ${m.status}`;
       if (!okPrice(r.price) && okPrice(m.price)) { r.price = m.price; r.currency = /\.mx(\/|$)/.test(new URL(finalUrl).hostname + "/") ? "MXN" : ""; via += " precio"; }
       if (m.image && (!r.image || /images\/P\//.test(r.image))) { r.image = m.image; via += " foto"; }
+    }
+  }
+  if (!okPrice(r.price) || !r.image) {
+    const jn = await jina(finalUrl || url);
+    if (jn) {
+      via += (via ? ", " : "") + `jina ${jn.status}`;
+      if (!okPrice(r.price) && okPrice(jn.price)) { r.price = jn.price; r.currency = jn.currency || (/\.mx$/.test(new URL(finalUrl).hostname) ? "MXN" : ""); via += " precio"; }
+      if (jn.image && (!r.image || /images\/P\//.test(r.image))) { r.image = jn.image; via += " foto"; }
     }
   }
   const blocked = !html || looksBlocked(html, finalUrl);

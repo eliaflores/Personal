@@ -57,7 +57,8 @@ function due(it, now) {
       if (!sameUrl) upd.linkPrice = DEL;          // link nuevo sin precio: no dejar el del link anterior
       r.blocked ? stats.bloqueados++ : stats.sinPrecio++;
     }
-    if (r.image) upd.linkImage = r.image; else if (!sameUrl) upd.linkImage = DEL;
+    if (r.image) upd.linkImage = r.image;
+    else if (!sameUrl || /logo|frontend-assets|nav-sprite|favicon|sprite/i.test(it.linkImage || "")) upd.linkImage = DEL;   // quitar logos que se colaron antes
     // Solo la tienda y el resultado: nunca el link, el nombre del regalo ni el precio.
     console.log(`- ${r.host || "?"}: ${upd.linkStatus}, HTTP ${r.status}, página ${r.size} bytes, foto ${r.image ? "sí" : "no"}${r.via ? ", " + r.via : ""}`);
     await ref.update(upd);
