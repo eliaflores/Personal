@@ -68,7 +68,7 @@ function due(it, now) {
     else if (!sameUrl) { upd.linkDeliveryDays = DEL; upd.linkDeliveryAt = DEL; }
     else if (it.linkDeliveryAt && Date.now() - it.linkDeliveryAt > 3 * 24 * HOUR) { upd.linkDeliveryDays = DEL; upd.linkDeliveryAt = DEL; }   // muy viejo: mejor no adivinar
     // Nombre: si la persona no escribió uno, se pone el de la tienda.
-    if (it.titleAuto && r.title) { upd.title = r.title.slice(0, 120); upd.titleAuto = false; }
+    if ((it.titleAuto || !it.title) && r.title) { upd.title = r.title.slice(0, 120); upd.titleAuto = false; }
     // Sin foto de la tienda ni foto propia: se busca una en internet con el nombre del producto.
     if (!r.image && !it.photo && !it.webImage && !(sameUrl && it.linkImage)) {
       const q = r.title || (!it.titleAuto && it.title) || r.slug || "";
@@ -78,7 +78,7 @@ function due(it, now) {
     if (r.image) upd.linkImage = r.image;
     else if (!sameUrl || /logo|frontend-assets|nav-sprite|favicon|sprite/i.test(it.linkImage || "")) upd.linkImage = DEL;   // quitar logos que se colaron antes
     // Solo la tienda y el resultado: nunca el link, el nombre del regalo ni el precio.
-    console.log(`- ${r.host || "?"}: ${upd.linkStatus}, HTTP ${r.status}, página ${r.size} bytes, foto ${r.image ? "sí" : "no"}, entrega ${r.deliveryDays != null ? "sí" : "no"}${r.via ? ", " + r.via : ""}`);
+    console.log(`- ${r.host || "?"}: ${upd.linkStatus}, HTTP ${r.status}, página ${r.size} bytes, foto ${r.image ? "sí" : "no"}${r.priceKey ? " (precio de " + r.priceKey + ")" : ""}, nombre ${r.title ? "sí" : "no"}, entrega ${r.deliveryDays != null ? "sí" : "no"}${r.via ? ", " + r.via : ""}`);
     await ref.update(upd);
     await sleep(r.via ? 3000 : 1500);
   }

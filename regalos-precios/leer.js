@@ -118,7 +118,7 @@ function amazon(html) {
     t = t.replace(/^amazon\.com(\.mx)?\s*:\s*/i, "");
     t = t.replace(/\s*:\s*[^:]{2,40}$/, (m) => (/amazon/i.test(m) || m.length < 30 ? "" : m));           // ": Hogar y Cocina"
     t = t.replace(new RegExp("\\s*[|\\-–—:]\\s*" + STORE.source + "[^|]*$", "i"), "");                   // " | Mercado Libre"
-    if (!t || t.length < 3 || /captcha|robot|verifica|verify|human|humano|acceso denegado|access denied|page not found|no encontrad/i.test(t) || new RegExp("^" + STORE.source + "$", "i").test(t)) return "";
+    if (!t || t.length < 3 || /captcha|robot|verifica|verify|human|humano|acceso denegado|access denied|page not found|no encontrad|^(inicio|home|tienda|producto|product|shop|store|search|b[uú]squeda)$/i.test(t) || new RegExp("^" + STORE.source + "$", "i").test(t)) return "";
     if (t.length > 70) { const cut = t.slice(20).search(/,| - | – | \| | \(|\. /); if (cut > -1) t = t.slice(0, 20 + cut); }
     if (t.length > 90) t = t.slice(0, 90).replace(/\s+\S*$/, "");
     return t.replace(/[\s,;:\-–]+$/, "");
@@ -131,6 +131,34 @@ function amazon(html) {
     for (const c of cands) { const t = cleanTitle(c); if (t) return t; }
     return "";
   }
+
+
+// Precio guardado en los datos internos de la página (Liverpool, tiendas con Next.js/VTEX/Shopify, etc.).
+// Se busca cerca del código del producto que trae el link; si no aparece, el primero de la página.
+const PRICE_KEYS = ["promoPrice", "salePrice", "sellingPrice", "finalPrice", "offerPrice", "currentPrice", "Price", "price", "listPrice", "minimumPromoPrice", "minimumListPrice"];
+function embeddedPrice(html, url) {
+  let anchor = -1;
+  try {
+    const u = new URL(url);
+    const ids = [...(u.pathname + " " + u.search).matchAll(/\d{5,}/g)].map((m) => m[0]).sort((a, b) => b.length - a.length);
+    for (const id of ids) { const i = html.indexOf(id); if (i > -1) { anchor = i; break; } }
+  } catch { /* link raro */ }
+  const scan = (from, to) => {
+    const found = {};
+    const re = /"(promoPrice|salePrice|sellingPrice|finalPrice|offerPrice|currentPrice|Price|price|listPrice|minimumPromoPrice|minimumListPrice)"\s*:\s*"?(\d[\d.,]*)"?/g;
+    re.lastIndex = from;
+    let m;
+    while ((m = re.exec(html)) && m.index < to) { const n = num(m[2]); if (okPrice(n) && !(m[1] in found)) found[m[1]] = n; }
+    for (const k of PRICE_KEYS) if (k in found) return { price: found[k], key: k };
+    return null;
+  };
+  // Desde el inicio del objeto que contiene el código del producto (así no se cuela un carrusel de otros productos).
+  const near = anchor > -1 ? scan(Math.max(0, html.lastIndexOf("{", anchor)), anchor + 40000) : null;
+  const any = near || scan(0, html.length);
+  // itemprop="price" en texto o en content (microdatos)
+  if (!any) { const m = html.match(/itemprop=["']price["'][^>]*?(?:content=["']([^"']+)["'][^>]*>|>\s*([^<]+)<)/i); if (m) { const n = num(decode(m[1] || m[2])); if (okPrice(n)) return { price: n, key: "itemprop" }; } }
+  return any;
+}
 
 function parse(html, url) {
   const host = new URL(url).hostname;
@@ -155,6 +183,10 @@ function parse(html, url) {
     for (const k of ["product:price:amount", "og:price:amount", "price"]) {
       const n = num(m[k]); if (okPrice(n)) { r.price = n; r.currency = m["product:price:currency"] || m["og:price:currency"] || m["pricecurrency"] || ""; break; }
     }
+  }
+  if (!okPrice(r.price)) {
+    const e = embeddedPrice(html, url);
+    if (e) { r.price = e.price; r.currency = r.currency || ""; r.priceKey = e.key; }
   }
   if (!r.image) r.image = m["og:image:secure_url"] || m["og:image"] || m["twitter:image"] || m["image"] || "";
   r.image = r.image ? absUrl(r.image, url) : "";
@@ -302,6 +334,27 @@ async function searchImage(q) {
   }
   return "";
 }
+// Nombre por búsqueda en Bing (cuando la página está bloqueada): se busca el código del producto o el link.
+async function searchTitle(q, hostHint) {
+  q = String(q || "").trim().slice(0, 200);
+  if (q.length < 5) return "";
+  const bing = `https://www.bing.com/search?q=${encodeURIComponent(q)}&cc=mx&setlang=es-MX`;
+  for (const attempt of ["directo", "jina"]) {
+    try {
+      const res = attempt === "directo"
+        ? await fetch(bing, { signal: AbortSignal.timeout(15000), headers: { "User-Agent": UA, "Accept-Language": "es-MX,es;q=0.9" } })
+        : await fetch("https://r.jina.ai/" + bing, { signal: AbortSignal.timeout(45000), headers: { "X-Return-Format": "html" } });
+      if (!res.ok) continue;
+      const html = await res.text();
+      const results = [...html.matchAll(/<li class="b_algo"[\s\S]*?<h2[^>]*>\s*<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => ({ href: decode(m[1]), t: cleanTitle(decode(m[2].replace(/<[^>]+>/g, ""))) })).filter((x) => x.t);
+      const best = results.find((x) => hostHint && x.href.includes(hostHint)) || results[0];
+      if (process.env.DETALLE === "true") console.log(`    nombre por búsqueda (${attempt}): ${best ? "sí" : "no"}`);
+      if (best) return best.t;
+    } catch { /* probar el siguiente */ }
+  }
+  return "";
+}
+
 // Palabras del link (amazon.com.mx/Cafetera-Oster-12-tazas/dp/..., articulo.mercadolibre.com.mx/MLM-1-silla-gamer-_JM)
 function slugWords(urls) {
   for (const u of urls) {
@@ -364,8 +417,16 @@ async function leer(url) {
   }
   const blocked = !html || looksBlocked(html, finalUrl);
   r.slug = slugWords([...hops].reverse());
+  if (!r.title && html && !blocked) { const d = metas(html); r.title = cleanTitle(d["og:description"] || d["description"] || ""); }
+  if (!r.title) {
+    // Página bloqueada: buscar el nombre por el código del producto (ej. MLMU123…) o por el link.
+    const code = (hops.join(" ").match(/\b(MLMU?\d{6,}|MLM-\d{6,}|[A-Z0-9]{10}(?=[/?]|$))/) || [])[1];
+    const hostHint = (() => { try { return new URL(real).hostname.replace(/^www\./, "").split(".").slice(-3).join("."); } catch { return ""; } })();
+    r.title = await searchTitle(code ? `${code.replace("-", "")} ${hostHint}` : real, hostHint.replace(/\.com\.mx$|\.mx$|\.com$/, ""));
+  }
+  if (!r.title && r.slug) r.title = cleanTitle(r.slug);
   let host = ""; try { host = new URL(finalUrl).hostname.replace(/^www\./, ""); } catch { /* link raro */ }
   return { ...r, ok: okPrice(r.price), blocked: blocked && !okPrice(r.price), status, host, size: html.length, via };
 }
 
-module.exports = { leer, parse, num, asinOf, parseDelivery, cleanTitle, searchImage, bingPick, slugWords };
+module.exports = { leer, parse, num, asinOf, parseDelivery, cleanTitle, searchImage, bingPick, slugWords, embeddedPrice, searchTitle };

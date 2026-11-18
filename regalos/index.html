@@ -572,6 +572,12 @@ const priceOf = i => (linkFresh(i) && Number(i.linkPrice) > 0) ? Number(i.linkPr
 const storeImg = i => (linkFresh(i) && typeof i.linkImage === "string" && /^https:\/\//.test(i.linkImage)) ? i.linkImage : "";
 // Foto: primero la de la tienda; la que subió la persona solo si la eligió a propósito o si la tienda no tiene.
 const webImg = i => (i && typeof i.webImage === "string" && /^https:\/\//.test(i.webImage)) ? i.webImage : "";   // foto encontrada en internet
+// Nombre que se muestra: el de la persona o el de la tienda; nunca "Regalo de…".
+const itemName = i => {
+  const t = String((i && i.title) || "").trim();
+  if (t && !(i.titleAuto && /^Regalo de /i.test(t))) return t;
+  return i && i.url && !i.linkCheckedAt ? "Buscando el nombre…" : "Sin nombre";
+};
 const imgOf = i => (i && ((i.ownPhoto && safeImg(i.photo)) || storeImg(i) || safeImg(i.photo) || webImg(i))) || "";
 function ago(ms) {
   const m = Math.max(1, Math.round((Date.now() - ms) / 60000));
@@ -862,7 +868,7 @@ function renderFiesta(fid) {
           <div class="top">${isB ? `<span>Comprado</span>` : `<i></i>`}<span class="p">${mxn(isB ? Number(i.paid) : priceOf(i))}</span></div>
           ${isB ? `<span class="stamp">Listo</span>` : isLate(i, f) ? `<span class="late-badge">No llega a tiempo</span>` : ""}
         </div>
-        <h3>${esc(i.title)}</h3>
+        <h3>${esc(itemName(i))}</h3>
         ${was ? `<span class="was">Ya se lo diste en ${esc(was)}</span>` : ""}
         <div class="desc"><p>${esc(i.gone ? "Ya no está en su wishlist" : (i.note || (i.url ? hostOf(safeUrl(i.url)) : "")))}</p>${I("arrow")}</div>
       </a>`;
@@ -904,7 +910,7 @@ function renderDetail(fid, iid) {
   app.innerHTML = `<div class="wrap no-nav screen" style="padding-bottom:0">
     ${topBar(`<button class="icon-btn" id="dBack" aria-label="Atrás">${I("back")}</button>`, b ? `<span class="icon-btn" aria-label="Comprado">${I("check")}</span>` : "")}
     <div class="hero-img">${photoHtml(it)}</div>
-    <div class="dt-title"><h1>${esc(it.title)}</h1>${I("heart")}</div>
+    <div class="dt-title"><h1>${esc(itemName(it))}</h1>${I("heart")}</div>
     <div class="full panel solid"><div class="in">
       <div class="meta"><span>${esc(occs)}</span><span>${esc(fiestaName(f))}</span></div>
       <div class="body">
@@ -925,7 +931,7 @@ function renderDetail(fid, iid) {
     const btn = ev.currentTarget; btn.disabled = true;
     try {
       await updateDoc(doc(fdb, "regalos", S.listId, "privado", me(), "fiestas", fid), {
-        ["bought." + iid]: b ? deleteField() : { price: priceOf(it), title: String(it.title || "").slice(0, 120), at: Date.now() },
+        ["bought." + iid]: b ? deleteField() : { price: priceOf(it), title: String(itemName(it)).slice(0, 120), at: Date.now() },
       });
       toast(b ? "Desmarcado" : "Tachado. Es secreto.");
     } catch (e) { btn.disabled = false; writeErr(e); }
@@ -941,7 +947,7 @@ function renderMine() {
   html += mine.length
     ? `<div class="grid">${mine.map(i => `<button class="gcard" data-edit="${esc(i.id)}">
         <div class="tile">${photoHtml(i)}<div class="top"><i></i>${priceOf(i) > 0 ? `<span class="p">${mxn(priceOf(i))}</span>` : `<span>Sin precio</span>`}</div></div>
-        <h3>${esc(i.title)}</h3>
+        <h3>${esc(itemName(i))}</h3>
         ${i.url ? `<span class="was">${esc(!linkFresh(i) || !i.linkCheckedAt ? "Buscando precio y foto…" : Number(i.linkPrice) > 0 ? "Precio de la tienda" : "La tienda no dejó leer el precio")}</span>` : ""}
         <div class="desc"><p>${esc(i.note || (i.url ? hostOf(safeUrl(i.url)) : "Toca para editar"))}</p>${I("arrow")}</div>
       </button>`).join("")}</div>`
@@ -1064,7 +1070,7 @@ const LK = (() => {
     t = t.replace(/^amazon\.com(\.mx)?\s*:\s*/i, "");
     t = t.replace(/\s*:\s*[^:]{2,40}$/, (m) => (/amazon/i.test(m) || m.length < 30 ? "" : m));           // ": Hogar y Cocina"
     t = t.replace(new RegExp("\\s*[|\\-–—:]\\s*" + STORE.source + "[^|]*$", "i"), "");                   // " | Mercado Libre"
-    if (!t || t.length < 3 || /captcha|robot|verifica|verify|human|humano|acceso denegado|access denied|page not found|no encontrad/i.test(t) || new RegExp("^" + STORE.source + "$", "i").test(t)) return "";
+    if (!t || t.length < 3 || /captcha|robot|verifica|verify|human|humano|acceso denegado|access denied|page not found|no encontrad|^(inicio|home|tienda|producto|product|shop|store|search|b[uú]squeda)$/i.test(t) || new RegExp("^" + STORE.source + "$", "i").test(t)) return "";
     if (t.length > 70) { const cut = t.slice(20).search(/,| - | – | \| | \(|\. /); if (cut > -1) t = t.slice(0, 20 + cut); }
     if (t.length > 90) t = t.slice(0, 90).replace(/\s+\S*$/, "");
     return t.replace(/[\s,;:\-–]+$/, "");
@@ -1077,7 +1083,32 @@ const LK = (() => {
     for (const c of cands) { const t = cleanTitle(c); if (t) return t; }
     return "";
   }
-
+  // Precio guardado en los datos internos de la página (Liverpool, tiendas con Next.js/VTEX/Shopify, etc.).
+  // Se busca cerca del código del producto que trae el link; si no aparece, el primero de la página.
+  const PRICE_KEYS = ["promoPrice", "salePrice", "sellingPrice", "finalPrice", "offerPrice", "currentPrice", "Price", "price", "listPrice", "minimumPromoPrice", "minimumListPrice"];
+  function embeddedPrice(html, url) {
+    let anchor = -1;
+    try {
+      const u = new URL(url);
+      const ids = [...(u.pathname + " " + u.search).matchAll(/\d{5,}/g)].map((m) => m[0]).sort((a, b) => b.length - a.length);
+      for (const id of ids) { const i = html.indexOf(id); if (i > -1) { anchor = i; break; } }
+    } catch { /* link raro */ }
+    const scan = (from, to) => {
+      const found = {};
+      const re = /"(promoPrice|salePrice|sellingPrice|finalPrice|offerPrice|currentPrice|Price|price|listPrice|minimumPromoPrice|minimumListPrice)"\s*:\s*"?(\d[\d.,]*)"?/g;
+      re.lastIndex = from;
+      let m;
+      while ((m = re.exec(html)) && m.index < to) { const n = num(m[2]); if (ok(n) && !(m[1] in found)) found[m[1]] = n; }
+      for (const k of PRICE_KEYS) if (k in found) return { price: found[k], key: k };
+      return null;
+    };
+    // Desde el inicio del objeto que contiene el código del producto (así no se cuela un carrusel de otros productos).
+    const near = anchor > -1 ? scan(Math.max(0, html.lastIndexOf("{", anchor)), anchor + 40000) : null;
+    const any = near || scan(0, html.length);
+    // itemprop="price" en texto o en content (microdatos)
+    if (!any) { const m = html.match(/itemprop=["']price["'][^>]*?(?:content=["']([^"']+)["'][^>]*>|>\s*([^<]+)<)/i); if (m) { const n = num(decode(m[1] || m[2])); if (ok(n)) return { price: n, key: "itemprop" }; } }
+    return any;
+  }
 
   function parse(html, url) {
     const r = { price: NaN, currency: "", image: "", deliveryDays: null, title: "" };
@@ -1100,6 +1131,8 @@ const LK = (() => {
     }
     const meta = {}; for (const tag of html.match(/<meta\b[^>]*>/gi) || []) { const k = (tag.match(/\b(?:property|name|itemprop)\s*=\s*["']([^"']+)["']/i) || [])[1]; const v = (tag.match(/\bcontent\s*=\s*["']([^"']*)["']/i) || [])[1]; if (k && v != null && !(k.toLowerCase() in meta)) meta[k.toLowerCase()] = decode(v); }
     if (!ok(r.price)) for (const k of ["product:price:amount", "og:price:amount", "price"]) { const n = num(meta[k]); if (ok(n)) { r.price = n; r.currency = meta["product:price:currency"] || meta["og:price:currency"] || ""; break; } }
+    if (!ok(r.price)) { const e = embeddedPrice(html, url); if (e) r.price = e.price; }
+    if (!r.title) r.title = cleanTitle(meta["og:description"] || meta["description"] || "");
     if (!r.image) r.image = meta["og:image:secure_url"] || meta["og:image"] || meta["twitter:image"] || "";
     try { r.image = r.image ? new URL(decode(r.image).trim(), url).href.replace(/^http:/, "https:") : ""; } catch (e) { r.image = ""; }
     if (isLogo(r.image)) r.image = "";
@@ -1132,7 +1165,7 @@ const LK = (() => {
   // Foto de internet (Bing Imágenes, a través de Jina) cuando la tienda no la da.
   async function searchWeb(q) {
     q = String(q || "").replace(/\s+/g, " ").trim().slice(0, 100);
-    if (q.length < 4 || /^Regalo de /.test(q)) return "";
+    if (q.length < 4) return "";
     const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 40000);
     try {
       const bing = `https://www.bing.com/images/search?q=${encodeURIComponent(q)}&form=HDRSC2&first=1&cc=mx&setlang=es-MX`;
@@ -1146,7 +1179,18 @@ const LK = (() => {
       return isLogo(j.murl) ? "" : String(j.murl || "").replace(/^http:/, "https:");
     } catch (e) { return ""; } finally { clearTimeout(tm); }
   }
-  return { lookup, fields, useful, searchWeb };
+  async function searchTitle(url) {
+    const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 40000);
+    try {
+      const bing = `https://www.bing.com/search?q=${encodeURIComponent(url)}&cc=mx&setlang=es-MX`;
+      const res = await fetch("https://r.jina.ai/" + bing, { headers: { "X-Return-Format": "html" }, signal: ctl.signal });
+      if (!res.ok) return "";
+      const html = await res.text();
+      for (const m of html.matchAll(/<li class="b_algo"[\s\S]*?<h2[^>]*>\s*<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)) { const t = cleanTitle(decode(m[2].replace(/<[^>]+>/g, ""))); if (t) return t; }
+      return "";
+    } catch (e) { return ""; } finally { clearTimeout(tm); }
+  }
+  return { lookup, fields, useful, searchWeb, searchTitle };
 })();
 
 // Al abrir "Mi wishlist", busca al momento lo que todavía no tiene precio ni foto de la tienda.
@@ -1162,9 +1206,10 @@ async function autoLookup() {
   for (const i of pending) {
     lookingUp.add(i.id);
     const r = await LK.lookup(i.url);
+    if (!r.title && (i.titleAuto || !i.title)) r.title = await LK.searchTitle(i.url);
     if (!LK.useful(r)) continue;                     // no salió nada: lo intenta GitHub en unos minutos
     const f = LK.fields(i.url, r, i);
-    if (i.titleAuto && r.title) { f.title = r.title.slice(0, 120); f.titleAuto = false; }
+    if ((i.titleAuto || !i.title) && r.title) { f.title = r.title.slice(0, 120); f.titleAuto = false; }
     try { await updateDoc(doc(fdb, "regalos", S.listId, "items", i.id), f); } catch (e) {}
   }
 }
@@ -1237,7 +1282,7 @@ function openSheet(editId) {
         <button type="button" class="link-danger" id="useShop" style="color:var(--ink);align-self:center;margin-top:-6px" hidden>Usar la foto de la tienda</button>
         <label class="field">Link de la tienda <span class="opt">(Amazon, Liverpool, Mercado Libre…). Con el link se llenan solos el nombre, la foto y el precio.</span><input class="input" id="fUrl" inputmode="url" autocomplete="off" placeholder="Pega aquí el link" value="${esc(it?.url)}"></label>
         <div class="lookup" id="lookup" aria-live="polite"></div>
-        <label class="field">¿Qué es? <span class="opt">Opcional si pusiste el link</span><input class="input" id="fTitle" maxlength="120" placeholder="Se toma del link · o escribe, ej. Libro “Cien años de soledad”" value="${esc(it && !it.titleAuto ? it.title : "")}"></label>
+        <label class="field">¿Qué es? <span class="opt">Opcional si pusiste el link</span><input class="input" id="fTitle" maxlength="120" placeholder="Se toma del link · o escribe, ej. Libro “Cien años de soledad”" value="${esc(it && !(it.titleAuto && /^Regalo de /i.test(it.title || "")) ? (it.title || "") : "")}"></label>
         <label class="field">Descripción <span class="opt">(talla, color, modelo…)</span><textarea class="input" id="fNote" maxlength="300" placeholder="Ej. en pasta dura, la edición de aniversario">${esc(it?.note)}</textarea></label>
         <label class="field">Precio (MXN) <span class="opt">Si pones el link, el precio se toma de la tienda y se mantiene al día. Este se usa si la tienda no deja leerlo.</span><input class="input" id="fPrice" inputmode="decimal" placeholder="${it && linkFresh(it) && Number(it.linkPrice) > 0 ? "En la tienda: " + esc(mxn(Number(it.linkPrice))) : "Ej. 450"}" value="${it && Number(it.price) > 0 ? esc(it.price) : ""}"></label>
         <div class="field">¿Para qué ocasión me lo darías? <span class="opt">Si no eliges, sirve para cualquiera</span>
@@ -1270,13 +1315,14 @@ function openSheet(editId) {
     if (seq !== lookSeq || !$("#lookup")) return;
     found = { url, r };
     if (r.failed && !r.blocked) { showLookup("No pude abrir la tienda ahora. Guárdalo y lo busco de nuevo en unos minutos.", "warn-t"); return; }
+    const ft = $("#fTitle");
+    if (!r.title && ft && !ft.value.trim()) { showLookup(`<span class="spin">${I("refresh")}</span> Buscando el nombre del producto…`, "busy"); r.title = await LK.searchTitle(url); if (seq !== lookSeq || !$("#lookup")) return; }
+    if (r.title && ft && (!ft.value.trim() || ft.dataset.auto === "1")) { ft.value = r.title; ft.dataset.auto = "1"; }
     if (r.image) { shopImg = r.image; paintPick(); }
     else if (!photo) {
       const q = r.title || $("#fTitle").value.trim();
       if (q) { showLookup(`<span class="spin">${I("refresh")}</span> La tienda no dio foto. Buscándola en internet…`, "busy"); const w = await LK.searchWeb(q); if (seq !== lookSeq || !$("#lookup")) return; if (w) { webImage = w; r.webFound = true; paintPick(); } }
     }
-    const ft = $("#fTitle");
-    if (r.title && ft && (!ft.value.trim() || ft.dataset.auto === "1")) { ft.value = r.title; ft.dataset.auto = "1"; }
     const bits = [];
     if (r.ok) bits.push(`Precio: <b>${esc(mxn(r.price))}</b>`);
     if (r.deliveryDays != null) bits.push(`llega en ${r.deliveryDays === 0 ? "el mismo día" : r.deliveryDays === 1 ? "1 día" : r.deliveryDays + " días"}`);
@@ -1312,9 +1358,9 @@ function openSheet(editId) {
     const rawUrl0 = $("#fUrl").value.trim();
     let title = $("#fTitle").value.trim(), titleAuto = false;
     if (!title && rawUrl0 && found && found.url === safeUrl(rawUrl0) && found.r.title) title = found.r.title;
-    if (!title && rawUrl0 && safeUrl(rawUrl0)) { title = "Regalo de " + (hostOf(safeUrl(rawUrl0)).replace(/^(amzn\.to|a\.co)$/, "Amazon").replace(/^meli\.la$/, "Mercado Libre")); titleAuto = true; }
+    if (!title && rawUrl0 && safeUrl(rawUrl0)) titleAuto = true;   // el nombre lo pone la tienda en cuanto se pueda leer
     const price = Number($("#fPrice").value.replace(/[^\d.]/g, ""));
-    if (!title) { toast("Pega el link de la tienda o escribe qué es"); $("#fUrl").focus(); return; }
+    if (!title && !titleAuto) { toast("Pega el link de la tienda o escribe qué es"); $("#fUrl").focus(); return; }
     const rawUrl = $("#fUrl").value.trim();
     if (!(price > 0) && !rawUrl) { toast("Pon el link de la tienda o un precio aproximado"); $("#fPrice").focus(); return; }
     if (rawUrl && !safeUrl(rawUrl)) { toast("Ese link no se ve bien. Revísalo."); $("#fUrl").focus(); return; }
