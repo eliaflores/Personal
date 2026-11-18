@@ -19,8 +19,10 @@ const RECHECK_FAIL = 3 * HOUR;    // la tienda no dejó leer: se reintenta más 
 const MAX_PER_RUN = Number(process.env.MAX_PER_RUN || 80);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+const FORCE = process.env.FORCE === "true";   // corrida a mano para revisar todo ya
 function due(it, now) {
   if (!it.url) return !!it.linkUrl;            // le quitaron el link: limpiar
+  if (FORCE) return true;
   if (it.linkUrl !== it.url || !it.linkCheckedAt) return true;
   return now - it.linkCheckedAt > (it.linkStatus === "ok" ? RECHECK_OK : RECHECK_FAIL);
 }

@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "8,38 * * * *"   # cada media hora
   workflow_dispatch:
+    inputs:
+      forzar:
+        description: "Revisar todos los links ahora, aunque se hayan revisado hace poco"
+        type: boolean
+        default: false
 
 concurrency:
   group: regalos-precios
@@ -22,3 +27,4 @@ jobs:
       - run: node regalos-precios/actualizar.js
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FORCE: ${{ github.event.inputs.forzar }}
