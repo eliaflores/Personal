@@ -22,13 +22,17 @@ La configuración web de Firebase que está en el código no es secreta; la segu
 
 ## Regalos
 
-App aparte (carpeta [`regalos/`](regalos/)) para una wishlist en pareja: cada quien agrega links de regalos con precio y ocasión (Navidad, Aniversario, San Valentín, Cumpleaños u Otro). Quien regala pone primero su presupuesto y la ocasión, y solo le salen los regalos que caben. Puede "apartar" uno sin que la otra persona lo vea en su lista.
+App aparte (carpeta [`regalos/`](regalos/)) para regalarse en pareja:
 
-Usa el mismo proyecto de Firebase para iniciar sesión con Google, pero guarda todo en su propia colección (`regalos`), separada de los datos de Mi Cartera.
+- **Mi wishlist:** cada quien sube regalos con foto, descripción, link, precio y ocasión (Navidad, Aniversario, San Valentín, Cumpleaños u Otro). La wishlist se queda para todas las festividades.
+- **Nueva festividad:** preguntas una por una (qué celebras, cuándo y tu presupuesto). Después solo salen los regalos de tu pareja que te alcanzan. El presupuesto queda fijo.
+- **Compras secretas:** vas tachando lo que ya compraste y lo que te queda se va restando. Tu pareja no ve tus festividades, tu presupuesto ni lo que compraste; las reglas de Firestore lo impiden.
+
+Usa el mismo proyecto de Firebase para iniciar sesión con Google, pero guarda todo en su propia colección (`regalos`), separada de los datos de Mi Cartera. Las fotos se guardan comprimidas dentro de Firestore.
 
 ### Configuración
 
-1. **Firestore Database → Rules**: pega otra vez todo el contenido de [`firestore.rules`](firestore.rules) (ya trae las reglas de Mi Cartera y las de Regalos) y publica.
+1. **Firestore Database → Rules**: pega todo el contenido de [`firestore.rules`](firestore.rules) (trae las reglas de Mi Cartera y las de Regalos) y publica.
 2. **Authentication → Settings → Authorized domains**: confirma que está `eliaflores.github.io`.
-3. Abre `https://eliaflores.github.io/Personal/regalos/` (GitHub Pages, rama `main`), entra con Google y toca **Crear nuestra lista**. Comparte el link de invitación con tu pareja; la lista admite dos personas.
+3. Abre `https://eliaflores.github.io/Personal/regalos/`, entra con Google y toca **Crear nuestra lista**. Comparte el link de invitación con tu pareja; la lista admite dos personas.
 4. Para tenerla como app en el cel: en Safari, Compartir → Agregar a inicio; en Chrome, menú → Agregar a la pantalla principal.

@@ -4,200 +4,294 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Nuestra Lista de Regalos</title>
-<meta name="theme-color" content="#D2335A">
-<link rel="icon" type="image/svg+xml" href="icon.svg">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
-<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#F1EADD">
+<link rel="icon" type="image/svg+xml" href="icon.svg?v=2">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png?v=2">
+<link rel="manifest" href="manifest.json?v=2">
 <meta name="apple-mobile-web-app-title" content="Regalos">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap">
-<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Delius&family=Nunito:wght@400;600;700;800&display=swap">
 <style>
-/* Layout: app de una columna para el cel; cada regalo es una "etiqueta de regalo" con su hoyito; barra de pestañas abajo. */
+/* Layout: app de una columna para el cel. Papel crema, bandas azul marino con olas, acentos rojos;
+   barra de navegación tipo píldora abajo. Un solo tema claro a propósito. */
 :root {
-  --bg: #F5F1F8;
-  --surface: #FFFFFF;
-  --surface-2: #EEE7F3;
-  --ink: #2A1F3D;
-  --muted: #6E6280;
-  --line: #DED4E7;
-  --accent: #D2335A;
-  --accent-ink: #FFFFFF;
-  --accent-soft: #FBE3E9;
-  --ribbon: #D99A1E;
-  --ribbon-soft: #FBEFD3;
-  --ok: #2F8A5B;
-  --shadow: 0 1px 2px rgba(42,31,61,.06), 0 6px 18px rgba(42,31,61,.07);
-  --f-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
-  --f-body: "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --tabbar-h: 64px;
+  --paper: #F1EADD;
+  --paper-2: #F8F3EA;
+  --card: #FFFFFF;
+  --navy: #2C4A8C;
+  --navy-2: #213A72;
+  --ink: #1E2A4A;
+  --muted: #6D6F7E;
+  --line: #E3D9C7;
+  --red: #C9352E;
+  --red-soft: #F6DEDA;
+  --ok: #2F7D55;
+  --shadow: 0 2px 6px rgba(30,42,74,.06), 0 12px 28px rgba(30,42,74,.08);
+  --f-display: "Delius", "Comic Neue", "Trebuchet MS", system-ui, sans-serif;
+  --f-body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --nav-h: 72px;
+  color-scheme: light;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #16111E; --surface: #211A2C; --surface-2: #2B2238; --ink: #F1EBF7; --muted: #A99CBB;
-  --line: #3A2F4A; --accent: #F0577C; --accent-ink: #1A0F16; --accent-soft: #3B1C29;
-  --ribbon: #F0B848; --ribbon-soft: #3A2E17; --ok: #5CC48E;
-  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 22px rgba(0,0,0,.28); color-scheme: dark; } }
-:root[data-theme="dark"] {
-  --bg: #16111E; --surface: #211A2C; --surface-2: #2B2238; --ink: #F1EBF7; --muted: #A99CBB;
-  --line: #3A2F4A; --accent: #F0577C; --accent-ink: #1A0F16; --accent-soft: #3B1C29;
-  --ribbon: #F0B848; --ribbon-soft: #3A2E17; --ok: #5CC48E;
-  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 22px rgba(0,0,0,.28); color-scheme: dark; }
-
 * { box-sizing: border-box; }
-body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.45; -webkit-tap-highlight-color: transparent; }
-body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
-.wrap { max-width: 560px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px calc(var(--tabbar-h) + 28px + env(safe-area-inset-bottom, 0px)); }
-h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+html, body { margin: 0; }
+body { background: var(--paper); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.45; -webkit-tap-highlight-color: transparent; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--paper); }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
 button, input, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
-:focus-visible { outline: 3px solid var(--ribbon); outline-offset: 2px; border-radius: 8px; }
+:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; border-radius: 10px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+.d { font-family: var(--f-display); font-weight: 400; }
 
-/* Header */
-.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 10px; }
-.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.brand svg { flex: none; }
-.brand h1 { font-size: 1.25rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.me-btn { flex: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px 6px 6px; display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: .9rem; }
-.avatar { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font-family: var(--f-display); font-weight: 800; font-size: .85rem; }
-.avatar.b { background: var(--ribbon); color: #2A1F3D; }
+.wrap { max-width: 520px; margin: 0 auto; padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)); padding-block: 8px calc(var(--nav-h) + 40px + env(safe-area-inset-bottom, 0px)); }
+.wrap.no-nav { padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px)); }
+.full { margin-left: calc(-1 * max(18px, env(safe-area-inset-left, 0px))); margin-right: calc(-1 * max(18px, env(safe-area-inset-right, 0px))); }
+.full > .in { padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)); }
 
-/* Generic */
-.eyebrow { font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 18px; box-shadow: var(--shadow); }
-.stack { display: flex; flex-direction: column; gap: 14px; }
-.hint { color: var(--muted); font-size: .92rem; margin: 0; }
-.btn { border: none; border-radius: 14px; padding: 14px 18px; font-weight: 700; font-size: 1rem; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; }
-.btn-primary { background: var(--accent); color: var(--accent-ink); }
-.btn-primary:active { transform: translateY(1px); }
-.btn-ghost { background: var(--surface-2); color: var(--ink); }
+.waves { background-color: var(--navy); background-image: radial-gradient(circle at 50% 100%, transparent 0 7px, rgba(255,255,255,.07) 7px 8.5px, transparent 8.5px 12px, rgba(255,255,255,.07) 12px 13.5px, transparent 13.5px); background-size: 30px 15px; color: #fff; }
+
+/* Top bar */
+.bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding-block: 10px 14px; }
+.bar .l { justify-self: start; display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; overflow: hidden; }
+.bar .r { justify-self: end; }
+.bar .brand { font-family: var(--f-display); font-size: 1.35rem; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.logo { width: 52px; height: 52px; border-radius: 50%; background: var(--paper-2); border: 2px solid var(--navy); display: grid; place-items: center; box-shadow: 0 3px 0 var(--navy-2); }
+.logo svg { width: 30px; height: 30px; }
+.icon-btn { border: none; background: none; color: var(--red); width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; }
+.icon-btn svg { width: 26px; height: 26px; }
+.bagbtn { position: relative; color: var(--navy); }
+.bagbtn b { position: absolute; top: 2px; right: 0; background: var(--red); color: #fff; font-size: .72rem; min-width: 20px; height: 20px; border-radius: 99px; display: grid; place-items: center; padding: 0 5px; font-weight: 800; }
+.mini-av { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--navy); overflow: hidden; display: grid; place-items: center; background: var(--navy); color: #fff; font-family: var(--f-display); font-size: 1.1rem; padding: 0; }
+.mini-av img { width: 100%; height: 100%; object-fit: cover; }
+
+/* Buttons */
+.btn { border: none; border-radius: 999px; padding: 14px 22px; font-weight: 800; font-size: 1rem; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 50px; text-decoration: none; }
+.btn svg { width: 20px; height: 20px; }
+.btn-red { background: var(--red); color: #fff; }
+.btn-navy { background: var(--navy); color: #fff; }
+.btn-cream { background: var(--paper-2); color: var(--navy); }
+.btn-outline { background: transparent; color: #fff; border: 2px solid rgba(255,255,255,.85); }
+.btn-outline-navy { background: transparent; color: var(--navy); border: 2px solid var(--navy); }
 .btn-block { width: 100%; }
 .btn[disabled] { opacity: .5; cursor: not-allowed; }
-label.field { display: flex; flex-direction: column; gap: 6px; font-weight: 700; font-size: .9rem; }
-label.field .opt { font-weight: 400; color: var(--muted); }
-.input { width: 100%; border: 1.5px solid var(--line); background: var(--bg); border-radius: 12px; padding: 12px 14px; font-size: 16px; min-height: 48px; }
-.input:focus { border-color: var(--accent); outline: none; }
-textarea.input { min-height: 72px; resize: vertical; }
+.btn:active:not([disabled]) { transform: translateY(1px); }
+.link-red { background: none; border: none; color: var(--red); font-weight: 800; padding: 10px 4px; }
 
-/* Chips */
-.chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chip { border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 8px 14px; font-weight: 700; font-size: .9rem; min-height: 40px; }
-.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.chip.money { font-variant-numeric: tabular-nums; }
+/* Section headings */
+.sec { font-family: var(--f-display); font-size: 1.35rem; color: var(--ink); margin: 26px 0 12px; }
+.hint { color: var(--muted); font-size: .93rem; margin: 0; }
+.center { text-align: center; }
 
-/* Budget hero */
-.budget-q { font-size: clamp(1.6rem, 7vw, 2.1rem); font-weight: 800; line-height: 1.1; }
-.budget-q em { font-style: normal; color: var(--accent); }
-.money-input { position: relative; }
-.money-input span { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-family: var(--f-display); font-size: 1.8rem; font-weight: 700; color: var(--muted); pointer-events: none; }
-.money-input input { font-family: var(--f-display); font-size: 2rem; font-weight: 800; padding-left: 40px; min-height: 64px; font-variant-numeric: tabular-nums; }
-.money-input small { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: var(--muted); font-weight: 700; font-size: .85rem; }
-
-/* Gift tag cards */
-.tags { display: flex; flex-direction: column; gap: 14px; }
-.tag { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 6px 18px 18px 6px; padding: 16px 16px 16px 34px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.tag::before { content: ""; position: absolute; left: 12px; top: 20px; width: 10px; height: 10px; border-radius: 50%; background: var(--bg); border: 2px solid var(--line); }
-.tag::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; border-radius: 6px 0 0 6px; background: var(--accent); }
-.tag.owner-b::after { background: var(--ribbon); }
-.tag.reserved { border-color: var(--ok); }
-.tag-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-.tag-title { font-family: var(--f-display); font-weight: 700; font-size: 1.12rem; line-height: 1.2; min-width: 0; overflow-wrap: anywhere; }
-.price { flex: none; font-family: var(--f-display); font-weight: 800; font-variant-numeric: tabular-nums; font-size: 1.05rem; }
-.tag-note { margin: 0; color: var(--muted); font-size: .93rem; overflow-wrap: anywhere; }
-.occ { display: flex; flex-wrap: wrap; gap: 6px; }
-.occ span { font-size: .78rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--ribbon-soft); color: var(--ink); }
-.occ span.any { background: var(--surface-2); color: var(--muted); }
-.tag-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.tag-actions .btn { min-height: 42px; padding: 10px 14px; font-size: .92rem; border-radius: 12px; }
-a.btn { text-decoration: none; }
-.btn-link { background: var(--accent-soft); color: var(--accent); }
-.btn-ok { background: var(--ok); color: #fff; }
-.btn-danger { background: transparent; color: var(--accent); border: 1.5px solid var(--accent-soft); }
-.btn-danger.armed { background: var(--accent); color: var(--accent-ink); }
-.fit { font-size: .8rem; font-weight: 700; color: var(--ok); }
-
-.results-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-.results-head h2 { font-size: 1.2rem; }
-.meter { height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
-.meter i { display: block; height: 100%; background: var(--ok); border-radius: 999px; }
-
-.empty { text-align: center; padding: 28px 18px; border: 2px dashed var(--line); border-radius: 20px; color: var(--muted); }
-.empty h3 { color: var(--ink); font-size: 1.1rem; margin-bottom: 6px; }
+/* Home */
+.hello { margin: 6px 0 16px; }
+.hello h1 { font-family: var(--f-display); font-weight: 400; font-size: 1.9rem; color: var(--navy); }
+.new-card { border-radius: 28px; padding: 22px; display: flex; flex-direction: column; gap: 14px; box-shadow: var(--shadow); }
+.new-card h2 { font-family: var(--f-display); font-weight: 400; font-size: 1.55rem; line-height: 1.15; }
+.new-card p { margin: 0; color: rgba(255,255,255,.82); }
+.list { background: var(--card); border-radius: 22px; box-shadow: var(--shadow); overflow: hidden; }
+.row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; width: 100%; background: none; border: none; text-align: left; text-decoration: none; color: inherit; }
+.row + .row { border-top: 1px solid var(--line); }
+.row .ic { flex: none; width: 46px; height: 46px; border-radius: 50%; background: var(--red-soft); color: var(--red); display: grid; place-items: center; }
+.row .ic.navy { background: #E2E8F5; color: var(--navy); }
+.row .ic svg { width: 22px; height: 22px; }
+.row .tx { flex: 1; min-width: 0; }
+.row .tx b { display: block; font-weight: 800; font-size: 1rem; overflow-wrap: anywhere; }
+.row .tx span { display: block; color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
+.row .ch { flex: none; color: var(--navy); }
+.row .ch svg { width: 20px; height: 20px; }
+.secret-note { display: flex; gap: 10px; align-items: flex-start; background: var(--paper-2); border: 1px dashed var(--line); border-radius: 16px; padding: 12px 14px; color: var(--muted); font-size: .88rem; margin-top: 16px; }
+.secret-note svg { flex: none; width: 20px; height: 20px; color: var(--navy); }
+.empty { text-align: center; padding: 26px 18px; border: 2px dashed var(--line); border-radius: 22px; color: var(--muted); }
+.empty h3 { font-family: var(--f-display); font-weight: 400; color: var(--ink); font-size: 1.2rem; margin-bottom: 6px; }
 .empty p { margin: 0; }
 
-/* Tab bar */
-.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); }
-.tabbar-in { max-width: 560px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; height: var(--tabbar-h); }
-.tab { border: none; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-weight: 700; font-size: .8rem; color: var(--muted); }
-.tab svg { width: 24px; height: 24px; }
-.tab[aria-selected="true"] { color: var(--accent); }
+/* Wizard */
+.wz { min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; }
+.wz-top { display: flex; align-items: center; justify-content: space-between; padding-block: 10px; }
+.dots { display: flex; gap: 6px; }
+.dots i { width: 8px; height: 8px; border-radius: 99px; background: var(--line); transition: width .2s; }
+.dots i.on { width: 26px; background: var(--red); }
+.dots i.done { background: var(--navy); }
+.wz-body { flex: 1; display: flex; flex-direction: column; gap: 18px; padding-top: 18px; }
+.wz-step { font-size: .8rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--red); }
+.wz-q { font-family: var(--f-display); font-weight: 400; font-size: clamp(1.9rem, 8vw, 2.4rem); line-height: 1.1; color: var(--navy); }
+.occ-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.occ-opt { border: 2px solid var(--line); background: var(--card); border-radius: 22px; padding: 18px 12px; display: flex; flex-direction: column; align-items: center; gap: 10px; font-weight: 800; color: var(--ink); }
+.occ-opt svg { width: 34px; height: 34px; color: var(--navy); }
+.occ-opt[aria-pressed="true"] { border-color: var(--navy); background: var(--navy); color: #fff; }
+.occ-opt[aria-pressed="true"] svg { color: #fff; }
+.occ-opt.wide { grid-column: 1 / -1; flex-direction: row; justify-content: center; }
+.input { width: 100%; border: 2px solid var(--line); background: var(--card); border-radius: 16px; padding: 13px 16px; font-size: 16px; min-height: 52px; }
+.input:focus { border-color: var(--navy); outline: none; }
+.input::placeholder { color: #BDB4A3; }
+textarea.input { min-height: 84px; resize: vertical; }
+.money { position: relative; }
+.money span { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); font-family: var(--f-display); font-size: 2rem; color: var(--muted); pointer-events: none; }
+.money input { font-family: var(--f-display); font-size: 2.3rem; padding-left: 44px; min-height: 76px; font-variant-numeric: tabular-nums; color: var(--navy); }
+.money small { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); color: var(--muted); font-weight: 800; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border: 2px solid var(--line); background: var(--card); border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: .9rem; min-height: 40px; font-variant-numeric: tabular-nums; }
+.chip[aria-pressed="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
+.summary { border-radius: 24px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.summary .k { font-size: .8rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.7); }
+.summary .v { font-family: var(--f-display); font-size: 1.5rem; }
+.warn { display: flex; gap: 10px; align-items: flex-start; background: var(--red-soft); color: var(--ink); border-radius: 16px; padding: 12px 14px; font-size: .92rem; }
+.warn svg { flex: none; width: 20px; height: 20px; color: var(--red); }
+.wz-foot { padding-block: 16px 8px; display: flex; flex-direction: column; gap: 6px; }
 
-/* Sheet (form) */
-.sheet-bg { position: fixed; inset: 0; background: rgba(20,12,28,.45); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
-.sheet { background: var(--surface); width: 100%; max-width: 560px; max-height: 92%; overflow-y: auto; border-radius: 24px 24px 0 0; padding: 18px max(18px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px)); }
-.sheet-grip { width: 44px; height: 5px; border-radius: 99px; background: var(--line); margin: 0 auto 12px; }
-.sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 4px; }
-.sheet-head h2 { font-size: 1.3rem; }
-.x { border: none; background: var(--surface-2); width: 40px; height: 40px; border-radius: 50%; font-size: 1.2rem; font-weight: 700; }
-.row2 { display: grid; grid-template-columns: 1fr; gap: 14px; }
+/* Festividad */
+.band { padding-block: 14px; }
+.band .in { display: flex; flex-direction: column; gap: 10px; }
+.band-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.band .lbl { display: flex; align-items: center; gap: 6px; font-size: .85rem; color: rgba(255,255,255,.8); font-weight: 700; }
+.band .lbl svg { width: 16px; height: 16px; }
+.band .name { font-family: var(--f-display); font-size: 1.15rem; color: rgba(255,255,255,.9); }
+.band .big { font-family: var(--f-display); font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.meter { height: 8px; background: rgba(255,255,255,.18); border-radius: 99px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--paper-2); border-radius: 99px; }
+.for { font-family: var(--f-display); font-size: 1.6rem; color: var(--navy); text-align: center; margin: 20px 0 8px; }
+.tabs { display: flex; justify-content: center; gap: 28px; margin-bottom: 18px; }
+.tabs button { border: none; background: none; padding: 6px 2px; font-weight: 700; color: var(--muted); font-size: 1rem; border-bottom: 2px solid transparent; }
+.tabs button[aria-selected="true"] { color: var(--navy); font-weight: 800; border-color: var(--red); }
 
-.fab { position: fixed; z-index: 7; right: max(18px, env(safe-area-inset-right, 0px)); bottom: calc(var(--tabbar-h) + 16px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 8px 24px rgba(210,51,90,.35); border-radius: 999px; padding: 14px 20px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 14px; }
+.gcard { display: flex; flex-direction: column; gap: 8px; text-decoration: none; color: inherit; background: none; border: none; padding: 0; text-align: left; min-width: 0; }
+.tile { position: relative; aspect-ratio: 1 / 1.02; max-width: 100%; border-radius: 16px; overflow: hidden; background: var(--navy); box-shadow: var(--shadow); }
+.tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.tile .ph { position: absolute; inset: 0; display: grid; place-items: center; color: rgba(255,255,255,.55); }
+.tile .ph svg { width: 44%; height: 44%; }
+.tile .top { position: absolute; inset: 0 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 8px 10px 18px; background: linear-gradient(rgba(33,58,114,.92), rgba(33,58,114,0)); color: #fff; font-size: .78rem; font-weight: 800; }
+.tile .top .p { font-family: var(--f-display); font-size: 1.05rem; font-weight: 400; font-variant-numeric: tabular-nums; }
+.tile.bought::after { content: ""; position: absolute; inset: 0; background: rgba(241,234,221,.55); }
+.stamp { position: absolute; z-index: 2; left: 50%; top: 55%; transform: translate(-50%,-50%) rotate(-10deg); border: 3px solid var(--red); color: var(--red); background: rgba(255,255,255,.85); border-radius: 10px; padding: 4px 10px; font-weight: 800; font-size: .85rem; letter-spacing: .06em; text-transform: uppercase; }
+.gcard h3 { font-family: var(--f-display); font-weight: 400; font-size: 1.12rem; line-height: 1.2; color: var(--navy); overflow-wrap: anywhere; }
+.gcard .desc { display: flex; gap: 6px; align-items: flex-end; }
+.gcard .desc p { margin: 0; flex: 1; min-width: 0; font-size: .82rem; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.gcard .desc svg { flex: none; width: 18px; height: 18px; color: var(--red); }
+.gcard .was { font-size: .76rem; font-weight: 800; color: var(--ok); }
+.del-fiesta { display: flex; justify-content: center; margin-top: 30px; }
 
-.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabbar-h) + 84px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-weight: 700; font-size: .92rem; z-index: 30; max-width: calc(100% - 32px); text-align: center; }
+/* Detalle */
+.hero-img { position: relative; width: 78%; max-width: 340px; aspect-ratio: 1; margin: 4px auto 18px; border-radius: 50%; overflow: hidden; background: var(--navy); border: 8px solid var(--navy-2); box-shadow: 0 18px 40px rgba(30,42,74,.25); }
+.hero-img img { width: 100%; height: 100%; object-fit: cover; }
+.hero-img .ph { position: absolute; inset: 0; display: grid; place-items: center; color: rgba(255,255,255,.55); }
+.hero-img .ph svg { width: 40%; height: 40%; }
+.dt-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.dt-title h1 { font-family: var(--f-display); font-weight: 400; font-size: 1.9rem; line-height: 1.12; color: var(--navy); overflow-wrap: anywhere; min-width: 0; }
+.dt-title svg { flex: none; width: 26px; height: 26px; color: var(--red); margin-top: 6px; }
+.panel { border-radius: 0; padding-block: 0 calc(24px + env(safe-area-inset-bottom, 0px)); }
+.panel .meta { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-block: 14px; border-bottom: 1px solid rgba(255,255,255,.18); font-size: .95rem; }
+.panel .meta span { overflow-wrap: anywhere; }
+.panel .body { padding-top: 14px; display: flex; flex-direction: column; gap: 14px; }
+.panel .body p { margin: 0; font-size: 1.02rem; overflow-wrap: anywhere; }
+.panel .host { font-size: .82rem; color: rgba(255,255,255,.7); }
+.panel .price { align-self: flex-end; font-family: var(--f-display); font-size: 2.4rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.panel .price small { font-size: 1.2rem; }
+.panel .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.panel .acts .btn { padding-inline: 10px; }
+.panel .short { font-size: .88rem; color: var(--red-soft); text-align: center; margin: 0; }
 
-.who { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.who button { border: 2px solid var(--line); background: var(--surface); border-radius: 18px; padding: 20px 10px; display: flex; flex-direction: column; align-items: center; gap: 10px; font-family: var(--f-display); font-weight: 700; font-size: 1.1rem; }
-.who .avatar { width: 52px; height: 52px; font-size: 1.4rem; }
-.notice { background: var(--ribbon-soft); border-radius: 14px; padding: 12px 14px; font-size: .92rem; }
+/* Perfil */
+.pf-h { font-family: var(--f-display); font-weight: 400; font-size: 2.1rem; color: var(--ink); margin: 6px 0 16px; }
+.pf-card { border-radius: 28px; padding: 20px; display: flex; flex-direction: column; gap: 18px; box-shadow: var(--shadow); }
+.pf-top { display: flex; align-items: center; gap: 16px; }
+.pf-av { flex: none; width: 92px; height: 92px; border-radius: 50%; overflow: hidden; border: 4px solid rgba(255,255,255,.85); background: var(--red); display: grid; place-items: center; font-family: var(--f-display); font-size: 2.4rem; }
+.pf-av img { width: 100%; height: 100%; object-fit: cover; }
+.pf-top h2 { font-family: var(--f-display); font-weight: 400; font-size: 1.6rem; overflow-wrap: anywhere; }
+.pf-top p { margin: 2px 0 0; color: rgba(255,255,255,.8); }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stat { background: var(--card); color: var(--ink); border-radius: 20px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; }
+.stat .ic { flex: none; width: 40px; height: 40px; border-radius: 50%; background: var(--red-soft); color: var(--red); display: grid; place-items: center; }
+.stat .ic svg { width: 20px; height: 20px; }
+.stat b { display: block; font-family: var(--f-display); font-weight: 400; font-size: 1.6rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat span { font-size: .8rem; color: var(--muted); }
+.quick { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.qcard { background: var(--card); border: none; border-radius: 22px; padding: 14px; box-shadow: var(--shadow); text-align: left; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.qcard .ic { width: 42px; height: 42px; border-radius: 50%; background: #E2E8F5; color: var(--navy); display: grid; place-items: center; }
+.qcard .ic svg { width: 20px; height: 20px; }
+.qcard b { font-weight: 800; }
+.qcard .ft { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; }
+.qcard .ft span { color: var(--muted); font-size: .82rem; }
+.qcard .go { flex: none; width: 32px; height: 32px; border-radius: 50%; background: var(--red-soft); color: var(--red); display: grid; place-items: center; }
+.qcard .go svg { width: 16px; height: 16px; }
+.logout { margin-top: 20px; width: 100%; background: var(--card); border: none; border-radius: 22px; padding: 18px; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 800; font-size: 1.05rem; color: var(--ink); }
+.logout svg { width: 22px; height: 22px; color: var(--red); }
+.logout.armed { background: var(--red); color: #fff; }
+.logout.armed svg { color: #fff; }
+
+/* Mi wishlist */
+.mine-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 6px 0 18px; }
+.mine-head h1 { font-family: var(--f-display); font-weight: 400; font-size: 1.9rem; color: var(--navy); }
+.mine-head .btn { min-height: 44px; padding: 10px 16px; }
+
+/* Bottom nav */
+.nav { position: fixed; z-index: 8; left: 0; right: 0; bottom: 0; padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); pointer-events: none; }
+.nav-in { pointer-events: auto; max-width: 520px; margin: 0 auto; height: var(--nav-h); border-radius: 30px; display: grid; grid-template-columns: repeat(3, 1fr); align-items: center; box-shadow: 0 14px 30px rgba(33,58,114,.35); }
+.nav button { border: none; background: none; color: #fff; display: grid; place-items: center; height: 100%; }
+.nav button span { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; transition: background .15s; }
+.nav button svg { width: 28px; height: 28px; }
+.nav button[aria-current="page"] span { background: var(--paper-2); color: var(--navy); }
+
+/* Sheet */
+.sheet-bg { position: fixed; inset: 0; background: rgba(20,26,48,.5); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
+.sheet { background: var(--paper); width: 100%; max-width: 560px; max-height: 94%; overflow-y: auto; border-radius: 28px 28px 0 0; padding: 16px max(18px, env(safe-area-inset-right, 0px)) calc(22px + env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 14px; }
+.grip { width: 44px; height: 5px; border-radius: 99px; background: var(--line); margin: 0 auto 2px; }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.sheet-head h2 { font-family: var(--f-display); font-weight: 400; font-size: 1.5rem; color: var(--navy); }
+.x { border: none; background: var(--card); width: 42px; height: 42px; border-radius: 50%; font-size: 1.3rem; font-weight: 800; color: var(--navy); }
+.field { display: flex; flex-direction: column; gap: 6px; font-weight: 800; font-size: .9rem; }
+.field .opt { font-weight: 600; color: var(--muted); }
+.photo-pick { position: relative; display: grid; place-items: center; aspect-ratio: 16 / 10; max-width: 100%; border-radius: 20px; border: 2px dashed var(--line); background: var(--card); color: var(--navy); overflow: hidden; cursor: pointer; }
+.photo-pick img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.photo-pick .lbl { display: flex; flex-direction: column; align-items: center; gap: 6px; font-weight: 800; }
+.photo-pick .lbl svg { width: 34px; height: 34px; }
+.photo-pick .chg { position: absolute; right: 10px; bottom: 10px; background: rgba(33,58,114,.9); color: #fff; border-radius: 99px; padding: 6px 12px; font-size: .82rem; font-weight: 800; }
+.photo-pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-h) + 30px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: #fff; padding: 11px 18px; border-radius: 14px; font-weight: 700; font-size: .92rem; z-index: 30; max-width: calc(100% - 32px); text-align: center; }
+
+.signin { min-height: 80vh; display: flex; flex-direction: column; justify-content: center; gap: 20px; text-align: center; align-items: center; }
+.signin .logo { width: 96px; height: 96px; }
+.signin .logo svg { width: 56px; height: 56px; }
+.signin h1 { font-family: var(--f-display); font-weight: 400; font-size: 2.3rem; color: var(--navy); }
+.signin p { margin: 0; color: var(--muted); max-width: 32ch; }
+.invite { border-radius: 24px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.invite h2 { font-family: var(--f-display); font-weight: 400; font-size: 1.4rem; }
+.invite p { margin: 0; color: rgba(255,255,255,.82); }
+.invite .input { color: var(--ink); }
 
 @media (prefers-reduced-motion: no-preference) {
-  .tag { animation: rise .25s ease both; }
+  .screen { animation: fade .22s ease both; }
   .sheet { animation: up .22s ease both; }
-  @keyframes rise { from { transform: translateY(6px); opacity: .4; } to { transform: none; opacity: 1; } }
+  @keyframes fade { from { transform: translateY(6px); } to { transform: none; } }
   @keyframes up { from { transform: translateY(40px); } to { transform: none; } }
 }
 </style>
 </head>
 <body>
-<header class="wrap" style="padding-block:0">
-  <div class="top">
-    <div class="brand">
-      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="12" width="24" height="16" rx="3" fill="var(--accent)"/><rect x="2" y="8" width="28" height="6" rx="2" fill="var(--accent)"/><rect x="14" y="8" width="4" height="20" fill="var(--ribbon)"/><path d="M16 8c-3-6-9-5-8-1 1 2 5 2 8 1zm0 0c3-6 9-5 8-1-1 2-5 2-8 1z" fill="var(--ribbon)"/></svg>
-      <h1 id="appTitle">Nuestra lista</h1>
-    </div>
-    <button class="me-btn" id="meBtn" hidden aria-label="Cerrar sesión"><span class="avatar" id="meAv">?</span><span id="meName"></span></button>
-  </div>
-</header>
-
-<main class="wrap" id="app" style="padding-top:4px">
-  <div class="panel stack"><p class="hint">Cargando su lista de regalos…</p></div>
-</main>
-
-<nav class="tabbar" id="tabbar" hidden>
-  <div class="tabbar-in" role="tablist">
-    <button class="tab" role="tab" id="tabGive" aria-selected="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="12" rx="2"/><path d="M3 9h18M12 9v12M12 9c-2-4-6-4-6-1.5S9 9 12 9zm0 0c2-4 6-4 6-1.5S15 9 12 9z"/></svg>
-      <span id="tabGiveLbl">Regalar</span>
-    </button>
-    <button class="tab" role="tab" id="tabMine" aria-selected="false">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-9-9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c-2 4.5-9 9-9 9z"/></svg>
-      <span>Mi wishlist</span>
-    </button>
+<div id="app"><div class="wrap no-nav"><p class="hint center" style="margin-top:40vh">Cargando…</p></div></div>
+<nav class="nav" id="nav" hidden aria-label="Navegación">
+  <div class="nav-in waves">
+    <button id="navHome" aria-label="Festividades"><span></span></button>
+    <button id="navMine" aria-label="Mi wishlist"><span></span></button>
+    <button id="navProfile" aria-label="Mi perfil"><span></span></button>
   </div>
 </nav>
-
-<button class="btn btn-primary fab" id="fab" hidden>+ Agregar regalo</button>
 <div id="sheetRoot"></div>
 <div id="toastRoot"></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, onSnapshot, query, where, limit, getDocs, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, onSnapshot, query, where, limit, getDocs, arrayUnion, deleteField } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // Mismo proyecto de Firebase que Mi Cartera, pero datos aparte en la colección "regalos".
 const firebaseConfig = {
@@ -214,27 +308,56 @@ let fdb;
 try { fdb = initializeFirestore(fbApp, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }); }
 catch (e) { fdb = initializeFirestore(fbApp, {}); }
 
+/* ---------- Iconos ---------- */
+const P = {
+  gift: '<rect x="3" y="9" width="18" height="12" rx="2"/><path d="M3 13h18M12 9v12M12 9c-2-4-6-4-6-1.5S9 9 12 9zm0 0c2-4 6-4 6-1.5S15 9 12 9z"/>',
+  heart: '<path d="M12 20s-7-4.4-9-8.8A4.8 4.8 0 0 1 12 7a4.8 4.8 0 0 1 9 4.2C19 15.6 12 20 12 20z"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',
+  back: '<path d="M20 12H5M11 6l-6 6 6 6"/>',
+  arrow: '<path d="M4 12h15M13 6l6 6-6 6"/>',
+  chev: '<path d="M9 6l6 6-6 6"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  bag: '<path d="M5 8h14l-1 12H6L5 8z"/><path d="M9 8a3 3 0 0 1 6 0"/>',
+  camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  out: '<path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9"/>',
+  shield: '<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
+  tree: '<path d="M12 3l5 7h-3l4 6H6l4-6H7z"/><path d="M12 16v5"/>',
+  rings: '<circle cx="9" cy="14" r="5"/><circle cx="15" cy="14" r="5"/><path d="M10 5l2-2 2 2"/>',
+  cake: '<rect x="4" y="11" width="16" height="9" rx="2"/><path d="M4 15c2 1.5 4 1.5 6 0s4-1.5 6 0 3 1 4 0M12 11V7"/><path d="M12 4.5v.01"/>',
+  people: '<circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c1-3.5 3.3-5 6-5s5 1.5 6 5M15 15.2c2.6-.5 4.8.8 6 3.8"/>',
+  ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>',
+};
+const I = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[k]}</svg>`;
+const LOGO = `<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="13" width="22" height="14" rx="3" fill="#2C4A8C"/><rect x="3" y="9" width="26" height="6" rx="2" fill="#2C4A8C"/><rect x="14.2" y="9" width="3.6" height="18" fill="#C9352E"/><path d="M16 9c-3-6-9-5-8-1 1 2 5 2 8 1zm0 0c3-6 9-5 8-1-1 2-5 2-8 1z" fill="#C9352E"/></svg>`;
+
 const OCCASIONS = [
-  { k: "navidad", l: "Navidad" },
-  { k: "aniversario", l: "Aniversario" },
-  { k: "sanvalentin", l: "San Valentín" },
-  { k: "cumple", l: "Cumpleaños" },
-  { k: "otro", l: "Otro" },
+  { k: "navidad", l: "Navidad", i: "tree" },
+  { k: "aniversario", l: "Aniversario", i: "rings" },
+  { k: "sanvalentin", l: "San Valentín", i: "heart" },
+  { k: "cumple", l: "Cumpleaños", i: "cake" },
+  { k: "otro", l: "Otro", i: "gift" },
 ];
-const occLabel = k => (OCCASIONS.find(o => o.k === k) || {}).l || k;
+const occ = k => OCCASIONS.find(o => o.k === k) || OCCASIONS[4];
 const QUICK = [500, 1000, 3000, 5000, 10000];
-const mxn = n => new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: n % 1 ? 2 : 0 }).format(n);
+const mxn = n => new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: n % 1 ? 2 : 0 }).format(n || 0);
+const MES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+const fDate = s => { if (!s) return ""; const [y, m, d] = s.split("-").map(Number); return `${d} ${MES[m - 1]} ${y}`; };
 
 const S = {
-  user: null, listId: null, list: null, items: [], loaded: false, authReady: false,
-  tab: "give", budget: null, budgetDraft: "", occasion: "any", armedDelete: null, stale: false, error: "",
+  user: null, authReady: false, listId: null, list: null, items: [], fiestas: [],
+  loaded: false, stale: false, error: "", tab: "ideas", wz: null, armed: null,
 };
-try { S.tab = localStorage.getItem("regalos.tab") || "give"; } catch (e) {}
 const joinId = new URLSearchParams(location.search).get("unir");
 
 const $ = s => document.querySelector(s);
 const app = $("#app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const safeUrl = u => { u = (u || "").trim(); if (!u) return ""; if (!/^https?:\/\//i.test(u)) u = "https://" + u; try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.href : ""; } catch (e) { return ""; } };
+const safeImg = s => (typeof s === "string" && /^data:image\/(jpeg|png|webp);base64,/.test(s)) ? s : "";
+const hostOf = u => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch (e) { return ""; } };
 
 function toast(msg) {
   const r = $("#toastRoot");
@@ -242,59 +365,89 @@ function toast(msg) {
   clearTimeout(toast.t); toast.t = setTimeout(() => (r.innerHTML = ""), 2800);
 }
 function writeErr(e) {
-  if (e && e.code === "permission-denied") toast("Firestore no dio permiso. Revisa que pegaste las reglas nuevas.");
+  if (e && e.code === "permission-denied") toast("Firebase no dio permiso. Revisa que pegaste las reglas nuevas.");
   else toast("No se pudo guardar. Revisa tu conexión e intenta de nuevo.");
+}
+function arm(key, btn, label) {
+  if (S.armed === key) { S.armed = null; return true; }
+  S.armed = key; btn.classList.add("armed"); if (label) btn.querySelector(".lb").textContent = label;
+  setTimeout(() => { if (S.armed === key) { S.armed = null; render(); } }, 3500);
+  return false;
 }
 
 const me = () => S.user && S.user.uid;
 const members = () => (S.list && Array.isArray(S.list.members)) ? S.list.members : [];
 const partner = () => members().find(u => u !== me()) || null;
-const nameOf = uid => (S.list && S.list.names && S.list.names[uid]) || "Tu pareja";
-const avClass = uid => (members()[0] === uid ? "a" : "b");
-const initial = n => (n || "?").trim().charAt(0).toUpperCase() || "?";
 const firstName = u => ((u && u.displayName) || "Yo").trim().split(/\s+/)[0];
-const safeUrl = u => { u = (u || "").trim(); if (!u) return ""; if (!/^https?:\/\//i.test(u)) u = "https://" + u; try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.href : ""; } catch (e) { return ""; } };
-const hostOf = u => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch (e) { return ""; } };
+const nameOf = uid => (S.list && S.list.names && S.list.names[uid]) || "tu pareja";
 const inviteLink = () => location.origin + location.pathname + "?unir=" + encodeURIComponent(S.listId);
+const myItems = () => S.items.filter(i => i.owner === me()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+const theirItems = () => S.items.filter(i => i.owner === partner());
+const spent = f => Object.values(f.bought || {}).reduce((s, b) => s + (Number(b.price) || 0), 0);
+const fiestaName = f => f.name || occ(f.occasion).l;
+
+function photoHtml(src) {
+  const s = safeImg(src);
+  return s ? `<img src="${s}" alt="" loading="lazy">` : `<div class="ph">${I("gift")}</div>`;
+}
+
+/* ---------- Rutas (#) ---------- */
+function route() {
+  const h = location.hash.replace(/^#\/?/, "").split("/");
+  if (h[0] === "nueva") return { v: "wizard" };
+  if (h[0] === "f" && h[1] && h[2] === "i" && h[3]) return { v: "detail", f: h[1], i: h[3] };
+  if (h[0] === "f" && h[1]) return { v: "fiesta", f: h[1] };
+  if (h[0] === "mia") return { v: "mine" };
+  if (h[0] === "perfil") return { v: "profile" };
+  return { v: "home" };
+}
+const go = h => { if (location.hash !== h) location.hash = h; else render(); };
 
 /* ---------- Render ---------- */
-function render() {
-  const chrome = !!(S.user && S.list && S.loaded);
-  $("#tabbar").hidden = !chrome;
-  $("#meBtn").hidden = !S.user;
-  $("#fab").hidden = !(chrome && S.tab === "mine");
-  if (S.user) {
-    $("#meName").textContent = firstName(S.user);
-    $("#meAv").textContent = initial(firstName(S.user));
-    $("#meAv").className = "avatar " + (S.list ? avClass(me()) : "a");
-  }
-  if (!S.authReady) { app.innerHTML = `<div class="panel stack"><p class="hint">Cargando…</p></div>`; return; }
-  if (!S.user) return renderSignIn();
-  if (S.error) { app.innerHTML = `<div class="panel stack"><h2>No se pudo abrir la lista</h2><p class="hint">${esc(S.error)}</p></div>`; return; }
-  if (!S.loaded) {
-    app.innerHTML = `<div class="panel stack"><p class="hint">${S.stale ? "Todavía no se puede conectar. Revisa tu internet; se carga sola en cuanto responda." : "Cargando su lista de regalos…"}</p></div>`;
-    return;
-  }
-  if (!S.list) return renderCreate();
-  $("#appTitle").textContent = partner() ? `${nameOf(members()[0])} & ${nameOf(members()[1])}` : "Nuestra lista";
-  if (!partner()) return renderInvite();
-  $("#tabGiveLbl").textContent = `Regalar a ${nameOf(partner())}`;
-  $("#tabGive").setAttribute("aria-selected", S.tab === "give");
-  $("#tabMine").setAttribute("aria-selected", S.tab === "mine");
-  S.tab === "mine" ? renderMine() : renderGive();
+function setNav(r) {
+  const show = !!(S.user && S.list && S.loaded) && ["home", "fiesta", "mine", "profile"].includes(r.v);
+  $("#nav").hidden = !show;
+  const cur = r.v === "mine" ? "navMine" : r.v === "profile" ? "navProfile" : "navHome";
+  [["navHome", "gift"], ["navMine", "heart"], ["navProfile", "user"]].forEach(([id, ic]) => {
+    const b = $("#" + id); b.querySelector("span").innerHTML = I(ic);
+    if (id === cur) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+  });
 }
+
+function render() {
+  const r = route();
+  setNav(r);
+  if (!S.authReady) { app.innerHTML = `<div class="wrap no-nav"><p class="hint center" style="margin-top:40vh">Cargando…</p></div>`; return; }
+  if (!S.user) return renderSignIn();
+  if (S.error) { app.innerHTML = `<div class="wrap no-nav screen"><div class="empty" style="margin-top:20vh"><h3>No se pudo abrir la lista</h3><p>${esc(S.error)}</p></div></div>`; return; }
+  if (!S.loaded) { app.innerHTML = `<div class="wrap no-nav"><p class="hint center" style="margin-top:40vh">${S.stale ? "Todavía no se puede conectar. Revisa tu internet; se carga sola en cuanto responda." : "Cargando su lista de regalos…"}</p></div>`; return; }
+  if (!S.list) return renderCreate();
+  if (r.v === "wizard") return renderWizard();
+  if (r.v === "fiesta") return renderFiesta(r.f);
+  if (r.v === "detail") return renderDetail(r.f, r.i);
+  if (r.v === "mine") return renderMine();
+  if (r.v === "profile") return renderProfile();
+  return renderHome();
+}
+
+function topBar(left, right) {
+  return `<div class="bar"><div class="l">${left}</div><div class="logo">${LOGO}</div><div class="r">${right || ""}</div></div>`;
+}
+function avatarBtn() {
+  const src = S.user.photoURL;
+  return `<button class="mini-av" data-go="#perfil" aria-label="Mi perfil">${src ? `<img src="${esc(src)}" alt="" referrerpolicy="no-referrer">` : esc(firstName(S.user).charAt(0))}</button>`;
+}
+function wireGo() { app.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => go(b.dataset.go))); }
 
 function renderSignIn() {
   app.innerHTML = `
-    <div class="panel stack">
-      <div class="stack" style="gap:6px">
-        <span class="eyebrow">Lista de regalos</span>
-        <h2 style="font-size:1.6rem">Regalos que sí quieren</h2>
-        <p class="hint">Cada quien arma su wishlist. Quien regala pone su presupuesto y la ocasión, y solo le salen los regalos que caben.</p>
-      </div>
-      ${joinId ? `<p class="notice">Te invitaron a una lista. Inicia sesión para unirte.</p>` : ""}
-      <button class="btn btn-primary btn-block" id="signIn">Entrar con Google</button>
-    </div>`;
+    <div class="wrap no-nav screen"><div class="signin">
+      <div class="logo">${LOGO}</div>
+      <h1>Regalos</h1>
+      <p>Cada quien arma su wishlist. Cuando hay algo que celebrar, eliges la ocasión y tu presupuesto, y solo te salen los regalos que te alcanzan.</p>
+      ${joinId ? `<p style="color:var(--red);font-weight:800">Te invitaron a una lista. Entra para unirte.</p>` : ""}
+      <button class="btn btn-red btn-block" id="signIn" style="max-width:340px">Entrar con Google</button>
+    </div></div>`;
   $("#signIn").addEventListener("click", async () => {
     const provider = new GoogleAuthProvider();
     try { await signInWithPopup(auth, provider); }
@@ -308,212 +461,371 @@ function renderSignIn() {
 
 function renderCreate() {
   app.innerHTML = `
-    <div class="panel stack">
-      <div class="stack" style="gap:6px">
-        <span class="eyebrow">Primera vez</span>
-        <h2 style="font-size:1.6rem">Hola, ${esc(firstName(S.user))}</h2>
-        <p class="hint">Crea su lista y luego mándale el link de invitación a tu pareja. Si tu pareja ya la creó, pídele que te mande su link.</p>
-      </div>
-      <button class="btn btn-primary btn-block" id="create">Crear nuestra lista</button>
-    </div>`;
+    <div class="wrap no-nav screen"><div class="signin">
+      <div class="logo">${LOGO}</div>
+      <h1>Hola, ${esc(firstName(S.user))}</h1>
+      <p>Crea su lista y mándale el link a tu pareja. Si tu pareja ya la creó, pídele su link de invitación.</p>
+      <button class="btn btn-red btn-block" id="create" style="max-width:340px">Crear nuestra lista</button>
+    </div></div>`;
   $("#create").addEventListener("click", async ev => {
-    ev.currentTarget.disabled = true;
+    const b = ev.currentTarget; b.disabled = true;
     try {
       const ref = doc(collection(fdb, "regalos"));
       await setDoc(ref, { members: [me()], names: { [me()]: firstName(S.user) }, createdAt: Date.now() });
       openList(ref.id);
-    } catch (e) { ev.currentTarget.disabled = false; writeErr(e); }
+    } catch (e) { b.disabled = false; writeErr(e); }
   });
 }
 
-function renderInvite() {
-  const link = inviteLink();
-  app.innerHTML = `
-    <div class="panel stack">
-      <div class="stack" style="gap:6px">
-        <span class="eyebrow">Falta tu pareja</span>
-        <h2 style="font-size:1.6rem">Invita a tu pareja</h2>
-        <p class="hint">Mándale este link. Cuando entre con su cuenta de Google, la lista queda conectada para los dos. Solo pueden entrar dos personas.</p>
-      </div>
-      <input class="input" id="inviteLink" readonly value="${esc(link)}" aria-label="Link de invitación">
-      <button class="btn btn-primary btn-block" id="share">Compartir link</button>
-      <p class="hint">Mientras tanto ya puedes armar tu wishlist.</p>
-      <button class="btn btn-ghost btn-block" id="startMine">Agregar mis regalos</button>
-    </div>`;
-  $("#share").addEventListener("click", async () => {
+function inviteBlock() {
+  return `<div class="invite waves">
+    <h2>Invita a tu pareja</h2>
+    <p>Mándale este link. Cuando entre con su Google, quedan conectados. Mientras, ya puedes armar tu wishlist.</p>
+    <input class="input" id="inviteLink" readonly value="${esc(inviteLink())}" aria-label="Link de invitación">
+    <button class="btn btn-cream btn-block" id="share">Compartir link</button>
+  </div>`;
+}
+function wireInvite() {
+  const b = $("#share"); if (!b) return;
+  b.addEventListener("click", async () => {
+    const link = inviteLink();
     if (navigator.share) { try { await navigator.share({ title: "Nuestra lista de regalos", url: link }); return; } catch (e) { if (e && e.name === "AbortError") return; } }
     try { await navigator.clipboard.writeText(link); toast("Link copiado"); }
     catch (e) { const i = $("#inviteLink"); i.focus(); i.select(); toast("Copia el link de arriba"); }
   });
-  $("#startMine").addEventListener("click", () => openSheet(null));
 }
 
-function setTab(t) { S.tab = t; S.armedDelete = null; try { localStorage.setItem("regalos.tab", t); } catch (e) {} render(); window.scrollTo(0, 0); }
-
-function occChips(selected, attr) {
-  return [{ k: "any", l: "Cualquiera" }, ...OCCASIONS].map(o =>
-    `<button type="button" class="chip" ${attr}="${o.k}" aria-pressed="${selected === o.k}">${o.l}</button>`).join("");
-}
-function occTags(it) {
-  const occ = Array.isArray(it.occasions) ? it.occasions : [];
-  if (!occ.length) return `<div class="occ"><span class="any">Cualquier ocasión</span></div>`;
-  return `<div class="occ">${occ.map(k => `<span>${esc(k === "otro" && it.otherOccasion ? it.otherOccasion : occLabel(k))}</span>`).join("")}</div>`;
-}
-
-function renderGive() {
-  const p = partner(), pn = nameOf(p);
-  const theirs = S.items.filter(i => i.owner === p);
-  let html = `
-    <form class="panel stack" id="budgetForm">
-      <span class="eyebrow">Regalo para ${esc(pn)}</span>
-      <h2 class="budget-q">¿Cuánto es tu <em>presupuesto</em>?</h2>
-      <div class="money-input">
-        <span>$</span>
-        <input class="input" id="budgetIn" inputmode="numeric" pattern="[0-9,]*" placeholder="3,000" value="${esc(S.budgetDraft)}" aria-label="Presupuesto en pesos" autocomplete="off">
-        <small>MXN</small>
-      </div>
-      <div class="chips">${QUICK.map(q => `<button type="button" class="chip money" data-q="${q}">${mxn(q)}</button>`).join("")}</div>
-      <div class="stack" style="gap:8px">
-        <span class="eyebrow">¿Para qué ocasión?</span>
-        <div class="chips">${occChips(S.occasion, "data-occ")}</div>
-      </div>
-      <button class="btn btn-primary btn-block" type="submit">Ver ideas de regalo</button>
-    </form>`;
-  if (S.budget == null) {
-    html += `<p class="hint" style="text-align:center;margin-top:18px">Los precios se mantienen ocultos hasta que pongas tu presupuesto.<br>${theirs.length ? `${esc(pn)} tiene ${theirs.length} ${theirs.length === 1 ? "idea" : "ideas"} en su wishlist.` : `${esc(pn)} todavía no agrega nada a su wishlist.`}</p>`;
+/* ---------- Inicio: festividades ---------- */
+function renderHome() {
+  const p = partner();
+  let html = `<div class="wrap screen">${topBar(`<span class="brand">Regalos</span>`, avatarBtn())}
+    <div class="hello"><h1>Hola, ${esc(firstName(S.user))}</h1>${p ? `<p class="hint">¿Qué le vas a regalar a ${esc(nameOf(p))}?</p>` : ""}</div>`;
+  if (!p) {
+    html += inviteBlock();
   } else {
-    const fits = theirs
-      .filter(i => Number(i.price) <= S.budget)
-      .filter(i => S.occasion === "any" || !(i.occasions || []).length || (i.occasions || []).includes(S.occasion))
-      .sort((x, y) => (!!x.reservedBy - !!y.reservedBy) || (Number(y.price) - Number(x.price)));
-    const occTxt = S.occasion === "any" ? "" : ` para ${occLabel(S.occasion)}`;
-    html += `<section class="stack" style="margin-top:22px" aria-live="polite">
-      <div class="results-head">
-        <h2>${fits.length ? `${fits.length} ${fits.length === 1 ? "opción" : "opciones"}${esc(occTxt)}` : "Sin opciones por ahora"}</h2>
-        <span class="eyebrow">Hasta ${mxn(S.budget)}</span>
-      </div>`;
-    html += fits.length
-      ? `<div class="tags">${fits.map(giveCard).join("")}</div>`
-      : `<div class="empty"><h3>Nada entra en ese presupuesto${esc(occTxt)}</h3><p>Prueba con otra cantidad u otra ocasión. Si quieres, pídele a ${esc(pn)} que agregue más ideas.</p></div>`;
-    html += `</section>`;
+    html += `<div class="new-card waves">
+        <h2>¿Qué estamos celebrando?</h2>
+        <p>Te hago unas preguntas y te enseño lo de su wishlist que te alcanza.</p>
+        <button class="btn btn-cream btn-block" data-go="#nueva">${I("plus")} Nueva festividad</button>
+      </div>
+      <h2 class="sec">Mis festividades</h2>`;
+    const fs = [...S.fiestas].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    if (!fs.length) {
+      html += `<div class="empty"><h3>Todavía no hay festividades</h3><p>Toca <b>Nueva festividad</b> cuando se acerque un cumple, Navidad o su aniversario.</p></div>`;
+    } else {
+      html += `<div class="list">${fs.map(f => {
+        const left = f.budget - spent(f), n = Object.keys(f.bought || {}).length;
+        return `<button class="row" data-go="#f/${esc(f.id)}">
+          <span class="ic">${I(occ(f.occasion).i)}</span>
+          <span class="tx"><b>${esc(fiestaName(f))}</b><span>${f.date ? esc(fDate(f.date)) + " · " : ""}${mxn(f.budget)} · ${n ? `${n} comprado${n > 1 ? "s" : ""} · ` : ""}te quedan ${mxn(left)}</span></span>
+          <span class="ch">${I("chev")}</span></button>`;
+      }).join("")}</div>`;
+    }
+    html += `<div class="secret-note">${I("shield")}<span>Todo esto es secreto. ${esc(nameOf(p))} no ve tus festividades, tu presupuesto ni lo que ya compraste.</span></div>`;
   }
+  html += `</div>`;
   app.innerHTML = html;
+  wireGo(); wireInvite();
+}
 
-  const inp = $("#budgetIn");
-  inp.addEventListener("input", () => {
-    const digits = inp.value.replace(/[^\d]/g, "");
-    S.budgetDraft = digits ? Number(digits).toLocaleString("es-MX") : "";
-    inp.value = S.budgetDraft;
+/* ---------- Asistente: una pregunta a la vez ---------- */
+function renderWizard() {
+  if (!partner()) { location.replace("#"); return; }
+  if (!S.wz) S.wz = { step: 0, occ: null, other: "", date: "", budget: "" };
+  const w = S.wz, total = 4;
+  const dots = Array.from({ length: total }, (_, i) => `<i class="${i === w.step ? "on" : i < w.step ? "done" : ""}"></i>`).join("");
+  let body = "", foot = "";
+  if (w.step === 0) {
+    body = `<span class="wz-step">Pregunta 1 de 3</span>
+      <h1 class="wz-q">¿Qué estás celebrando?</h1>
+      <div class="occ-grid">${OCCASIONS.map(o => `<button type="button" class="occ-opt ${o.k === "otro" ? "wide" : ""}" data-occ="${o.k}" aria-pressed="${w.occ === o.k}">${I(o.i)}${o.l}</button>`).join("")}</div>
+      <label class="field" ${w.occ === "otro" ? "" : "hidden"} id="otherWrap">¿Qué celebran?<input class="input" id="wOther" maxlength="40" placeholder="Ej. su graduación" value="${esc(w.other)}"></label>`;
+    foot = `<button class="btn btn-red btn-block" id="wNext" ${w.occ && (w.occ !== "otro" || w.other.trim()) ? "" : "disabled"}>Siguiente</button>`;
+  } else if (w.step === 1) {
+    body = `<span class="wz-step">Pregunta 2 de 3</span>
+      <h1 class="wz-q">¿Cuándo es?</h1>
+      <p class="hint">Así la reconoces fácil en tu lista.</p>
+      <input class="input" type="date" id="wDate" value="${esc(w.date)}" aria-label="Fecha">`;
+    foot = `<button class="btn btn-red btn-block" id="wNext">${w.date ? "Siguiente" : "Saltar"}</button>`;
+  } else if (w.step === 2) {
+    body = `<span class="wz-step">Pregunta 3 de 3</span>
+      <h1 class="wz-q">¿Cuál es tu presupuesto?</h1>
+      <div class="money"><span>$</span><input class="input" id="wBudget" inputmode="numeric" placeholder="3,000" value="${esc(w.budget)}" aria-label="Presupuesto en pesos" autocomplete="off"><small>MXN</small></div>
+      <div class="chips">${QUICK.map(q => `<button type="button" class="chip" data-q="${q}">${mxn(q)}</button>`).join("")}</div>
+      <div class="warn">${I("lock")}<span>Piénsalo bien: una vez creada la festividad, el presupuesto ya no se puede cambiar.</span></div>`;
+    foot = `<button class="btn btn-red btn-block" id="wNext" ${numBudget() > 0 ? "" : "disabled"}>Siguiente</button>`;
+  } else {
+    const o = occ(w.occ);
+    body = `<span class="wz-step">Listo</span>
+      <h1 class="wz-q">¿Todo bien?</h1>
+      <div class="summary waves">
+        <div><div class="k">Celebras</div><div class="v">${esc(w.occ === "otro" ? w.other : o.l)}</div></div>
+        ${w.date ? `<div><div class="k">Fecha</div><div class="v">${esc(fDate(w.date))}</div></div>` : ""}
+        <div><div class="k">Presupuesto</div><div class="v">${mxn(numBudget())}</div></div>
+        <div><div class="k">Para</div><div class="v">${esc(nameOf(partner()))}</div></div>
+      </div>
+      <div class="warn">${I("lock")}<span>El presupuesto queda fijo. Si te equivocaste, regresa ahora.</span></div>`;
+    foot = `<button class="btn btn-red btn-block" id="wNext">Crear y ver regalos</button>`;
+  }
+  app.innerHTML = `<div class="wrap no-nav screen"><div class="wz">
+      <div class="wz-top"><button class="icon-btn" id="wBack" aria-label="${w.step ? "Atrás" : "Cancelar"}">${I("back")}</button><div class="dots">${dots}</div><span style="width:44px"></span></div>
+      <div class="wz-body">${body}</div>
+      <div class="wz-foot">${foot}</div>
+    </div></div>`;
+
+  $("#wBack").addEventListener("click", () => { if (w.step) { w.step--; render(); } else { S.wz = null; history.length > 1 ? history.back() : location.replace("#"); } });
+  app.querySelectorAll("[data-occ]").forEach(b => b.addEventListener("click", () => { w.occ = b.dataset.occ; render(); if (w.occ === "otro") $("#wOther").focus(); }));
+  const other = $("#wOther");
+  if (other) other.addEventListener("input", () => { w.other = other.value; $("#wNext").disabled = !w.other.trim(); });
+  const date = $("#wDate");
+  if (date) date.addEventListener("input", () => { w.date = date.value; $("#wNext").textContent = w.date ? "Siguiente" : "Saltar"; });
+  const bud = $("#wBudget");
+  if (bud) {
+    bud.addEventListener("input", () => {
+      const d = bud.value.replace(/[^\d]/g, ""); w.budget = d ? Number(d).toLocaleString("es-MX") : ""; bud.value = w.budget;
+      $("#wNext").disabled = !(numBudget() > 0);
+    });
+    setTimeout(() => bud.focus(), 60);
+  }
+  app.querySelectorAll("[data-q]").forEach(b => b.addEventListener("click", () => { w.budget = Number(b.dataset.q).toLocaleString("es-MX"); render(); }));
+  $("#wNext").addEventListener("click", async ev => {
+    if (w.step < 3) { w.step++; render(); return; }
+    const btn = ev.currentTarget; btn.disabled = true;
+    const year = w.date ? w.date.slice(0, 4) : String(new Date().getFullYear());
+    const name = w.occ === "otro" ? w.other.trim() : `${occ(w.occ).l} ${year}`;
+    try {
+      const ref = await addDoc(collection(fdb, "regalos", S.listId, "privado", me(), "fiestas"), {
+        occasion: w.occ, other: w.occ === "otro" ? w.other.trim() : "", name, date: w.date || "",
+        budget: numBudget(), bought: {}, createdAt: Date.now(),
+      });
+      S.wz = null; S.tab = "ideas";
+      location.replace("#f/" + ref.id);
+    } catch (e) { btn.disabled = false; writeErr(e); }
   });
-  app.querySelectorAll("[data-q]").forEach(b => b.addEventListener("click", () => {
-    S.budgetDraft = Number(b.dataset.q).toLocaleString("es-MX"); S.budget = Number(b.dataset.q); render();
-  }));
-  app.querySelectorAll("[data-occ]").forEach(b => b.addEventListener("click", () => {
-    S.occasion = b.dataset.occ;
-    const v = Number((S.budgetDraft || "").replace(/[^\d]/g, ""));
-    if (v > 0) S.budget = v;
-    render();
-  }));
-  $("#budgetForm").addEventListener("submit", ev => {
-    ev.preventDefault();
-    const v = Number((S.budgetDraft || "").replace(/[^\d]/g, ""));
-    if (!v) { toast("Escribe una cantidad primero"); inp.focus(); return; }
-    S.budget = v; render();
-  });
-  app.querySelectorAll("[data-reserve]").forEach(b => b.addEventListener("click", () => toggleReserve(b.dataset.reserve)));
+}
+const numBudget = () => Number(String((S.wz && S.wz.budget) || "").replace(/[^\d]/g, "")) || 0;
+
+/* ---------- Festividad: su wishlist ---------- */
+function matchesOcc(item, f) {
+  const o = Array.isArray(item.occasions) ? item.occasions : [];
+  return !o.length || o.includes(f.occasion);
+}
+function givenElsewhere(itemId, fid) {
+  const f = S.fiestas.find(x => x.id !== fid && x.bought && x.bought[itemId]);
+  return f ? fiestaName(f) : "";
 }
 
-function giveCard(i) {
-  const pct = Math.max(4, Math.min(100, Math.round((Number(i.price) / S.budget) * 100)));
-  const url = safeUrl(i.url);
-  const mine = i.reservedBy === me();
-  const left = S.budget - Number(i.price);
-  return `<article class="tag owner-${avClass(i.owner)} ${i.reservedBy ? "reserved" : ""}">
-    <div class="tag-head"><h3 class="tag-title">${esc(i.title)}</h3><span class="price">${mxn(Number(i.price))}</span></div>
-    <div class="meter" aria-hidden="true"><i style="width:${pct}%"></i></div>
-    <span class="fit">${left > 0 ? `Te sobran ${mxn(left)}` : "Justo tu presupuesto"}${i.reservedBy ? " · Ya lo apartaste" : ""}</span>
-    ${occTags(i)}
-    ${i.note ? `<p class="tag-note">${esc(i.note)}</p>` : ""}
-    <div class="tag-actions">
-      ${url ? `<a class="btn btn-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Ver en ${esc(hostOf(url) || "la tienda")} ↗</a>` : ""}
-      <button class="btn ${mine ? "btn-ok" : "btn-ghost"}" data-reserve="${esc(i.id)}">${mine ? "✓ Apartado" : "Apartar"}</button>
-    </div>
-  </article>`;
-}
+function renderFiesta(fid) {
+  const f = S.fiestas.find(x => x.id === fid);
+  if (!f) { app.innerHTML = `<div class="wrap screen">${topBar(`<button class="icon-btn" data-go="#" aria-label="Atrás">${I("back")}</button>`)}<div class="empty"><h3>No encontré esa festividad</h3><p>Puede que la hayas borrado.</p></div></div>`; wireGo(); return; }
+  const p = partner(), bought = f.bought || {};
+  const used = spent(f), left = f.budget - used;
+  const pct = Math.min(100, Math.round((used / f.budget) * 100));
+  const ideas = theirItems().filter(i => !bought[i.id] && matchesOcc(i, f) && Number(i.price) <= left).sort((a, b) => Number(b.price) - Number(a.price));
+  const boughtList = Object.entries(bought).map(([id, b]) => ({ ...(S.items.find(i => i.id === id) || { id, title: b.title, price: b.price, gone: true }), id, paid: b.price }));
+  const nb = boughtList.length;
 
-async function toggleReserve(id) {
-  const it = S.items.find(x => x.id === id); if (!it) return;
-  try {
-    await updateDoc(doc(fdb, "regalos", S.listId, "items", id), { reservedBy: it.reservedBy ? null : me() });
-    toast(it.reservedBy ? "Ya no está apartado" : "Apartado. No se le muestra a tu pareja.");
-  } catch (e) { writeErr(e); }
-}
-
-function renderMine() {
-  const mine = S.items.filter(i => i.owner === me()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  let html = `<div class="stack" style="gap:6px;margin-block:6px 16px">
-      <span class="eyebrow">Mi wishlist</span>
-      <h2 style="font-size:1.6rem">Lo que me gustaría recibir</h2>
-      <p class="hint">${esc(nameOf(partner()))} nunca ve tus precios de golpe: solo le salen los que caben en su presupuesto.</p>
+  let html = `<div class="wrap screen">
+    ${topBar(`<button class="icon-btn" data-go="#" aria-label="Atrás">${I("back")}</button>`,
+      `<button class="icon-btn bagbtn" id="toBought" aria-label="Comprados: ${nb}">${I("bag")}${nb ? `<b>${nb}</b>` : ""}</button>`)}
+    <div class="full band waves"><div class="in">
+      <div class="band-row"><span class="name">${esc(fiestaName(f))}</span><span class="lbl">${f.date ? esc(fDate(f.date)) : esc(occ(f.occasion).l)}</span></div>
+      <div class="band-row"><span class="lbl">${I("lock")} Presupuesto fijo: ${mxn(f.budget)}</span></div>
+      <div class="band-row"><span class="big">Te quedan ${mxn(left)}</span></div>
+      <div class="meter" aria-hidden="true"><i style="width:${pct}%"></i></div>
+    </div></div>
+    <h2 class="for">Para ${esc(nameOf(p))}</h2>
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="ideas" aria-selected="${S.tab === "ideas"}">Te alcanza (${ideas.length})</button>
+      <button role="tab" data-tab="comprados" aria-selected="${S.tab === "comprados"}">Comprados (${nb})</button>
     </div>`;
-  if (!mine.length) {
-    html += `<div class="empty"><h3>Tu wishlist está vacía</h3><p>Toca <b>+ Agregar regalo</b>, pega el link y ponle precio y ocasión.</p></div>`;
+  const list = S.tab === "comprados" ? boughtList : ideas;
+  if (!list.length) {
+    html += S.tab === "comprados"
+      ? `<div class="empty"><h3>Aún no compras nada</h3><p>Abre un regalo y toca <b>Ya lo compré</b>. ${esc(nameOf(p))} nunca lo va a ver.</p></div>`
+      : left <= 0
+        ? `<div class="empty"><h3>Ya usaste todo tu presupuesto</h3><p>Revisa lo que compraste en la pestaña <b>Comprados</b>.</p></div>`
+        : `<div class="empty"><h3>Nada entra en ${mxn(left)}</h3><p>${theirItems().length ? `Lo de su wishlist para ${esc(occ(f.occasion).l)} cuesta más.` : `${esc(nameOf(p))} todavía no agrega regalos a su wishlist.`}</p></div>`;
   } else {
-    html += `<div class="tags">${mine.map(i => {
-      const url = safeUrl(i.url);
-      const armed = S.armedDelete === i.id;
-      return `<article class="tag owner-${avClass(i.owner)}">
-        <div class="tag-head"><h3 class="tag-title">${esc(i.title)}</h3><span class="price">${mxn(Number(i.price))}</span></div>
-        ${occTags(i)}
-        ${i.note ? `<p class="tag-note">${esc(i.note)}</p>` : ""}
-        <div class="tag-actions">
-          ${url ? `<a class="btn btn-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(hostOf(url) || "Link")} ↗</a>` : ""}
-          <button class="btn btn-ghost" data-edit="${esc(i.id)}">Editar</button>
-          <button class="btn btn-danger ${armed ? "armed" : ""}" data-del="${esc(i.id)}">${armed ? "¿Seguro? Toca de nuevo" : "Borrar"}</button>
+    html += `<div class="grid">${list.map(i => {
+      const isB = S.tab === "comprados";
+      const was = !isB ? givenElsewhere(i.id, f.id) : "";
+      return `<a class="gcard" href="#f/${esc(f.id)}/i/${esc(i.id)}">
+        <div class="tile ${isB ? "bought" : ""}">${photoHtml(i.photo)}
+          <div class="top"><span>${isB ? "Comprado" : "Disponible"}</span><span class="p">${mxn(Number(isB ? i.paid : i.price))}</span></div>
+          ${isB ? `<span class="stamp">Listo</span>` : ""}
         </div>
-      </article>`; }).join("")}</div>`;
+        <h3>${esc(i.title)}</h3>
+        ${was ? `<span class="was">Ya se lo diste en ${esc(was)}</span>` : ""}
+        <div class="desc"><p>${esc(i.gone ? "Ya no está en su wishlist" : (i.note || (i.url ? hostOf(safeUrl(i.url)) : "")))}</p>${I("arrow")}</div>
+      </a>`;
+    }).join("")}</div>`;
   }
+  html += `<div class="del-fiesta"><button class="link-red" id="delF"><span class="lb">Borrar esta festividad</span></button></div></div>`;
   app.innerHTML = html;
-  app.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => openSheet(b.dataset.edit)));
-  app.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", async () => {
-    const id = b.dataset.del;
-    if (S.armedDelete !== id) { S.armedDelete = id; render(); clearTimeout(renderMine.t); renderMine.t = setTimeout(() => { if (S.armedDelete === id) { S.armedDelete = null; render(); } }, 4000); return; }
-    S.armedDelete = null;
-    try { await deleteDoc(doc(fdb, "regalos", S.listId, "items", id)); toast("Regalo borrado"); } catch (e) { writeErr(e); }
-  }));
+  wireGo();
+  app.querySelectorAll("[data-tab]").forEach(b => b.addEventListener("click", () => { S.tab = b.dataset.tab; render(); }));
+  $("#toBought").addEventListener("click", () => { S.tab = "comprados"; render(); });
+  $("#delF").addEventListener("click", async ev => {
+    if (!arm("delF", ev.currentTarget, "¿Seguro? Toca otra vez para borrar")) return;
+    try { await deleteDoc(doc(fdb, "regalos", S.listId, "privado", me(), "fiestas", f.id)); location.replace("#"); toast("Festividad borrada"); }
+    catch (e) { writeErr(e); }
+  });
 }
 
-/* ---------- Add / edit sheet ---------- */
+/* ---------- Detalle del regalo ---------- */
+function renderDetail(fid, iid) {
+  const f = S.fiestas.find(x => x.id === fid);
+  const b = f && f.bought && f.bought[iid];
+  const it = S.items.find(x => x.id === iid) || (b ? { id: iid, title: b.title, price: b.price, gone: true } : null);
+  if (!f || !it) { location.replace(f ? "#f/" + fid : "#"); return; }
+  const left = f.budget - spent(f);
+  const price = Number(b ? b.price : it.price);
+  const url = safeUrl(it.url);
+  const occs = (it.occasions || []).length ? it.occasions.map(k => k === "otro" && it.otherOccasion ? it.otherOccasion : occ(k).l).join(" · ") : "Cualquier ocasión";
+  const short = !b && price > left;
+  app.innerHTML = `<div class="wrap no-nav screen" style="padding-bottom:0">
+    ${topBar(`<button class="icon-btn" id="dBack" aria-label="Atrás">${I("back")}</button>`, b ? `<span class="icon-btn" style="color:var(--ok)" aria-label="Comprado">${I("check")}</span>` : "")}
+    <div class="hero-img">${photoHtml(it.photo)}</div>
+    <div class="dt-title"><h1>${esc(it.title)}</h1>${I("heart")}</div>
+    <div class="full panel waves"><div class="in">
+      <div class="meta"><span>${esc(occs)}</span><span>${esc(fiestaName(f))}</span></div>
+      <div class="body">
+        <p>${esc(it.gone ? "Este regalo ya no está en su wishlist, pero sigue en tus compras." : (it.note || "Sin descripción."))}</p>
+        ${url ? `<span class="host">De ${esc(hostOf(url))}</span>` : ""}
+        <div class="price"><small>$</small>${esc(new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 }).format(price))}</div>
+        <div class="acts">
+          ${url ? `<a class="btn btn-outline" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Ver tienda ${I("ext")}</a>` : `<span></span>`}
+          <button class="btn btn-cream" id="buy" ${short ? "disabled" : ""}>${b ? `${I("check")} Comprado` : "Ya lo compré"}</button>
+        </div>
+        ${short ? `<p class="short">Te faltan ${mxn(price - left)} para este regalo.</p>` : b ? `<p class="short">Toca <b>Comprado</b> otra vez si quieres desmarcarlo.</p>` : `<p class="short">Solo tú lo ves. ${esc(nameOf(partner()))} no se entera.</p>`}
+      </div>
+    </div></div>
+  </div>`;
+  $("#dBack").addEventListener("click", () => history.length > 1 ? history.back() : location.replace("#f/" + fid));
+  $("#buy").addEventListener("click", async ev => {
+    const btn = ev.currentTarget; btn.disabled = true;
+    try {
+      await updateDoc(doc(fdb, "regalos", S.listId, "privado", me(), "fiestas", fid), {
+        ["bought." + iid]: b ? deleteField() : { price: Number(it.price), title: String(it.title || "").slice(0, 120), at: Date.now() },
+      });
+      toast(b ? "Desmarcado" : "Tachado. Es secreto.");
+    } catch (e) { btn.disabled = false; writeErr(e); }
+  });
+}
+
+/* ---------- Mi wishlist ---------- */
+function renderMine() {
+  const mine = myItems();
+  let html = `<div class="wrap screen">${topBar(`<span class="brand">Regalos</span>`, avatarBtn())}
+    <div class="mine-head"><h1>Mi wishlist</h1><button class="btn btn-red" id="add">${I("plus")} Agregar</button></div>
+    <p class="hint" style="margin:-8px 0 18px">Lo que pongas aquí se queda para todas las festividades. ${partner() ? esc(nameOf(partner())) : "Tu pareja"} solo ve lo que le alcanza con su presupuesto.</p>`;
+  html += mine.length
+    ? `<div class="grid">${mine.map(i => `<button class="gcard" data-edit="${esc(i.id)}">
+        <div class="tile">${photoHtml(i.photo)}<div class="top"><span>${esc((i.occasions || []).length ? (i.occasions.length === 1 ? occ(i.occasions[0]).l : i.occasions.length + " ocasiones") : "Cualquiera")}</span><span class="p">${mxn(Number(i.price))}</span></div></div>
+        <h3>${esc(i.title)}</h3>
+        <div class="desc"><p>${esc(i.note || (i.url ? hostOf(safeUrl(i.url)) : "Toca para editar"))}</p>${I("arrow")}</div>
+      </button>`).join("")}</div>`
+    : `<div class="empty"><h3>Tu wishlist está vacía</h3><p>Toca <b>Agregar</b>, sube una foto, pega el link y ponle precio y ocasión.</p></div>`;
+  html += `</div>`;
+  app.innerHTML = html;
+  wireGo();
+  $("#add").addEventListener("click", () => openSheet(null));
+  app.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => openSheet(b.dataset.edit)));
+}
+
+/* ---------- Perfil ---------- */
+function renderProfile() {
+  const p = partner(), src = S.user.photoURL;
+  app.innerHTML = `<div class="wrap screen">
+    <h1 class="pf-h">Perfil</h1>
+    <div class="pf-card waves">
+      <div class="pf-top">
+        <div class="pf-av">${src ? `<img src="${esc(src)}" alt="" referrerpolicy="no-referrer">` : esc(firstName(S.user).charAt(0))}</div>
+        <div style="min-width:0"><h2>Hola, ${esc(firstName(S.user))}</h2><p>Regalos que sí se quieren</p></div>
+      </div>
+      <div class="stats">
+        <div class="stat"><span class="ic">${I("heart")}</span><div><b>${myItems().length}</b><span>En mi wishlist</span></div></div>
+        <div class="stat"><span class="ic">${I("gift")}</span><div><b>${S.fiestas.length}</b><span>Festividades</span></div></div>
+      </div>
+    </div>
+    <h2 class="sec">Acceso rápido</h2>
+    <div class="quick">
+      <button class="qcard" data-go="#mia"><span class="ic">${I("heart")}</span><b>Mi wishlist</b><div class="ft"><span>Agrega y edita tus regalos</span><span class="go">${I("chev")}</span></div></button>
+      <button class="qcard" data-go="#"><span class="ic">${I("gift")}</span><b>Festividades</b><div class="ft"><span>Lo que estás celebrando</span><span class="go">${I("chev")}</span></div></button>
+    </div>
+    <h2 class="sec">Mi pareja</h2>
+    ${p ? `<div class="list">
+        <div class="row"><span class="ic navy">${I("people")}</span><span class="tx"><b>${esc(nameOf(p))}</b><span>Conectados · ${theirItems().length} regalos en su wishlist</span></span></div>
+        <div class="row"><span class="ic">${I("shield")}</span><span class="tx"><b>Tus compras son secretas</b><span>${esc(nameOf(p))} no ve tus festividades ni lo que tachas</span></span></div>
+      </div>` : inviteBlock()}
+    <button class="logout" id="logout">${I("out")}<span class="lb">Cerrar sesión</span></button>
+  </div>`;
+  wireGo(); wireInvite();
+  $("#logout").addEventListener("click", ev => { if (arm("out", ev.currentTarget, "Toca otra vez para salir")) signOut(auth); });
+}
+
+/* ---------- Agregar / editar regalo ---------- */
+function compress(file) {
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const max = 720, k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      let q = 0.78, out = c.toDataURL("image/jpeg", q);
+      while (out.length > 380000 && q > 0.4) { q -= 0.1; out = c.toDataURL("image/jpeg", q); }
+      res(out);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("img")); };
+    img.src = url;
+  });
+}
+
 function openSheet(editId) {
   const it = editId ? S.items.find(x => x.id === editId) : null;
   const sel = new Set(it ? (it.occasions || []) : []);
+  let photo = it ? safeImg(it.photo) : "";
   const root = $("#sheetRoot");
   root.innerHTML = `
     <div class="sheet-bg" id="sheetBg">
-      <form class="sheet stack" id="itemForm" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
-        <div class="sheet-grip" aria-hidden="true"></div>
+      <form class="sheet" id="itemForm" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+        <div class="grip" aria-hidden="true"></div>
         <div class="sheet-head"><h2 id="sheetTitle">${it ? "Editar regalo" : "Nuevo regalo"}</h2><button type="button" class="x" id="sheetX" aria-label="Cerrar">×</button></div>
+        <label class="photo-pick" id="pick">
+          <span id="pickInner">${photo ? `<img src="${photo}" alt=""><span class="chg">Cambiar foto</span>` : `<span class="lbl">${I("camera")}Agregar foto</span>`}</span>
+          <input type="file" id="fPhoto" accept="image/*" aria-label="Foto del regalo">
+        </label>
         <label class="field">¿Qué es?<input class="input" id="fTitle" required maxlength="120" placeholder="Ej. Libro “Cien años de soledad”" value="${esc(it?.title)}"></label>
+        <label class="field">Descripción <span class="opt">(talla, color, modelo…)</span><textarea class="input" id="fNote" maxlength="300" placeholder="Ej. en pasta dura, la edición de aniversario">${esc(it?.note)}</textarea></label>
         <label class="field">Link <span class="opt">(Amazon, Liverpool, Mercado Libre…)</span><input class="input" id="fUrl" inputmode="url" autocomplete="off" placeholder="https://…" value="${esc(it?.url)}"></label>
         <label class="field">Precio aproximado (MXN)<input class="input" id="fPrice" required inputmode="decimal" placeholder="Ej. 450" value="${it ? esc(it.price) : ""}"></label>
-        <div class="stack" style="gap:8px">
-          <span class="field" style="font-weight:700;font-size:.9rem">¿Para qué ocasión me lo darías? <span class="opt" style="font-weight:400;color:var(--muted)">Si no eliges, sirve para cualquiera</span></span>
-          <div class="chips" id="fOcc">${OCCASIONS.map(o => `<button type="button" class="chip" data-o="${o.k}" aria-pressed="${sel.has(o.k)}">${o.l}</button>`).join("")}</div>
+        <div class="field">¿Para qué ocasión me lo darías? <span class="opt">Si no eliges, sirve para cualquiera</span>
+          <div class="chips" style="margin-top:4px">${OCCASIONS.map(o => `<button type="button" class="chip" data-o="${o.k}" aria-pressed="${sel.has(o.k)}">${o.l}</button>`).join("")}</div>
         </div>
-        <label class="field" id="otherWrap" ${sel.has("otro") ? "" : "hidden"}>¿Cuál ocasión?<input class="input" id="fOther" maxlength="40" placeholder="Ej. graduación, Día del Niño" value="${esc(it?.otherOccasion)}"></label>
-        <label class="field">Nota <span class="opt">(talla, color, modelo…)</span><textarea class="input" id="fNote" maxlength="300" placeholder="Ej. en pasta dura, talla M, color verde">${esc(it?.note)}</textarea></label>
-        <button class="btn btn-primary btn-block" type="submit" id="fSave">${it ? "Guardar cambios" : "Agregar a mi wishlist"}</button>
+        <label class="field" id="otherWrap" ${sel.has("otro") ? "" : "hidden"}>¿Cuál ocasión?<input class="input" id="fOther" maxlength="40" placeholder="Ej. graduación" value="${esc(it?.otherOccasion)}"></label>
+        <button class="btn btn-red btn-block" type="submit" id="fSave">${it ? "Guardar cambios" : "Agregar a mi wishlist"}</button>
+        ${it ? `<button type="button" class="link-red" id="fDel"><span class="lb">Borrar de mi wishlist</span></button>` : ""}
       </form>
     </div>`;
   const close = () => (root.innerHTML = "");
   $("#sheetX").addEventListener("click", close);
   $("#sheetBg").addEventListener("click", e => { if (e.target.id === "sheetBg") close(); });
+  $("#fPhoto").addEventListener("change", async e => {
+    const file = e.target.files && e.target.files[0]; if (!file) return;
+    try { photo = await compress(file); $("#pickInner").innerHTML = `<img src="${photo}" alt=""><span class="chg">Cambiar foto</span>`; }
+    catch (err) { toast("No se pudo leer esa foto. Prueba con otra."); }
+  });
   root.querySelectorAll("[data-o]").forEach(b => b.addEventListener("click", () => {
     const k = b.dataset.o; sel.has(k) ? sel.delete(k) : sel.add(k);
-    b.setAttribute("aria-pressed", sel.has(k));
-    $("#otherWrap").hidden = !sel.has("otro");
+    b.setAttribute("aria-pressed", sel.has(k)); $("#otherWrap").hidden = !sel.has("otro");
   }));
-  setTimeout(() => $("#fTitle").focus(), 50);
+  const del = $("#fDel");
+  if (del) del.addEventListener("click", async ev => {
+    if (!arm("delI", ev.currentTarget, "¿Seguro? Toca otra vez para borrar")) return;
+    try { await deleteDoc(doc(fdb, "regalos", S.listId, "items", it.id)); close(); toast("Regalo borrado"); } catch (e) { writeErr(e); }
+  });
   $("#itemForm").addEventListener("submit", async ev => {
     ev.preventDefault();
     const title = $("#fTitle").value.trim();
@@ -523,7 +835,7 @@ function openSheet(editId) {
     const rawUrl = $("#fUrl").value.trim();
     if (rawUrl && !safeUrl(rawUrl)) { toast("Ese link no se ve bien. Revísalo."); $("#fUrl").focus(); return; }
     const body = {
-      title, price, url: rawUrl ? safeUrl(rawUrl) : "",
+      title, price, url: rawUrl ? safeUrl(rawUrl) : "", photo: photo || "",
       occasions: OCCASIONS.map(o => o.k).filter(k => sel.has(k)),
       otherOccasion: sel.has("otro") ? $("#fOther").value.trim() : "",
       note: $("#fNote").value.trim(),
@@ -531,30 +843,28 @@ function openSheet(editId) {
     $("#fSave").disabled = true;
     try {
       if (it) await updateDoc(doc(fdb, "regalos", S.listId, "items", it.id), body);
-      else await addDoc(collection(fdb, "regalos", S.listId, "items"), { ...body, owner: me(), createdAt: Date.now(), reservedBy: null });
+      else await addDoc(collection(fdb, "regalos", S.listId, "items"), { ...body, owner: me(), createdAt: Date.now() });
       close(); toast(it ? "Cambios guardados" : "Agregado a tu wishlist");
     } catch (e) { $("#fSave").disabled = false; writeErr(e); }
   });
 }
 
-/* ---------- Data ---------- */
+/* ---------- Datos ---------- */
 let unsubs = [];
 function stopAll() { unsubs.forEach(u => u()); unsubs = []; }
+function dataRender() { if (route().v !== "wizard") render(); }
 
 function openList(id) {
   stopAll();
   S.listId = id; S.loaded = false; S.stale = false;
-  try { localStorage.setItem("regalos.list", id); } catch (e) {}
-  if (joinId) history.replaceState(null, "", location.pathname);
-  let gotList = false, gotItems = false;
+  if (joinId) history.replaceState(null, "", location.pathname + location.hash);
+  let got = { list: false, items: false, fiestas: false };
   const timer = setTimeout(() => { if (!S.loaded) { S.stale = true; render(); } }, 10000);
-  const done = () => { if (gotList && gotItems) { S.loaded = true; clearTimeout(timer); } render(); };
-  unsubs.push(onSnapshot(doc(fdb, "regalos", id), snap => {
-    S.list = snap.exists() ? snap.data() : null; gotList = true; done();
-  }, err => { clearTimeout(timer); S.error = err && err.code === "permission-denied" ? "Firestore no dio permiso. Revisa que pegaste las reglas nuevas en Firebase." : "No se pudo cargar la lista."; render(); }));
-  unsubs.push(onSnapshot(collection(fdb, "regalos", id, "items"), snap => {
-    S.items = snap.docs.map(d => ({ id: d.id, ...d.data() })); gotItems = true; done();
-  }, () => { gotItems = true; done(); }));
+  const done = k => { got[k] = true; if (got.list && got.items && got.fiestas) { S.loaded = true; clearTimeout(timer); } dataRender(); };
+  const denied = err => { clearTimeout(timer); S.error = err && err.code === "permission-denied" ? "Firebase no dio permiso. Revisa que pegaste las reglas nuevas." : "No se pudo cargar la lista."; render(); };
+  unsubs.push(onSnapshot(doc(fdb, "regalos", id), snap => { S.list = snap.exists() ? snap.data() : null; done("list"); }, denied));
+  unsubs.push(onSnapshot(collection(fdb, "regalos", id, "items"), snap => { S.items = snap.docs.map(d => ({ id: d.id, ...d.data() })); done("items"); }, denied));
+  unsubs.push(onSnapshot(collection(fdb, "regalos", id, "privado", me(), "fiestas"), snap => { S.fiestas = snap.docs.map(d => ({ id: d.id, ...d.data() })); done("fiestas"); }, denied));
 }
 
 async function findList() {
@@ -563,38 +873,37 @@ async function findList() {
     if (joinId) {
       const ref = doc(fdb, "regalos", joinId);
       const snap = await getDoc(ref);
-      if (!snap.exists()) { S.error = "Ese link de invitación no existe. Pide que te lo manden otra vez."; S.loaded = true; return render(); }
+      if (!snap.exists()) { S.error = "Ese link de invitación no existe. Pide que te lo manden otra vez."; return render(); }
       const d = snap.data();
       if (!(d.members || []).includes(me())) {
-        if ((d.members || []).length >= 2) { S.error = "Esa lista ya tiene a dos personas."; S.loaded = true; return render(); }
+        if ((d.members || []).length >= 2) { S.error = "Esa lista ya tiene a dos personas."; return render(); }
         await updateDoc(ref, { members: arrayUnion(me()), ["names." + me()]: firstName(S.user) });
       }
       return openList(joinId);
     }
-    const q = query(collection(fdb, "regalos"), where("members", "array-contains", me()), limit(1));
-    const res = await getDocs(q);
+    const res = await getDocs(query(collection(fdb, "regalos"), where("members", "array-contains", me()), limit(1)));
     if (!res.empty) return openList(res.docs[0].id);
     S.list = null; S.loaded = true; render();
   } catch (e) {
-    S.error = e && e.code === "permission-denied" ? "Firestore no dio permiso. Revisa que pegaste las reglas nuevas en Firebase." : "No se pudo conectar. Revisa tu internet y recarga.";
-    S.loaded = true; render();
+    S.error = e && e.code === "permission-denied" ? "Firebase no dio permiso. Revisa que pegaste las reglas nuevas." : "No se pudo conectar. Revisa tu internet y recarga.";
+    render();
   }
 }
 
-/* ---------- Wire up ---------- */
-$("#tabGive").addEventListener("click", () => setTab("give"));
-$("#tabMine").addEventListener("click", () => setTab("mine"));
-$("#fab").addEventListener("click", () => openSheet(null));
-$("#meBtn").addEventListener("click", () => {
-  if (S.armedOut) { signOut(auth); S.armedOut = false; return; }
-  S.armedOut = true; toast("Toca otra vez tu nombre para cerrar sesión");
-  setTimeout(() => (S.armedOut = false), 3000);
+$("#navHome").addEventListener("click", () => go("#"));
+$("#navMine").addEventListener("click", () => go("#mia"));
+$("#navProfile").addEventListener("click", () => go("#perfil"));
+window.addEventListener("hashchange", () => {
+  if (route().v !== "wizard") S.wz = null;
+  if (route().v !== "fiesta" && route().v !== "detail") S.tab = "ideas";
+  $("#sheetRoot").innerHTML = "";
+  render(); window.scrollTo(0, 0);
 });
 
 getRedirectResult(auth).catch(() => {});
 onAuthStateChanged(auth, user => {
   stopAll();
-  S.authReady = true; S.user = user; S.list = null; S.items = []; S.loaded = false; S.listId = null;
+  Object.assign(S, { authReady: true, user, list: null, items: [], fiestas: [], loaded: false, listId: null, error: "" });
   render();
   if (user) findList();
 });

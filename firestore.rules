@@ -10,6 +10,13 @@ service cloud.firestore {
     match /regalos/{listId} {
       function signedIn() { return request.auth != null; }
       function isMember() { return signedIn() && request.auth.uid in resource.data.members; }
+      function inList() {
+        return request.auth != null
+          && request.auth.uid in get(/databases/$(db)/documents/regalos/$(listId)).data.members;
+      }
+      function photoOk() {
+        return !('photo' in request.resource.data) || request.resource.data.photo.size() < 500000;
+      }
 
       // Crear una lista nueva donde tú eres la única persona.
       allow create: if signedIn() && request.resource.data.members == [request.auth.uid];
@@ -26,21 +33,24 @@ service cloud.firestore {
       );
       allow delete: if false;
 
+      // Wishlist: los dos la ven; cada quien agrega, edita y borra solo lo suyo.
       match /items/{itemId} {
-        function inList() {
-          return request.auth != null
-            && request.auth.uid in get(/databases/$(db)/documents/regalos/$(listId)).data.members;
-        }
         allow read: if inList();
-        // Cada quien agrega y borra solo sus propios regalos.
-        allow create: if inList() && request.resource.data.owner == request.auth.uid;
+        allow create: if inList() && request.resource.data.owner == request.auth.uid && photoOk();
+        allow update: if inList() && resource.data.owner == request.auth.uid
+          && request.resource.data.owner == request.auth.uid && photoOk();
         allow delete: if inList() && resource.data.owner == request.auth.uid;
-        // Tu pareja solo puede marcar "apartado"; tú editas lo demás de tus regalos.
-        allow update: if inList() && (
-          (resource.data.owner == request.auth.uid && request.resource.data.owner == request.auth.uid)
-          || (resource.data.owner != request.auth.uid
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reservedBy']))
-        );
+      }
+
+      // Festividades y compras: secretas, solo las ve quien las creó.
+      // El presupuesto y la ocasión no se pueden cambiar después de crearla.
+      match /privado/{uid}/fiestas/{fiestaId} {
+        allow read, delete: if inList() && request.auth.uid == uid;
+        allow create: if inList() && request.auth.uid == uid
+          && request.resource.data.budget is number && request.resource.data.budget > 0;
+        allow update: if inList() && request.auth.uid == uid
+          && request.resource.data.budget == resource.data.budget
+          && request.resource.data.occasion == resource.data.occasion;
       }
     }
   }
