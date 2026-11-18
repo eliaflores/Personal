@@ -337,6 +337,11 @@ async function leer(url) {
     const asin = asinOf(finalUrl) || asinOf(url);
     if (asin) r.image = await amazonImage(asin);
   }
+  if (process.env.DETALLE === "true" && html && !okPrice(r.price)) {
+    // Solo qué tipo de datos trae la página (nombres de campos), nunca valores.
+    const keys = ["salePrice", "promoPrice", "listPrice", "sortPrice", "offerPrice", "finalPrice", "minimumListPrice", "maximumListPrice", "minimumPromoPrice", "discountPrice", "\"price\"", "itemprop=\"price\"", "__NEXT_DATA__", "__NUXT__", "__PRELOADED_STATE__", "application/ld+json", "\"@type\":\"Product\"", "product:price:amount", "andes-money-amount__fraction"];
+    console.log("    campos: " + keys.map((k) => `${k.replace(/\\"/g, "")}=${html.split(k).length - 1}`).join(" "));
+  }
   let via = "";
   const mx = () => (/\.mx$/.test(new URL(real).hostname) || /amzn\.|a\.co|meli\.la/.test(url) ? "MXN" : "");
   if (!okPrice(r.price) || !r.image) {           // 1) Jina: el que mejor funciona con Amazon
