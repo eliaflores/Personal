@@ -4,7 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Nuestra Lista de Regalos</title>
-<meta name="theme-color" content="#E8E9EF">
+<meta name="theme-color" content="#FFFFFF">
+<script>
+  // Tema guardado en este cel: "colorido" (normal) o "discreto" (gris perla).
+  (function () { var t = "colorido"; try { t = localStorage.getItem("regalos.tema") || t; } catch (e) {} document.documentElement.setAttribute("data-tema", t);
+    if (t === "discreto") document.querySelector('meta[name="theme-color"]').setAttribute("content", "#E8E9EF"); })();
+</script>
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=5">
 <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png?v=5">
 <link rel="manifest" href="manifest.json?v=5">
@@ -14,7 +19,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap">
 <style>
 /* Layout: app de una columna para el cel. Fondo gris perla con manchas difuminadas, tarjetas blancas tipo vidrio,
    acentos casi negros y títulos con serifa; barra de navegación en píldora blanca. Un solo tema claro a propósito. */
@@ -287,6 +292,103 @@ textarea.input { min-height: 84px; resize: vertical; }
 .invite p { margin: 0; color: rgba(255,255,255,.8); font-size: .92rem; }
 .invite .input { color: var(--ink); }
 
+/* ---------- Tema "Colorido" (el normal): fondo blanco, tarjetas pastel y botones negros ----------
+   El tema "Discreto" es el gris perla de arriba. Se elige en Ajustes y se guarda en cada cel. */
+:root[data-tema="colorido"] {
+  --bg: #FFFFFF;
+  --glass: #FFFFFF;
+  --card: #FFFFFF;
+  --soft: #F5F2EC;
+  --soft-2: #ECE7DE;
+  --ink: #141414;
+  --ink-2: #2E2E2E;
+  --muted: #8A8780;
+  --line: #EFECE6;
+  --icon: #141414;
+  --pink: #FFB8E6;
+  --yellow: #FFE07A;
+  --blue: #A8E6F8;
+  --green: #B8F1A0;
+  --check: #FFD43B;
+  --shadow: 0 1px 2px rgba(20,20,20,.03), 0 8px 22px rgba(20,20,20,.05);
+  --f-title: "Lexend", "DM Sans", system-ui, sans-serif;
+  --f: "Lexend", "DM Sans", system-ui, sans-serif;
+}
+[data-tema="colorido"] body { font-size: 14.5px; }
+[data-tema="colorido"] body::before { background: #fff; }
+[data-tema="colorido"] .bgfx { display: none; }
+[data-tema="colorido"] :is(.title, .pf-h, .page-h, .bar .brand, .sec, .empty h3, .ftile b, .wz-q, .money span, .money input, .summary .v, .band .name, .band .big, .for, .gcard h3, .dt-title h1, .panel .price, .stats3 b, .nav button, .sheet-head h2, .signin h1, .invite h2) { font-weight: 600; letter-spacing: -0.02em; }
+[data-tema="colorido"] .title { font-size: 1.9rem; }
+[data-tema="colorido"] :is(.card, .list, .band, .tabs, .empty, .secret-note, .gcard, .ftile, .occ-opt, .chip, .qcard, .stat) { border: 1.5px solid var(--line); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+[data-tema="colorido"] :is(.icon-btn, .circle-btn, .logo, .x, .mini-av) { box-shadow: none; border: 1.5px solid var(--line); }
+[data-tema="colorido"] .nav-in { background: #fff; border: 1.5px solid var(--line); box-shadow: 0 10px 30px rgba(20,20,20,.10); }
+[data-tema="colorido"] .nav button { background: var(--soft); }
+[data-tema="colorido"] .nav button[aria-current="page"] { background: var(--ink); color: #fff; }
+[data-tema="colorido"] .btn-primary { box-shadow: none; }
+
+/* Superficies de color (antes oscuras): pastel con texto negro */
+[data-tema="colorido"] .solid { background: var(--green); color: var(--ink); }
+[data-tema="colorido"] :is(.invite p, .summary .k, .panel .meta, .panel .host, .panel .short, .banner .bt span) { color: rgba(20,20,20,.62); }
+[data-tema="colorido"] .panel .meta { border-color: rgba(20,20,20,.12); }
+[data-tema="colorido"] .btn-ghost-light { color: var(--ink); border-color: var(--ink); }
+[data-tema="colorido"] .banner .bi { color: var(--ink); }
+[data-tema="colorido"] .banner.solid { background: var(--pink); }
+[data-tema="colorido"] .invite.solid { background: var(--blue); }
+[data-tema="colorido"] .summary.solid { background: var(--yellow); }
+[data-tema="colorido"] .panel.solid { background: var(--green); }
+
+/* Perfil */
+[data-tema="colorido"] .pf-av { box-shadow: 0 0 0 8px var(--yellow), 0 0 0 16px #FFF5CC; border-color: #fff; background: var(--pink); }
+[data-tema="colorido"] .stats3 div { box-shadow: none; border: none; }
+[data-tema="colorido"] .stats3 div:nth-child(1) { background: var(--pink); }
+[data-tema="colorido"] .stats3 div:nth-child(2) { background: var(--yellow); }
+[data-tema="colorido"] .stats3 div:nth-child(3) { background: var(--blue); }
+[data-tema="colorido"] .menu .row .ic { width: 38px; height: 38px; border-radius: 50%; }
+[data-tema="colorido"] .menu .row .ic svg { width: 20px; height: 20px; }
+[data-tema="colorido"] .menu .row:nth-child(4n+1) .ic { background: var(--pink); }
+[data-tema="colorido"] .menu .row:nth-child(4n+2) .ic { background: var(--yellow); }
+[data-tema="colorido"] .menu .row:nth-child(4n+3) .ic { background: var(--blue); }
+[data-tema="colorido"] .menu .row:nth-child(4n+4) .ic { background: var(--green); }
+
+/* Festividades y ocasiones con su color */
+[data-tema="colorido"] :is(.ftile, .occ-opt)[data-occ="navidad"] { background: var(--green); border-color: transparent; }
+[data-tema="colorido"] :is(.ftile, .occ-opt)[data-occ="aniversario"] { background: var(--blue); border-color: transparent; }
+[data-tema="colorido"] :is(.ftile, .occ-opt)[data-occ="sanvalentin"] { background: var(--pink); border-color: transparent; }
+[data-tema="colorido"] :is(.ftile, .occ-opt)[data-occ="cumple"] { background: var(--yellow); border-color: transparent; }
+[data-tema="colorido"] :is(.ftile, .occ-opt)[data-occ="otro"] { background: var(--soft); border-color: transparent; }
+[data-tema="colorido"] .ftile .fi { filter: none; }
+[data-tema="colorido"] .ftile span.s { color: rgba(20,20,20,.6); }
+[data-tema="colorido"] .ftile.new span.s { color: rgba(255,255,255,.7); }
+[data-tema="colorido"] .occ-opt[aria-pressed="true"] { background: var(--ink) !important; color: #fff; }
+[data-tema="colorido"] .band { background: var(--blue); border-color: transparent; }
+[data-tema="colorido"] .band .lbl { color: rgba(20,20,20,.62); }
+[data-tema="colorido"] .meter { background: rgba(255,255,255,.7); }
+[data-tema="colorido"] .tabs { background: var(--soft); border-color: transparent; }
+[data-tema="colorido"] .secret-note { background: var(--soft); border-color: transparent; }
+[data-tema="colorido"] .warn { background: #FFF4C7; }
+
+/* Regalos: cada tarjeta con un fondo pastel distinto */
+[data-tema="colorido"] .grid > :nth-child(4n+1) .tile { background: var(--pink); }
+[data-tema="colorido"] .grid > :nth-child(4n+2) .tile { background: var(--yellow); }
+[data-tema="colorido"] .grid > :nth-child(4n+3) .tile { background: var(--blue); }
+[data-tema="colorido"] .grid > :nth-child(4n+4) .tile { background: var(--green); }
+[data-tema="colorido"] .tile .ph { color: var(--ink); opacity: .55; }
+[data-tema="colorido"] .stamp { border-color: var(--ink); background: var(--check); }
+[data-tema="colorido"] .hero-img { background: var(--pink); box-shadow: 0 0 0 10px #FFE9F7, 0 0 0 22px #FFF6FC; }
+[data-tema="colorido"] .sheet { background: #fff; }
+[data-tema="colorido"] .photo-pick { background: var(--soft); border-color: #DAD4C8; }
+
+/* Ajustes */
+.themes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.theme-opt { border: 2px solid var(--line); background: var(--card); border-radius: 26px; padding: 14px; display: flex; flex-direction: column; gap: 12px; text-align: left; box-shadow: var(--shadow); }
+.theme-opt[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px var(--ink); }
+.theme-opt .sw { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.theme-opt .sw i { aspect-ratio: 1; max-width: 100%; border-radius: 50%; }
+.theme-opt b { font-weight: 600; font-size: 1rem; }
+.theme-opt span { color: var(--muted); font-size: .82rem; line-height: 1.3; }
+.theme-opt .ok { display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--ink); font-size: .82rem; }
+.theme-opt .ok svg { width: 16px; height: 16px; }
+
 @media (prefers-reduced-motion: no-preference) {
   .screen { animation: fade .22s ease both; }
   .sheet { animation: up .22s ease both; }
@@ -344,6 +446,7 @@ const P = {
   cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   refresh: '<path d="M20 11.5a8 8 0 1 1-2.4-5.7"/><path d="M20 4v5h-5"/>',
   star: '<path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9 6.8 19.7l1-5.9-4.3-4.1 5.9-.8z"/>',
   tree: '<path d="M12 3l5 7h-3l4 6H6l4-6H7z"/><path d="M12 16v5"/>',
@@ -446,15 +549,16 @@ function route() {
   if (h[0] === "f" && h[1]) return { v: "fiesta", f: h[1] };
   if (h[0] === "mia") return { v: "mine" };
   if (h[0] === "fiestas") return { v: "fiestas" };
+  if (h[0] === "ajustes") return { v: "settings" };
   return { v: "profile" };
 }
 const go = h => { if (location.hash !== h) location.hash = h; else render(); };
 
 /* ---------- Render ---------- */
 function setNav(r) {
-  const show = !!(S.user && S.list && S.loaded) && ["fiestas", "fiesta", "mine", "profile"].includes(r.v);
+  const show = !!(S.user && S.list && S.loaded) && ["fiestas", "fiesta", "mine", "profile", "settings"].includes(r.v);
   $("#nav").hidden = !show;
-  const cur = r.v === "mine" ? "navMine" : r.v === "profile" ? "navProfile" : "navHome";
+  const cur = r.v === "mine" ? "navMine" : (r.v === "profile" || r.v === "settings") ? "navProfile" : "navHome";
   [["navHome", "grid"], ["navMine", "heart"], ["navProfile", "user"]].forEach(([id, ic]) => {
     const b = $("#" + id); b.querySelector("span").innerHTML = NAVI[ic];
     if (id === cur) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
@@ -474,6 +578,7 @@ function render() {
   if (r.v === "detail") return renderDetail(r.f, r.i);
   if (r.v === "mine") return renderMine();
   if (r.v === "fiestas") return renderFiestas();
+  if (r.v === "settings") return renderSettings();
   return renderProfile();
 }
 
@@ -561,7 +666,7 @@ function renderFiestas() {
     const fs = [...S.fiestas].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     html += `<div class="ftiles">
       <button class="ftile new" data-go="#nueva"><span class="fi">${I("plus")}</span><b>Nueva festividad</b><span class="s">¿Qué estás celebrando?</span><span class="go">${I("arrow")}</span></button>
-      ${fs.map(f => { const n = Object.keys(f.bought || {}).length; return `<button class="ftile" data-go="#f/${esc(f.id)}"><span class="fi">${I(occ(f.occasion).i)}</span><b>${esc(fiestaName(f))}</b><span class="s">${f.date ? esc(fDate(f.date)) + " · " : ""}te quedan ${mxn(f.budget - spent(f))}${n ? ` · ${n} comprado${n > 1 ? "s" : ""}` : ""}</span><span class="go">${I("arrow")}</span></button>`; }).join("")}
+      ${fs.map(f => { const n = Object.keys(f.bought || {}).length; return `<button class="ftile" data-occ="${esc(f.occasion)}" data-go="#f/${esc(f.id)}"><span class="fi">${I(occ(f.occasion).i)}</span><b>${esc(fiestaName(f))}</b><span class="s">${f.date ? esc(fDate(f.date)) + " · " : ""}te quedan ${mxn(f.budget - spent(f))}${n ? ` · ${n} comprado${n > 1 ? "s" : ""}` : ""}</span><span class="go">${I("arrow")}</span></button>`; }).join("")}
     </div>`;
     if (!fs.length) html += `<p class="hint center" style="margin-top:18px">Aún no hay festividades. Toca <b>Nueva festividad</b> cuando se acerque un cumple, Navidad o su aniversario.</p>`;
     html += `<div class="secret-note">${I("shield")}<span>Todo esto es secreto. ${esc(nameOf(p))} no ve tus festividades, tu presupuesto ni lo que ya compraste.</span></div>`;
@@ -792,7 +897,7 @@ function renderProfile() {
   const full = (S.user.displayName || firstName(S.user)).trim();
   const bought = S.fiestas.reduce((n, f) => n + Object.keys(f.bought || {}).length, 0);
   app.innerHTML = `<div class="wrap screen">
-    <div class="pf-head"><h1 class="title">Perfil</h1><div class="hdr-btns">${refreshBtn()}<button class="circle-btn" id="qNew" aria-label="Nueva festividad">${I("plus")}</button></div></div>
+    <div class="pf-head"><h1 class="title">Perfil</h1><div class="hdr-btns">${refreshBtn()}<button class="circle-btn" data-go="#ajustes" aria-label="Ajustes">${I("gear")}</button><button class="circle-btn" id="qNew" aria-label="Nueva festividad">${I("plus")}</button></div></div>
     <div class="pf-avatar"><div class="pf-av">${src ? `<img src="${esc(src)}" alt="" referrerpolicy="no-referrer">` : esc(firstName(S.user).charAt(0))}</div></div>
     <div class="card pf-card">
       <div class="pf-name">
@@ -815,12 +920,44 @@ function renderProfile() {
       <button class="row" data-go="#fiestas"><span class="ic">${I("gift")}</span><span class="tx"><b>Mis festividades</b></span><span class="ch">${I("chev")}</span></button>
       ${p ? `<div class="row"><span class="ic">${I("people")}</span><span class="tx"><b>${esc(nameOf(p))}</b><span>${theirItems().length} regalos en su wishlist</span></span></div>
       <div class="row"><span class="ic">${I("shield")}</span><span class="tx"><b>Compras secretas</b><span>${esc(nameOf(p))} no ve lo que tachas</span></span></div>` : ""}
+      <button class="row" data-go="#ajustes"><span class="ic">${I("gear")}</span><span class="tx"><b>Ajustes</b><span>Colores de la app</span></span><span class="ch">${I("chev")}</span></button>
       <button class="row" id="logout"><span class="ic">${I("out")}</span><span class="tx"><b class="lb">Cerrar sesión</b></span><span class="ch">${I("chev")}</span></button>
     </div>
   </div>`;
   wireGo(); wireInvite();
   $("#qNew").addEventListener("click", () => { if (p) go("#nueva"); else toast("Primero invita a tu pareja con el link"); });
   $("#logout").addEventListener("click", ev => { if (arm("out", ev.currentTarget, "Toca otra vez para salir")) signOut(auth); });
+}
+
+/* ---------- Ajustes ---------- */
+const TEMAS = [
+  { k: "colorido", l: "Colorido", d: "Blanco con tarjetas de colores pastel", sw: ["#FFB8E6", "#FFE07A", "#A8E6F8", "#B8F1A0"] },
+  { k: "discreto", l: "Discreto", d: "Gris perla, blanco y negro", sw: ["#E8E9EF", "#FFFFFF", "#8B8C97", "#1F1E25"] },
+];
+const temaActual = () => document.documentElement.getAttribute("data-tema") || "colorido";
+function setTema(k) {
+  document.documentElement.setAttribute("data-tema", k);
+  try { localStorage.setItem("regalos.tema", k); } catch (e) {}
+  const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", k === "discreto" ? "#E8E9EF" : "#FFFFFF");
+}
+function renderSettings() {
+  const cur = temaActual();
+  app.innerHTML = `<div class="wrap screen">
+    <div class="pf-head"><div class="hdr-btns"><button class="icon-btn" data-go="#" aria-label="Atrás">${I("back")}</button><h1 class="title">Ajustes</h1></div></div>
+    <h2 class="sec">Colores</h2>
+    <div class="themes">${TEMAS.map(t => `<button class="theme-opt" data-pick="${t.k}" aria-pressed="${cur === t.k}">
+        <span class="sw">${t.sw.map(c => `<i style="background:${c};${c === "#FFFFFF" ? "box-shadow:inset 0 0 0 1.5px #E1E1E6" : ""}"></i>`).join("")}</span>
+        <b>${t.l}</b><span>${t.d}</span>
+        ${cur === t.k ? `<span class="ok">${I("check")} En uso</span>` : ""}
+      </button>`).join("")}</div>
+    <p class="hint" style="margin-top:14px">El color se guarda en este cel. ${partner() ? esc(nameOf(partner())) + " puede elegir el suyo en su cel." : ""}</p>
+    <h2 class="sec">App</h2>
+    <div class="list menu">
+      <button class="row" data-refresh><span class="ic">${I("refresh")}</span><span class="tx"><b>Actualizar</b><span>Trae la versión más nueva y los precios recientes</span></span><span class="ch">${I("chev")}</span></button>
+    </div>
+  </div>`;
+  wireGo();
+  app.querySelectorAll(".theme-opt").forEach(b => b.addEventListener("click", () => { setTema(b.dataset.pick); render(); toast(b.dataset.pick === "discreto" ? "Modo discreto" : "Modo colorido"); }));
 }
 
 /* ---------- Agregar / editar regalo ---------- */
