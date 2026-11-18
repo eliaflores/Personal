@@ -571,7 +571,8 @@ const linkFresh = i => !!(i && i.url && i.linkUrl === i.url);
 const priceOf = i => (linkFresh(i) && Number(i.linkPrice) > 0) ? Number(i.linkPrice) : (Number(i && i.price) || 0);
 const storeImg = i => (linkFresh(i) && typeof i.linkImage === "string" && /^https:\/\//.test(i.linkImage)) ? i.linkImage : "";
 // Foto: primero la de la tienda; la que subió la persona solo si la eligió a propósito o si la tienda no tiene.
-const imgOf = i => (i && ((i.ownPhoto && safeImg(i.photo)) || storeImg(i) || safeImg(i.photo))) || "";
+const webImg = i => (i && typeof i.webImage === "string" && /^https:\/\//.test(i.webImage)) ? i.webImage : "";   // foto encontrada en internet
+const imgOf = i => (i && ((i.ownPhoto && safeImg(i.photo)) || storeImg(i) || safeImg(i.photo) || webImg(i))) || "";
 function ago(ms) {
   const m = Math.max(1, Math.round((Date.now() - ms) / 60000));
   if (m < 60) return `hace ${m} min`;
@@ -1128,12 +1129,35 @@ const LK = (() => {
     if (r.deliveryDays != null) { f.linkDeliveryDays = r.deliveryDays; f.linkDeliveryAt = now; }
     return f;
   }
-  return { lookup, fields, useful };
+  // Foto de internet (Bing Imágenes, a través de Jina) cuando la tienda no la da.
+  async function searchWeb(q) {
+    q = String(q || "").replace(/\s+/g, " ").trim().slice(0, 100);
+    if (q.length < 4 || /^Regalo de /.test(q)) return "";
+    const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 40000);
+    try {
+      const bing = `https://www.bing.com/images/search?q=${encodeURIComponent(q)}&form=HDRSC2&first=1&cc=mx&setlang=es-MX`;
+      const res = await fetch("https://r.jina.ai/" + bing, { headers: { "X-Return-Format": "html" }, signal: ctl.signal });
+      if (!res.ok) return "";
+      const html = await res.text(); const out = [];
+      for (const m of html.matchAll(/\bm\s*=\s*"(\{[^"]*?murl[^"]*?\})"/g)) { try { const j = JSON.parse(decode(m[1])); if (j.murl || j.turl) out.push(j); } catch (e) {} if (out.length >= 8) break; }
+      if (!out.length) return "";
+      const j = out.find(x => /mlstatic|media-amazon|ssl-images-amazon|liverpool|walmart|coppel|sears|palaciodehierro|sanborns/i.test(x.murl || "")) || out[0];
+      if (j.turl) { const u = new URL(j.turl); u.searchParams.set("w", "600"); u.searchParams.set("h", "600"); u.searchParams.set("c", "7"); return u.href.replace(/^http:/, "https:"); }
+      return isLogo(j.murl) ? "" : String(j.murl || "").replace(/^http:/, "https:");
+    } catch (e) { return ""; } finally { clearTimeout(tm); }
+  }
+  return { lookup, fields, useful, searchWeb };
 })();
 
 // Al abrir "Mi wishlist", busca al momento lo que todavía no tiene precio ni foto de la tienda.
 const lookingUp = new Set();
 async function autoLookup() {
+  // Regalos sin ninguna foto: buscar una en internet con su nombre.
+  for (const i of myItems().filter(i => !imgOf(i) && !i.titleAuto && i.title && (!i.url || linkFresh(i)) && !lookingUp.has("w" + i.id)).slice(0, 3)) {
+    lookingUp.add("w" + i.id);
+    const img = await LK.searchWeb(i.title);
+    if (img) { try { await updateDoc(doc(fdb, "regalos", S.listId, "items", i.id), { webImage: img }); } catch (e) {} }
+  }
   const pending = myItems().filter(i => i.url && !linkFresh(i) && !lookingUp.has(i.id)).slice(0, 3);
   for (const i of pending) {
     lookingUp.add(i.id);
@@ -1198,6 +1222,7 @@ function openSheet(editId) {
   let photo = it ? safeImg(it.photo) : "";
   let shopImg = it ? storeImg(it) : "";
   let found = null;           // { url, r } de la última búsqueda en la tienda
+  let webImage = it ? webImg(it) : "";
   let ownPhoto = !!(it && it.ownPhoto && photo);
   const root = $("#sheetRoot");
   root.innerHTML = `
@@ -1228,6 +1253,8 @@ function openSheet(editId) {
     const showOwn = photo && (ownPhoto || !shopImg);
     $("#pickInner").innerHTML = showOwn ? `<img src="${photo}" alt=""><span class="chg">Tu foto · cambiar</span>`
       : shopImg ? `<img src="${esc(shopImg)}" alt="" referrerpolicy="no-referrer"><span class="chg">Foto de la tienda · poner la mía</span>`
+      : photo ? `<img src="${photo}" alt=""><span class="chg">Tu foto · cambiar</span>`
+      : webImage ? `<img src="${esc(webImage)}" alt="" referrerpolicy="no-referrer"><span class="chg">Foto de internet · poner la mía</span>`
       : `<span class="lbl">${I("camera")}Agregar foto<span class="opt" style="font-weight:400;font-size:.8rem;text-align:center">o déjala vacía: se pone la de la tienda del link</span></span>`;
     $("#useShop").hidden = !(shopImg && showOwn);
   };
@@ -1244,12 +1271,17 @@ function openSheet(editId) {
     found = { url, r };
     if (r.failed && !r.blocked) { showLookup("No pude abrir la tienda ahora. Guárdalo y lo busco de nuevo en unos minutos.", "warn-t"); return; }
     if (r.image) { shopImg = r.image; paintPick(); }
+    else if (!photo) {
+      const q = r.title || $("#fTitle").value.trim();
+      if (q) { showLookup(`<span class="spin">${I("refresh")}</span> La tienda no dio foto. Buscándola en internet…`, "busy"); const w = await LK.searchWeb(q); if (seq !== lookSeq || !$("#lookup")) return; if (w) { webImage = w; r.webFound = true; paintPick(); } }
+    }
     const ft = $("#fTitle");
     if (r.title && ft && (!ft.value.trim() || ft.dataset.auto === "1")) { ft.value = r.title; ft.dataset.auto = "1"; }
     const bits = [];
     if (r.ok) bits.push(`Precio: <b>${esc(mxn(r.price))}</b>`);
     if (r.deliveryDays != null) bits.push(`llega en ${r.deliveryDays === 0 ? "el mismo día" : r.deliveryDays === 1 ? "1 día" : r.deliveryDays + " días"}`);
     if (r.title || r.image) bits.push(r.title && r.image ? "nombre y foto listos" : r.title ? "nombre listo" : "foto lista");
+    if (r.webFound) bits.push("foto de internet (puede no ser exacta)");
     if (bits.length) { showLookup(`${I("check")} ${bits.join(" · ")}`, "done"); if (r.ok && !$("#fPrice").value) $("#fPrice").placeholder = "En la tienda: " + mxn(r.price); }
     else showLookup(r.blocked ? "La tienda no dejó leer la página. Pon un precio aproximado y una foto." : "No encontré el precio en esa página. Pon uno aproximado.", "warn-t");
   }
@@ -1287,7 +1319,7 @@ function openSheet(editId) {
     if (!(price > 0) && !rawUrl) { toast("Pon el link de la tienda o un precio aproximado"); $("#fPrice").focus(); return; }
     if (rawUrl && !safeUrl(rawUrl)) { toast("Ese link no se ve bien. Revísalo."); $("#fUrl").focus(); return; }
     const body = {
-      title, titleAuto, price: price > 0 ? price : 0, url: rawUrl ? safeUrl(rawUrl) : "", photo: photo || "", ownPhoto: !!(ownPhoto && photo),
+      title, titleAuto, price: price > 0 ? price : 0, url: rawUrl ? safeUrl(rawUrl) : "", photo: photo || "", ownPhoto: !!(ownPhoto && photo), webImage: webImage || "",
       occasions: OCCASIONS.map(o => o.k).filter(k => sel.has(k)),
       otherOccasion: sel.has("otro") ? $("#fOther").value.trim() : "",
       note: $("#fNote").value.trim(),
@@ -1296,7 +1328,11 @@ function openSheet(editId) {
     $("#fSave").disabled = true;
     try {
       if (it) await updateDoc(doc(fdb, "regalos", S.listId, "items", it.id), body);
-      else await addDoc(collection(fdb, "regalos", S.listId, "items"), { ...body, owner: me(), createdAt: Date.now() });
+      else {
+        const ref = await addDoc(collection(fdb, "regalos", S.listId, "items"), { ...body, owner: me(), createdAt: Date.now() });
+        // Sin link ni foto: buscar una foto en internet con el nombre, sin hacerte esperar.
+        if (!body.url && !body.photo && !body.webImage && !titleAuto) LK.searchWeb(title).then(img => { if (img) updateDoc(ref, { webImage: img }).catch(() => {}); });
+      }
       close(); toast(rawUrl && !body.linkUrl && (!it || it.url !== safeUrl(rawUrl)) ? "Guardado. En unos minutos aparece el precio y la foto de la tienda." : it ? "Cambios guardados" : "Agregado a tu wishlist");
     } catch (e) { $("#fSave").disabled = false; writeErr(e); }
   });

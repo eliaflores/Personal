@@ -2,7 +2,7 @@
 // Lo corre GitHub Actions (ver .github/workflows/regalos-precios.yml). Solo toca la colección "regalos".
 // Los registros del Action son públicos en un repo público: aquí nunca se imprimen links, nombres ni precios.
 const admin = require("firebase-admin");
-const { leer } = require("./leer");
+const { leer, searchImage } = require("./leer");
 
 if (process.env.FIRESTORE_EMULATOR_HOST) admin.initializeApp({ projectId: "personal-75acf" });
 else {
@@ -30,6 +30,10 @@ function due(it, now) {
 }
 
 (async () => {
+  if (process.env.DETALLE === "true") {   // prueba de la búsqueda de fotos con una palabra genérica
+    const img = await searchImage("silla gamer ergonomica");
+    console.log(`Prueba de búsqueda de foto: ${img ? "sí (" + new URL(img).hostname + ")" : "no"}`);
+  }
   const now = Date.now();
   const todo = [];
   for (const list of (await db.collection("regalos").get()).docs) {
@@ -65,6 +69,12 @@ function due(it, now) {
     else if (it.linkDeliveryAt && Date.now() - it.linkDeliveryAt > 3 * 24 * HOUR) { upd.linkDeliveryDays = DEL; upd.linkDeliveryAt = DEL; }   // muy viejo: mejor no adivinar
     // Nombre: si la persona no escribió uno, se pone el de la tienda.
     if (it.titleAuto && r.title) { upd.title = r.title.slice(0, 120); upd.titleAuto = false; }
+    // Sin foto de la tienda ni foto propia: se busca una en internet con el nombre del producto.
+    if (!r.image && !it.photo && !it.webImage && !(sameUrl && it.linkImage)) {
+      const q = r.title || (!it.titleAuto && it.title) || r.slug || "";
+      const found = q ? await searchImage(q) : "";
+      if (found) { upd.webImage = found; stats.fotoBuscada = (stats.fotoBuscada || 0) + 1; }
+    }
     if (r.image) upd.linkImage = r.image;
     else if (!sameUrl || /logo|frontend-assets|nav-sprite|favicon|sprite/i.test(it.linkImage || "")) upd.linkImage = DEL;   // quitar logos que se colaron antes
     // Solo la tienda y el resultado: nunca el link, el nombre del regalo ni el precio.

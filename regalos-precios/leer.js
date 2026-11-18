@@ -270,6 +270,52 @@ async function chain(url) {
 const isBotUrl = (u) => /account-verification|captcha|validateCaptcha|\/gz\/|login/i.test(u);
 const shape = (u) => { try { const x = new URL(u); return x.hostname.replace(/^www\./, "") + "/" + (x.pathname.split("/")[1] || "").replace(/\d{4,}/g, "#").slice(0, 14); } catch { return "?"; } };
 
+
+// Si la tienda no dio foto: buscarla en Bing Imágenes con el nombre del producto (directo o a través de Jina).
+function bingPick(html) {
+  const out = [];
+  for (const m of html.matchAll(/\bm\s*=\s*"(\{[^"]*?murl[^"]*?\})"/g)) {
+    try { const j = JSON.parse(decode(m[1])); if (j.murl || j.turl) out.push(j); } catch { /* resultado raro */ }
+    if (out.length >= 8) break;
+  }
+  if (!out.length) return "";
+  const shop = out.find((j) => /mlstatic|media-amazon|ssl-images-amazon|liverpool|walmart|coppel|sears|palaciodehierro|sanborns/i.test(j.murl || ""));
+  const j = shop || out[0];
+  // La miniatura de Bing siempre carga; se pide más grande. La original a veces no deja mostrarse en otras páginas.
+  if (j.turl) { try { const u = new URL(j.turl); u.searchParams.set("w", "600"); u.searchParams.set("h", "600"); u.searchParams.set("c", "7"); return u.href.replace(/^http:/, "https:"); } catch { /* */ } }
+  return isLogo(j.murl) ? "" : String(j.murl || "").replace(/^http:/, "https:");
+}
+async function searchImage(q) {
+  q = String(q || "").replace(/\s+/g, " ").trim().slice(0, 100);
+  if (q.length < 4) return "";
+  const bing = `https://www.bing.com/images/search?q=${encodeURIComponent(q)}&form=HDRSC2&first=1&cc=mx&setlang=es-MX`;
+  for (const attempt of ["directo", "jina"]) {
+    try {
+      const res = attempt === "directo"
+        ? await fetch(bing, { signal: AbortSignal.timeout(15000), headers: { "User-Agent": UA, "Accept-Language": "es-MX,es;q=0.9" } })
+        : await fetch("https://r.jina.ai/" + bing, { signal: AbortSignal.timeout(45000), headers: { "X-Return-Format": "html" } });
+      if (!res.ok) continue;
+      const img = bingPick(await res.text());
+      if (process.env.DETALLE === "true") console.log(`    busqueda de foto (${attempt}): ${img ? "sí, " + new URL(img).hostname : "no"}`);
+      if (img) return img;
+    } catch { /* probar el siguiente */ }
+  }
+  return "";
+}
+// Palabras del link (amazon.com.mx/Cafetera-Oster-12-tazas/dp/..., articulo.mercadolibre.com.mx/MLM-1-silla-gamer-_JM)
+function slugWords(urls) {
+  for (const u of urls) {
+    try {
+      const segs = new URL(u).pathname.split("/").map((x) => decodeURIComponent(x));
+      for (const sgm of segs) {
+        const w = sgm.replace(/^MLM-?\d+-?/i, "").replace(/_JM.*$/i, "").split(/[-_]+/).filter((x) => x && !/^\d+$/.test(x) && !/^(dp|p|up|ref|sr|gp|product|item|articulo)$/i.test(x));
+        if (w.length >= 3) return w.slice(0, 10).join(" ");
+      }
+    } catch { /* link raro */ }
+  }
+  return "";
+}
+
 async function leer(url) {
   const hops = await chain(url);
   const real = [...hops].reverse().find((u) => !isBotUrl(u)) || url;   // la última dirección antes del bloqueo
@@ -312,8 +358,9 @@ async function leer(url) {
     }
   }
   const blocked = !html || looksBlocked(html, finalUrl);
+  r.slug = slugWords([...hops].reverse());
   let host = ""; try { host = new URL(finalUrl).hostname.replace(/^www\./, ""); } catch { /* link raro */ }
   return { ...r, ok: okPrice(r.price), blocked: blocked && !okPrice(r.price), status, host, size: html.length, via };
 }
 
-module.exports = { leer, parse, num, asinOf, parseDelivery, cleanTitle };
+module.exports = { leer, parse, num, asinOf, parseDelivery, cleanTitle, searchImage, bingPick, slugWords };
