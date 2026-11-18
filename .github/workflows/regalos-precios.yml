@@ -2,7 +2,7 @@ name: Regalos - precios de la tienda
 
 on:
   schedule:
-    - cron: "23 * * * *"   # cada hora
+    - cron: "8,38 * * * *"   # cada media hora
   workflow_dispatch:
 
 concurrency:

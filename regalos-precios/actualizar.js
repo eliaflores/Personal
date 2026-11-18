@@ -14,8 +14,8 @@ const db = admin.firestore();
 const DEL = admin.firestore.FieldValue.delete();
 
 const HOUR = 3600 * 1000;
-const RECHECK_OK = 12 * HOUR;     // precio leído bien: se vuelve a revisar dos veces al día
-const RECHECK_FAIL = 4 * HOUR;    // la tienda no dejó leer: se reintenta más tarde
+const RECHECK_OK = 3 * HOUR;      // precio leído bien: se vuelve a revisar cada 3 horas
+const RECHECK_FAIL = 3 * HOUR;    // la tienda no dejó leer: se reintenta más tarde
 const MAX_PER_RUN = Number(process.env.MAX_PER_RUN || 80);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
