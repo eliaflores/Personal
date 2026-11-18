@@ -78,7 +78,7 @@ function parse(html, url) {
     if (!okPrice(r.price) && okPrice(x.price)) { r.price = x.price; r.currency = x.currency; }
     if (!r.image && x.image) r.image = x.image;
   }
-  if (/amazon\./.test(host)) {
+  if (/amazon\.|amzn\.|^a\.co$/.test(host) || /id=["']corePrice/.test(html)) {
     const a = amazon(html);
     if (okPrice(a.price)) { r.price = a.price; r.currency = r.currency || "MXN"; }
     if (a.image) r.image = a.image;
@@ -100,7 +100,7 @@ function looksBlocked(html, finalUrl) {
 }
 
 async function mercadoLibreApi(url) {
-  const dec = decodeURIComponent(url);
+  const dec = url;
   const prod = (dec.match(/\/p\/(MLM\d{5,})/i) || [])[1];
   const id = (dec.match(/\b(MLM)-?(\d{6,})/i) || []);
   const detail = process.env.DETALLE === "true";
@@ -187,7 +187,26 @@ async function microlink(url) {
   } catch { return { status: -1 }; }
 }
 
+// Sigue las redirecciones a mano para conocer los links intermedios (los links cortos de "compartir"
+// pasan por la página real del producto antes de caer en la verificación anti-robots).
+async function chain(url) {
+  const hops = [url]; let cur = url;
+  for (let i = 0; i < 8; i++) {
+    let r; try { r = await fetch(cur, { redirect: "manual", signal: AbortSignal.timeout(15000), headers: { "User-Agent": UA, "Accept-Language": "es-MX,es;q=0.9" } }); } catch { break; }
+    const loc = r.status >= 300 && r.status < 400 && r.headers.get("location");
+    if (!loc) break;
+    try { cur = new URL(loc, cur).href; } catch { break; }
+    hops.push(cur);
+  }
+  return hops;
+}
+const isBotUrl = (u) => /account-verification|captcha|validateCaptcha|\/gz\/|login/i.test(u);
+const shape = (u) => { try { const x = new URL(u); return x.hostname.replace(/^www\./, "") + "/" + (x.pathname.split("/")[1] || "").replace(/\d{4,}/g, "#").slice(0, 14); } catch { return "?"; } };
+
 async function leer(url) {
+  const hops = await chain(url);
+  const real = [...hops].reverse().find((u) => !isBotUrl(u)) || url;   // la última dirección antes del bloqueo
+  if (process.env.DETALLE === "true") console.log(`    ruta: ${hops.map(shape).join(" → ")}`);
   let html = "", finalUrl = url, status = 0;
   try {
     const res = await fetch(url, {
@@ -199,7 +218,7 @@ async function leer(url) {
   } catch { status = -1; }
   let r = html && !looksBlocked(html, finalUrl) ? parse(html, finalUrl) : { price: NaN, currency: "", image: "" };
   if (!okPrice(r.price) && /mercadoli[bv]re|meli\.la/i.test(finalUrl + url)) {
-    try { const api = await mercadoLibreApi(url + " " + finalUrl); if (api) { if (okPrice(api.price)) { r.price = api.price; r.currency = api.currency; } r.image = r.image || api.image; } } catch { /* sin API */ }
+    try { const api = await mercadoLibreApi(hops.map((h) => { try { return decodeURIComponent(decodeURIComponent(h)); } catch { return h; } }).join(" ")); if (api) { if (okPrice(api.price)) { r.price = api.price; r.currency = api.currency; } r.image = r.image || api.image; } } catch { /* sin API */ }
   }
   if (!r.image && /amazon\.|amzn\.|a\.co\//i.test(finalUrl + " " + url)) {
     const asin = asinOf(finalUrl) || asinOf(url);
@@ -207,7 +226,7 @@ async function leer(url) {
   }
   let via = "";
   if (!okPrice(r.price) || !r.image) {
-    const m = await microlink(finalUrl || url);
+    const m = await microlink(real);
     if (m) {
       via = `microlink ${m.status}`;
       if (!okPrice(r.price) && okPrice(m.price)) { r.price = m.price; r.currency = /\.mx(\/|$)/.test(new URL(finalUrl).hostname + "/") ? "MXN" : ""; via += " precio"; }
@@ -215,8 +234,7 @@ async function leer(url) {
     }
   }
   if (!okPrice(r.price) || !r.image) {
-    let jn = await jina(url);
-    if (jn && !okPrice(jn.price) && !jn.image && /mercadoli[bv]re|meli\.la/i.test(url + finalUrl)) jn = (await jina(url, { "X-Engine": "browser", "X-Wait-For-Selector": ".ui-pdp-title, h1" })) || jn;
+    const jn = await jina(real);
     if (jn) {
       via += (via ? ", " : "") + `jina ${jn.status}`;
       if (!okPrice(r.price) && okPrice(jn.price)) { r.price = jn.price; r.currency = jn.currency || (/\.mx$/.test(new URL(finalUrl).hostname) ? "MXN" : ""); via += " precio"; }
