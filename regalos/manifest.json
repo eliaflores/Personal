@@ -1,0 +1,13 @@
+{
+  "name": "Nuestra Lista de Regalos",
+  "short_name": "Regalos",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F5F1F8",
+  "theme_color": "#D2335A",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

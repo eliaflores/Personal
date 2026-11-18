@@ -1,9 +1,47 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{db}/documents {
-    // Cada usuario solo puede leer y escribir sus propios datos.
+    // Mi Cartera: cada usuario solo puede leer y escribir sus propios datos.
     match /users/{uid}/{doc=**} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Regalos: una lista compartida por dos personas (no toca nada de Mi Cartera).
+    match /regalos/{listId} {
+      function signedIn() { return request.auth != null; }
+      function isMember() { return signedIn() && request.auth.uid in resource.data.members; }
+
+      // Crear una lista nueva donde tú eres la única persona.
+      allow create: if signedIn() && request.resource.data.members == [request.auth.uid];
+      // Abrir por link de invitación (el id es aleatorio) y buscar tus propias listas.
+      allow get: if signedIn();
+      allow list: if isMember();
+      // Los miembros solo cambian nombres; una segunda persona solo puede agregarse a sí misma.
+      allow update: if signedIn() && (
+        (isMember() && request.resource.data.members == resource.data.members
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['names']))
+        || (resource.data.members.size() == 1
+          && request.resource.data.members == resource.data.members.concat([request.auth.uid])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'names']))
+      );
+      allow delete: if false;
+
+      match /items/{itemId} {
+        function inList() {
+          return request.auth != null
+            && request.auth.uid in get(/databases/$(db)/documents/regalos/$(listId)).data.members;
+        }
+        allow read: if inList();
+        // Cada quien agrega y borra solo sus propios regalos.
+        allow create: if inList() && request.resource.data.owner == request.auth.uid;
+        allow delete: if inList() && resource.data.owner == request.auth.uid;
+        // Tu pareja solo puede marcar "apartado"; tú editas lo demás de tus regalos.
+        allow update: if inList() && (
+          (resource.data.owner == request.auth.uid && request.resource.data.owner == request.auth.uid)
+          || (resource.data.owner != request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reservedBy']))
+        );
+      }
     }
   }
 }
