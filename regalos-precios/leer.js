@@ -100,9 +100,24 @@ function looksBlocked(html, finalUrl) {
 }
 
 async function mercadoLibreApi(url) {
-  const id = (url.match(/\b(MLM)-?(\d{6,})/i) || []);
+  const dec = decodeURIComponent(url);
+  const prod = (dec.match(/\/p\/(MLM\d{5,})/i) || [])[1];
+  const id = (dec.match(/\b(MLM)-?(\d{6,})/i) || []);
+  const detail = process.env.DETALLE === "true";
+  if (detail) console.log(`    ML api: id-articulo=${!!id[2]}, id-catalogo=${!!prod}`);
+  if (prod) {
+    const pr = await fetch(`https://api.mercadolibre.com/products/${prod}`, { signal: AbortSignal.timeout(15000) }).catch(() => null);
+    if (detail) console.log(`    ML api products: HTTP ${pr ? pr.status : -1}`);
+    if (pr && pr.ok) {
+      const j = await pr.json();
+      const price = num(j.buy_box_winner && j.buy_box_winner.price);
+      const image = (j.pictures && j.pictures[0] && (j.pictures[0].secure_url || j.pictures[0].url)) || "";
+      if (okPrice(price) || image) return { price, currency: (j.buy_box_winner && j.buy_box_winner.currency_id) || "MXN", image };
+    }
+  }
   if (!id[2]) return null;
   const res = await fetch(`https://api.mercadolibre.com/items/MLM${id[2]}`, { signal: AbortSignal.timeout(15000), headers: { "User-Agent": UA } });
+  if (detail) console.log(`    ML api items: HTTP ${res.status}`);
   if (!res.ok) return null;
   const j = await res.json();
   return { price: num(j.price), currency: j.currency_id || "MXN", image: (j.pictures && j.pictures[0] && j.pictures[0].secure_url) || j.thumbnail || "" };
@@ -131,10 +146,10 @@ const isLogo = (u) => /logo|frontend-assets|nav-sprite|favicon|sprite|placeholde
 
 // Segundo respaldo: Jina Reader (gratis) abre la página con un navegador y devuelve el HTML ya cargado.
 let jinaOff = false;
-async function jina(url) {
+async function jina(url, extra = {}) {
   if (jinaOff || process.env.JINA === "off") return null;
   try {
-    const r = await fetch("https://r.jina.ai/" + url, { signal: AbortSignal.timeout(60000), headers: { "X-Return-Format": "html", "X-Timeout": "40", "X-Locale": "es-MX" } });
+    const r = await fetch("https://r.jina.ai/" + url, { signal: AbortSignal.timeout(60000), headers: { "X-Return-Format": "html", "X-Timeout": "40", "X-Locale": "es-MX", ...extra } });
     if (r.status === 429) { jinaOff = true; return { status: 429 }; }
     const html = r.ok ? (await r.text()).slice(0, 4000000) : "";
     const blocked = !html || looksBlocked(html, url);
@@ -184,7 +199,7 @@ async function leer(url) {
   } catch { status = -1; }
   let r = html && !looksBlocked(html, finalUrl) ? parse(html, finalUrl) : { price: NaN, currency: "", image: "" };
   if (!okPrice(r.price) && /mercadoli[bv]re|meli\.la/i.test(finalUrl + url)) {
-    try { const api = await mercadoLibreApi(finalUrl + " " + url); if (api) { if (okPrice(api.price)) { r.price = api.price; r.currency = api.currency; } r.image = r.image || api.image; } } catch { /* sin API */ }
+    try { const api = await mercadoLibreApi(url + " " + finalUrl); if (api) { if (okPrice(api.price)) { r.price = api.price; r.currency = api.currency; } r.image = r.image || api.image; } } catch { /* sin API */ }
   }
   if (!r.image && /amazon\.|amzn\.|a\.co\//i.test(finalUrl + " " + url)) {
     const asin = asinOf(finalUrl) || asinOf(url);
@@ -200,7 +215,8 @@ async function leer(url) {
     }
   }
   if (!okPrice(r.price) || !r.image) {
-    const jn = await jina(finalUrl || url);
+    let jn = await jina(url);
+    if (jn && !okPrice(jn.price) && !jn.image && /mercadoli[bv]re|meli\.la/i.test(url + finalUrl)) jn = (await jina(url, { "X-Engine": "browser", "X-Wait-For-Selector": ".ui-pdp-title, h1" })) || jn;
     if (jn) {
       via += (via ? ", " : "") + `jina ${jn.status}`;
       if (!okPrice(r.price) && okPrice(jn.price)) { r.price = jn.price; r.currency = jn.currency || (/\.mx$/.test(new URL(finalUrl).hostname) ? "MXN" : ""); via += " precio"; }
