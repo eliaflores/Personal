@@ -141,6 +141,12 @@ async function microlink(url) {
     let price = num(d.price);
     if (!okPrice(price)) price = num(d.fraction);
     const image = (d.image && d.image.url) || "";
+    if (process.env.DETALLE === "true") {
+      // Solo señales generales, sin el contenido de la página.
+      const t = String(d.title || "") + " " + String(d.description || "");
+      const kind = !image ? "ninguna" : /mlstatic\.com\/D_|images\/I\//.test(image) ? "producto" : /logo|frontend-assets|nav-sprite/i.test(image) ? "logo" : "otra";
+      console.log(`    microlink: estado=${j.status}, campos=${Object.keys(d).join("|")}, price=${d.price == null ? "vacío" : typeof d.price}, fraction=${d.fraction == null ? "vacío" : typeof d.fraction}, foto=${kind}, aviso-bot=${/captcha|robot|verifica|verify|human|humano/i.test(t)}, titulo=${String(d.title || "").length} letras`);
+    }
     return { status: r.status, price, image, currency: "" };
   } catch { return { status: -1 }; }
 }

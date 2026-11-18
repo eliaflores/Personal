@@ -9,6 +9,10 @@ on:
         description: "Revisar todos los links ahora, aunque se hayan revisado hace poco"
         type: boolean
         default: false
+      detalle:
+        description: "Mostrar más detalle técnico en el registro"
+        type: boolean
+        default: false
 
 concurrency:
   group: regalos-precios
@@ -28,3 +32,4 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           FORCE: ${{ github.event.inputs.forzar }}
+          DETALLE: ${{ github.event.inputs.detalle }}
