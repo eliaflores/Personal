@@ -145,7 +145,8 @@ function embeddedPrice(html, url) {
   } catch { /* link raro */ }
   const scan = (from, to) => {
     const found = {};
-    const re = /"(promoPrice|salePrice|sellingPrice|finalPrice|offerPrice|currentPrice|Price|price|listPrice|minimumPromoPrice|minimumListPrice)"\s*:\s*"?(\d[\d.,]*)"?/g;
+    // Acepta también datos "escapados" (\\"promoPrice\\":1999, como los de Next.js) y valores con "$".
+    const re = /\\?"(promoPrice|salePrice|sellingPrice|finalPrice|offerPrice|currentPrice|Price|price|listPrice|minimumPromoPrice|minimumListPrice)\\?"\s*:\s*\[?\s*\\?"?\$?\s?(\d[\d.,]*)/g;
     re.lastIndex = from;
     let m;
     while ((m = re.exec(html)) && m.index < to) { const n = num(m[2]); if (okPrice(n) && !(m[1] in found)) found[m[1]] = n; }
@@ -321,11 +322,12 @@ async function searchImage(q) {
   q = String(q || "").replace(/\s+/g, " ").trim().slice(0, 100);
   if (q.length < 4) return "";
   const bing = `https://www.bing.com/images/search?q=${encodeURIComponent(q)}&form=HDRSC2&first=1&cc=mx&setlang=es-MX`;
-  for (const attempt of ["directo", "jina"]) {
+  const bingAsync = `https://www.bing.com/images/async?q=${encodeURIComponent(q)}&first=0&count=12&mmasync=1&cc=mx&setlang=es-MX`;
+  for (const attempt of ["rápido", "directo", "jina"]) {
     try {
-      const res = attempt === "directo"
-        ? await fetch(bing, { signal: AbortSignal.timeout(15000), headers: { "User-Agent": UA, "Accept-Language": "es-MX,es;q=0.9" } })
-        : await fetch("https://r.jina.ai/" + bing, { signal: AbortSignal.timeout(45000), headers: { "X-Return-Format": "html" } });
+      const res = attempt === "jina"
+        ? await fetch("https://r.jina.ai/" + bing, { signal: AbortSignal.timeout(45000), headers: { "X-Return-Format": "html" } })
+        : await fetch(attempt === "rápido" ? bingAsync : bing, { signal: AbortSignal.timeout(15000), headers: { "User-Agent": UA, "Accept-Language": "es-MX,es;q=0.9", "Accept": "text/html,*/*" } });
       if (!res.ok) continue;
       const img = bingPick(await res.text());
       if (process.env.DETALLE === "true") console.log(`    busqueda de foto (${attempt}): ${img ? "sí, " + new URL(img).hostname : "no"}`);

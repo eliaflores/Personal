@@ -1095,7 +1095,8 @@ const LK = (() => {
     } catch { /* link raro */ }
     const scan = (from, to) => {
       const found = {};
-      const re = /"(promoPrice|salePrice|sellingPrice|finalPrice|offerPrice|currentPrice|Price|price|listPrice|minimumPromoPrice|minimumListPrice)"\s*:\s*"?(\d[\d.,]*)"?/g;
+      // Acepta también datos "escapados" (\\"promoPrice\\":1999, como los de Next.js) y valores con "$".
+    const re = /\\?"(promoPrice|salePrice|sellingPrice|finalPrice|offerPrice|currentPrice|Price|price|listPrice|minimumPromoPrice|minimumListPrice)\\?"\s*:\s*\[?\s*\\?"?\$?\s?(\d[\d.,]*)/g;
       re.lastIndex = from;
       let m;
       while ((m = re.exec(html)) && m.index < to) { const n = num(m[2]); if (ok(n) && !(m[1] in found)) found[m[1]] = n; }
@@ -1168,10 +1169,12 @@ const LK = (() => {
     if (q.length < 4) return "";
     const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 40000);
     try {
-      const bing = `https://www.bing.com/images/search?q=${encodeURIComponent(q)}&form=HDRSC2&first=1&cc=mx&setlang=es-MX`;
-      const res = await fetch("https://r.jina.ai/" + bing, { headers: { "X-Return-Format": "html" }, signal: ctl.signal });
-      if (!res.ok) return "";
-      const html = await res.text(); const out = [];
+      let html = "";
+      for (const bing of [`https://www.bing.com/images/async?q=${encodeURIComponent(q)}&first=0&count=12&mmasync=1&cc=mx&setlang=es-MX`, `https://www.bing.com/images/search?q=${encodeURIComponent(q)}&form=HDRSC2&first=1&cc=mx&setlang=es-MX`]) {
+        const res = await fetch("https://r.jina.ai/" + bing, { headers: { "X-Return-Format": "html" }, signal: ctl.signal });
+        if (res.ok) { html = await res.text(); if (/murl/.test(html)) break; }
+      }
+      const out = [];
       for (const m of html.matchAll(/\bm\s*=\s*"(\{[^"]*?murl[^"]*?\})"/g)) { try { const j = JSON.parse(decode(m[1])); if (j.murl || j.turl) out.push(j); } catch (e) {} if (out.length >= 8) break; }
       if (!out.length) return "";
       const j = out.find(x => /mlstatic|media-amazon|ssl-images-amazon|liverpool|walmart|coppel|sears|palaciodehierro|sanborns/i.test(x.murl || "")) || out[0];
