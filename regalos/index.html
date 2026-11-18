@@ -407,6 +407,14 @@ textarea.input { min-height: 84px; resize: vertical; }
 .remind { background: var(--ink); color: #fff; }
 [data-tema="colorido"] .remind { background: var(--terra); }
 
+.lookup:empty { display: none; }
+.lookup { display: flex; align-items: center; gap: 8px; font-size: .86rem; font-weight: 500; margin-top: -6px; padding: 10px 12px; border-radius: 14px; background: var(--soft); }
+.lookup svg { width: 17px; height: 17px; flex: none; }
+.lookup .spin { display: inline-grid; }
+.lookup .spin svg { animation: spin .8s linear infinite; }
+.lookup.done { color: var(--ink); }
+.lookup.warn-t { color: var(--muted); }
+
 /* Ajustes */
 .themes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .theme-opt { border: 2px solid var(--line); background: var(--card); border-radius: 26px; padding: 14px; display: flex; flex-direction: column; gap: 12px; text-align: left; box-shadow: var(--shadow); }
@@ -933,7 +941,7 @@ function renderMine() {
     ? `<div class="grid">${mine.map(i => `<button class="gcard" data-edit="${esc(i.id)}">
         <div class="tile">${photoHtml(i)}<div class="top"><i></i>${priceOf(i) > 0 ? `<span class="p">${mxn(priceOf(i))}</span>` : `<span>Sin precio</span>`}</div></div>
         <h3>${esc(i.title)}</h3>
-        ${i.url ? `<span class="was">${esc(!linkFresh(i) || !i.linkCheckedAt ? "Buscando precio…" : Number(i.linkPrice) > 0 ? "Precio de la tienda" : "La tienda no dejó leer el precio")}</span>` : ""}
+        ${i.url ? `<span class="was">${esc(!linkFresh(i) || !i.linkCheckedAt ? "Buscando precio y foto…" : Number(i.linkPrice) > 0 ? "Precio de la tienda" : "La tienda no dejó leer el precio")}</span>` : ""}
         <div class="desc"><p>${esc(i.note || (i.url ? hostOf(safeUrl(i.url)) : "Toca para editar"))}</p>${I("arrow")}</div>
       </button>`).join("")}</div>`
     : `<div class="empty"><h3>Tu wishlist está vacía</h3><p>Toca <b>Agregar</b> y pega el link de la tienda: el precio y la foto se toman solos.</p></div>`;
@@ -942,6 +950,7 @@ function renderMine() {
   wireGo();
   $("#add").addEventListener("click", () => openSheet(null));
   app.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => openSheet(b.dataset.edit)));
+  setTimeout(autoLookup, 400);
 }
 
 /* ---------- Perfil ---------- */
@@ -1028,6 +1037,88 @@ function renderSettings() {
   app.querySelectorAll(".theme-opt").forEach(b => b.addEventListener("click", () => { setTema(b.dataset.pick); render(); toast(b.dataset.pick === "discreto" ? "Modo discreto" : "Modo colorido"); }));
 }
 
+/* ---------- Buscar precio, foto y entrega al momento (desde el cel, con Jina Reader) ---------- */
+// Lo mismo que hace el revisor de GitHub (regalos-precios/leer.js), pero al pegar el link, para no esperar.
+const LK = (() => {
+  const decode = s => String(s || "").replace(/&quot;/g, '"').replace(/&#39;|&#x27;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#x2F;/g, "/").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/&amp;/g, "&");
+  const num = v => { if (typeof v === "number") return v; let t = String(v || "").replace(/[^\d.,]/g, ""); if (!t) return NaN; const lc = t.lastIndexOf(","), ld = t.lastIndexOf(".");
+    if (lc > -1 && ld > -1) t = lc > ld ? t.replace(/\./g, "").replace(",", ".") : t.replace(/,/g, ""); else if (lc > -1) t = /,\d{1,2}$/.test(t) ? t.replace(",", ".") : t.replace(/,/g, ""); else if ((t.match(/\./g) || []).length > 1 || /\.\d{3}$/.test(t)) t = t.replace(/\./g, ""); return parseFloat(t); };
+  const ok = n => Number.isFinite(n) && n > 0 && n < 10000000;
+  const isLogo = u => /logo|frontend-assets|nav-sprite|favicon|sprite|placeholder/i.test(String(u || ""));
+  const blocked = h => /captcha|robot check|Type the characters you see|account-verification|access denied/i.test(h.slice(0, 20000));
+  const MONTHS = { ene: 1, enero: 1, feb: 2, febrero: 2, mar: 3, marzo: 3, abr: 4, abril: 4, may: 5, mayo: 5, jun: 6, junio: 6, jul: 7, julio: 7, ago: 8, agosto: 8, sep: 9, sept: 9, septiembre: 9, setiembre: 9, oct: 10, octubre: 10, nov: 11, noviembre: 11, dic: 12, diciembre: 12, jan: 1, january: 1, february: 2, march: 3, apr: 4, april: 4, june: 6, july: 7, aug: 8, august: 8, september: 9, october: 10, november: 11, dec: 12, december: 12 };
+  function deliveryDays(text) {
+    const t = String(text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); const now = new Date(); const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); const ds = [];
+    const push = (mo, day) => { if (!mo || day < 1 || day > 31) return; let d = new Date(today.getFullYear(), mo - 1, day); if (d - today < -20 * 864e5) d = new Date(today.getFullYear() + 1, mo - 1, day); ds.push(d); };
+    for (const m of t.matchAll(/(\d{1,2})\s*(?:de\s+)?([a-z]{3,10})\.?/g)) push(MONTHS[m[2]], +m[1]);
+    for (const m of t.matchAll(/\b([a-z]{3,10})\.?\s+(\d{1,2})\b/g)) push(MONTHS[m[1]], +m[2]);
+    if (!ds.length) return /\bmanana\b|tomorrow/.test(t) ? 1 : /\bhoy\b|today/.test(t) ? 0 : null;
+    const n = Math.round((Math.max(...ds) - today) / 864e5); return n >= 0 && n < 120 ? n : null;
+  }
+  function parse(html, url) {
+    const r = { price: NaN, currency: "", image: "", deliveryDays: null };
+    const walk = (o, out) => { if (!o || typeof o !== "object") return; if (Array.isArray(o)) return o.forEach(x => walk(x, out)); if (o["@graph"]) walk(o["@graph"], out); if ([].concat(o["@type"] || []).some(x => /product/i.test(String(x)))) out.push(o); if (o.mainEntity) walk(o.mainEntity, out); };
+    const prods = []; for (const m of html.matchAll(/<script[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) { try { walk(JSON.parse(m[1].trim()), prods); } catch (e) {} }
+    for (const p of prods) {
+      for (const of of [].concat(p.offers || [])) {
+        for (const c of [of.price, of.lowPrice, of.priceSpecification && [].concat(of.priceSpecification)[0]?.price]) { const n = num(c); if (!ok(r.price) && ok(n)) { r.price = n; r.currency = of.priceCurrency || ""; } }
+        const dt = [].concat(of.shippingDetails || [])[0]?.deliveryTime; if (r.deliveryDays == null && dt) { const tr = Number(dt.transitTime?.maxValue ?? dt.transitTime?.minValue); if (Number.isFinite(tr)) r.deliveryDays = Number(dt.handlingTime?.maxValue ?? 0) + tr; }
+      }
+      let img = [].concat(p.image || [])[0]; if (img && typeof img === "object") img = img.url || img.contentUrl; if (!r.image && typeof img === "string") r.image = img;
+    }
+    if (/amazon\.|amzn\.|a\.co\//i.test(url) || /id=["']corePrice/.test(html)) {
+      const i = html.search(/id=["'](corePrice_feature_div|corePriceDisplay_desktop_feature_div|corePrice_desktop|apex_desktop|apex_offerDisplay_mobile)["']/);
+      if (i > -1) { const m = html.slice(i, i + 8000).match(/class=["']a-offscreen["'][^>]*>\s*([^<]+)</); if (m) { const n = num(decode(m[1])); if (ok(n)) { r.price = n; r.currency = r.currency || "MXN"; } } }
+      if (!ok(r.price)) { const m = html.match(/"priceAmount"\s*:\s*([\d.]+)/); if (m && ok(num(m[1]))) { r.price = num(m[1]); r.currency = "MXN"; } }
+      const im = html.match(/data-old-hires=["'](https:[^"']+)["']/) || html.match(/"hiRes"\s*:\s*"(https:[^"]+)"/) || html.match(/id=["']landingImage["'][^>]*src=["'](https:[^"']+)["']/); if (im) r.image = im[1];
+      const dm = html.match(/data-csa-c-delivery-time\s*=\s*["']([^"']+)["']/i); if (dm) { const d = deliveryDays(decode(dm[1])); if (d != null) r.deliveryDays = d; }
+    }
+    const meta = {}; for (const tag of html.match(/<meta\b[^>]*>/gi) || []) { const k = (tag.match(/\b(?:property|name|itemprop)\s*=\s*["']([^"']+)["']/i) || [])[1]; const v = (tag.match(/\bcontent\s*=\s*["']([^"']*)["']/i) || [])[1]; if (k && v != null && !(k.toLowerCase() in meta)) meta[k.toLowerCase()] = decode(v); }
+    if (!ok(r.price)) for (const k of ["product:price:amount", "og:price:amount", "price"]) { const n = num(meta[k]); if (ok(n)) { r.price = n; r.currency = meta["product:price:currency"] || meta["og:price:currency"] || ""; break; } }
+    if (!r.image) r.image = meta["og:image:secure_url"] || meta["og:image"] || meta["twitter:image"] || "";
+    try { r.image = r.image ? new URL(decode(r.image).trim(), url).href.replace(/^http:/, "https:") : ""; } catch (e) { r.image = ""; }
+    if (isLogo(r.image)) r.image = "";
+    return r;
+  }
+  async function lookup(url) {
+    const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 45000);
+    try {
+      const res = await fetch("https://r.jina.ai/" + url, { headers: { "X-Return-Format": "html", "X-Timeout": "30" }, signal: ctl.signal });
+      if (!res.ok) return { failed: true, status: res.status };
+      const html = (await res.text()).slice(0, 4000000);
+      if (!html || blocked(html)) return { failed: true, blocked: true };
+      const r = parse(html, url);
+      const cur = String(r.currency || "").toUpperCase();
+      if (cur && cur !== "MXN" && cur !== "MXP") r.price = NaN;
+      return { ...r, ok: ok(r.price) };
+    } catch (e) { return { failed: true }; } finally { clearTimeout(tm); }
+  }
+  // Campos que se guardan en el regalo (los mismos que escribe el revisor de GitHub).
+  // Si no salió el precio, no se marca como revisado: así el revisor de GitHub lo intenta en unos minutos.
+  const useful = r => !!(r && (r.ok || r.image || r.deliveryDays != null));
+  function fields(url, r, prev) {
+    const now = Date.now(), f = { linkUrl: url, linkVia: "app" };
+    if (r.ok) { f.linkPrice = Math.round(r.price * 100) / 100; f.linkPriceAt = now; f.linkStatus = "ok"; f.linkCheckedAt = now; }
+    else if (prev) { f.linkCheckedAt = deleteField(); if (prev.linkUrl !== url) { f.linkPrice = deleteField(); f.linkStatus = deleteField(); } }
+    if (r.image) f.linkImage = r.image;
+    if (r.deliveryDays != null) { f.linkDeliveryDays = r.deliveryDays; f.linkDeliveryAt = now; }
+    return f;
+  }
+  return { lookup, fields, useful };
+})();
+
+// Al abrir "Mi wishlist", busca al momento lo que todavía no tiene precio ni foto de la tienda.
+const lookingUp = new Set();
+async function autoLookup() {
+  const pending = myItems().filter(i => i.url && !linkFresh(i) && !lookingUp.has(i.id)).slice(0, 3);
+  for (const i of pending) {
+    lookingUp.add(i.id);
+    const r = await LK.lookup(i.url);
+    if (!LK.useful(r)) continue;                     // no salió nada: lo intenta GitHub en unos minutos
+    try { await updateDoc(doc(fdb, "regalos", S.listId, "items", i.id), LK.fields(i.url, r, i)); } catch (e) {}
+  }
+}
+
 /* ---------- Avisos (notificaciones push) ---------- */
 const VAPID_KEY = "BBAeJ9V9CTbcTl3AYxrgkdhqwP3SM7l55cJ-TdnDuH2WG11sF5ROXub4S5ZGS7Ys59P5e-ZbdM8_HqGssgGNYBQ";
 const hashStr = t => { let h = 0; for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
@@ -1079,7 +1170,8 @@ function openSheet(editId) {
   const it = editId ? S.items.find(x => x.id === editId) : null;
   const sel = new Set(it ? (it.occasions || []) : []);
   let photo = it ? safeImg(it.photo) : "";
-  const shopImg = it ? storeImg(it) : "";
+  let shopImg = it ? storeImg(it) : "";
+  let found = null;           // { url, r } de la última búsqueda en la tienda
   let ownPhoto = !!(it && it.ownPhoto && photo);
   const root = $("#sheetRoot");
   root.innerHTML = `
@@ -1095,6 +1187,7 @@ function openSheet(editId) {
         <label class="field">¿Qué es?<input class="input" id="fTitle" required maxlength="120" placeholder="Ej. Libro “Cien años de soledad”" value="${esc(it?.title)}"></label>
         <label class="field">Descripción <span class="opt">(talla, color, modelo…)</span><textarea class="input" id="fNote" maxlength="300" placeholder="Ej. en pasta dura, la edición de aniversario">${esc(it?.note)}</textarea></label>
         <label class="field">Link <span class="opt">(Amazon, Liverpool, Mercado Libre…)</span><input class="input" id="fUrl" inputmode="url" autocomplete="off" placeholder="https://…" value="${esc(it?.url)}"></label>
+        <div class="lookup" id="lookup" aria-live="polite"></div>
         <label class="field">Precio (MXN) <span class="opt">Si pones el link, el precio se toma de la tienda y se mantiene al día. Este se usa si la tienda no deja leerlo.</span><input class="input" id="fPrice" inputmode="decimal" placeholder="${it && linkFresh(it) && Number(it.linkPrice) > 0 ? "En la tienda: " + esc(mxn(Number(it.linkPrice))) : "Ej. 450"}" value="${it && Number(it.price) > 0 ? esc(it.price) : ""}"></label>
         <div class="field">¿Para qué ocasión me lo darías? <span class="opt">Si no eliges, sirve para cualquiera</span>
           <div class="chips" style="margin-top:4px">${OCCASIONS.map(o => `<button type="button" class="chip" data-o="${o.k}" aria-pressed="${sel.has(o.k)}">${o.l}</button>`).join("")}</div>
@@ -1113,6 +1206,29 @@ function openSheet(editId) {
     $("#useShop").hidden = !(shopImg && showOwn);
   };
   paintPick();
+  let lookSeq = 0;
+  const showLookup = (html, cls = "") => { const el = $("#lookup"); if (el) { el.className = "lookup " + cls; el.innerHTML = html; } };
+  async function runLookup() {
+    const raw = $("#fUrl").value.trim(), url = raw ? safeUrl(raw) : "";
+    if (!url || (found && found.url === url) || (it && it.url === url && linkFresh(it))) return;
+    const seq = ++lookSeq;
+    showLookup(`<span class="spin">${I("refresh")}</span> Buscando precio y foto en la tienda…`, "busy");
+    const r = await LK.lookup(url);
+    if (seq !== lookSeq || !$("#lookup")) return;
+    found = { url, r };
+    if (r.failed && !r.blocked) { showLookup("No pude abrir la tienda ahora. Guárdalo y lo busco de nuevo en unos minutos.", "warn-t"); return; }
+    if (r.image) { shopImg = r.image; paintPick(); }
+    const bits = [];
+    if (r.ok) bits.push(`Precio: <b>${esc(mxn(r.price))}</b>`);
+    if (r.deliveryDays != null) bits.push(`llega en ${r.deliveryDays === 0 ? "el mismo día" : r.deliveryDays === 1 ? "1 día" : r.deliveryDays + " días"}`);
+    if (r.image) bits.push("foto lista");
+    if (bits.length) { showLookup(`${I("check")} ${bits.join(" · ")}`, "done"); if (r.ok && !$("#fPrice").value) $("#fPrice").placeholder = "En la tienda: " + mxn(r.price); }
+    else showLookup(r.blocked ? "La tienda no dejó leer la página. Pon un precio aproximado y una foto." : "No encontré el precio en esa página. Pon uno aproximado.", "warn-t");
+  }
+  const fUrl = $("#fUrl");
+  fUrl.addEventListener("paste", () => setTimeout(runLookup, 50));
+  fUrl.addEventListener("change", runLookup);
+  fUrl.addEventListener("blur", runLookup);
   $("#useShop").addEventListener("click", () => { ownPhoto = false; paintPick(); });
   $("#sheetX").addEventListener("click", close);
   $("#sheetBg").addEventListener("click", e => { if (e.target.id === "sheetBg") close(); });
@@ -1144,11 +1260,12 @@ function openSheet(editId) {
       otherOccasion: sel.has("otro") ? $("#fOther").value.trim() : "",
       note: $("#fNote").value.trim(),
     };
+    if (found && found.url === body.url && LK.useful(found.r)) Object.assign(body, LK.fields(body.url, found.r, it));
     $("#fSave").disabled = true;
     try {
       if (it) await updateDoc(doc(fdb, "regalos", S.listId, "items", it.id), body);
       else await addDoc(collection(fdb, "regalos", S.listId, "items"), { ...body, owner: me(), createdAt: Date.now() });
-      close(); toast(rawUrl && (!it || it.url !== safeUrl(rawUrl)) ? "Guardado. En menos de una hora aparece el precio y la foto de la tienda." : it ? "Cambios guardados" : "Agregado a tu wishlist");
+      close(); toast(rawUrl && !body.linkUrl && (!it || it.url !== safeUrl(rawUrl)) ? "Guardado. En unos minutos aparece el precio y la foto de la tienda." : it ? "Cambios guardados" : "Agregado a tu wishlist");
     } catch (e) { $("#fSave").disabled = false; writeErr(e); }
   });
 }
