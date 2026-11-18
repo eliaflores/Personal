@@ -42,7 +42,7 @@ function due(it, now) {
   const stats = { revisados: 0, conPrecio: 0, sinPrecio: 0, bloqueados: 0, limpiados: 0 };
   for (const { ref, it } of todo.slice(0, MAX_PER_RUN)) {
     if (!it.url) {
-      await ref.update({ linkUrl: DEL, linkPrice: DEL, linkImage: DEL, linkCheckedAt: DEL, linkStatus: DEL });
+      await ref.update({ linkUrl: DEL, linkPrice: DEL, linkImage: DEL, linkCheckedAt: DEL, linkStatus: DEL, linkDeliveryDays: DEL, linkDeliveryAt: DEL });
       stats.limpiados++; continue;
     }
     stats.revisados++;
@@ -59,10 +59,14 @@ function due(it, now) {
       else { upd.linkStatus = fail; upd.linkPrice = DEL; upd.linkPriceAt = DEL; }
       r.blocked ? stats.bloqueados++ : stats.sinPrecio++;
     }
+    // Entrega: días que tarda si se pide hoy (la app los cuenta desde el día en que se ve).
+    if (r.deliveryDays != null) { upd.linkDeliveryDays = r.deliveryDays; upd.linkDeliveryAt = Date.now(); }
+    else if (!sameUrl) { upd.linkDeliveryDays = DEL; upd.linkDeliveryAt = DEL; }
+    else if (it.linkDeliveryAt && Date.now() - it.linkDeliveryAt > 3 * 24 * HOUR) { upd.linkDeliveryDays = DEL; upd.linkDeliveryAt = DEL; }   // muy viejo: mejor no adivinar
     if (r.image) upd.linkImage = r.image;
     else if (!sameUrl || /logo|frontend-assets|nav-sprite|favicon|sprite/i.test(it.linkImage || "")) upd.linkImage = DEL;   // quitar logos que se colaron antes
     // Solo la tienda y el resultado: nunca el link, el nombre del regalo ni el precio.
-    console.log(`- ${r.host || "?"}: ${upd.linkStatus}, HTTP ${r.status}, página ${r.size} bytes, foto ${r.image ? "sí" : "no"}${r.via ? ", " + r.via : ""}`);
+    console.log(`- ${r.host || "?"}: ${upd.linkStatus}, HTTP ${r.status}, página ${r.size} bytes, foto ${r.image ? "sí" : "no"}, entrega ${r.deliveryDays != null ? "sí" : "no"}${r.via ? ", " + r.via : ""}`);
     await ref.update(upd);
     await sleep(r.via ? 3000 : 1500);
   }

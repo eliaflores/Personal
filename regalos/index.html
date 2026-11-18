@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Nuestra Lista de Regalos</title>
-<meta name="theme-color" content="#FFFFFF">
+<meta name="theme-color" content="#F4F1EB">
 <script>
   // Tema guardado en este cel: "colorido" (normal) o "discreto" (gris perla).
   (function () { var t = "colorido"; try { t = localStorage.getItem("regalos.tema") || t; } catch (e) {} document.documentElement.setAttribute("data-tema", t);
@@ -292,91 +292,120 @@ textarea.input { min-height: 84px; resize: vertical; }
 .invite p { margin: 0; color: rgba(255,255,255,.8); font-size: .92rem; }
 .invite .input { color: var(--ink); }
 
-/* ---------- Tema "Colorido" (el normal): fondo blanco, tarjetas pastel y botones negros ----------
+/* ---------- Tema "Colorido" (el normal): fondo crema, bloques terracota, lavanda, salvia, vino, turquesa y mostaza ----------
    El tema "Discreto" es el gris perla de arriba. Se elige en Ajustes y se guarda en cada cel. */
 :root[data-tema="colorido"] {
-  --bg: #FFFFFF;
+  --bg: #F4F1EB;
   --glass: #FFFFFF;
   --card: #FFFFFF;
-  --soft: #F5F2EC;
-  --soft-2: #ECE7DE;
-  --ink: #141414;
-  --ink-2: #2E2E2E;
-  --muted: #8A8780;
-  --line: #EFECE6;
-  --icon: #141414;
-  --pink: #FFB8E6;
-  --yellow: #FFE07A;
-  --blue: #A8E6F8;
-  --green: #B8F1A0;
-  --check: #FFD43B;
-  --shadow: 0 1px 2px rgba(20,20,20,.03), 0 8px 22px rgba(20,20,20,.05);
+  --soft: #EEEAE2;
+  --soft-2: #E4DED3;
+  --ink: #1C1B1A;
+  --ink-2: #33312E;
+  --muted: #8A857C;
+  --line: #E8E3DA;
+  --icon: #1C1B1A;
+  --terra: #D95B3F;
+  --lav: #8F94DB;
+  --sage: #9CC487;
+  --wine: #8E4C55;
+  --teal: #2F8FA6;
+  --mustard: #D4CF4A;
+  --late: #C62828;
+  --shadow: 0 1px 2px rgba(28,27,26,.03), 0 8px 22px rgba(28,27,26,.05);
   --f-title: "Lexend", "DM Sans", system-ui, sans-serif;
   --f: "Lexend", "DM Sans", system-ui, sans-serif;
 }
 [data-tema="colorido"] body { font-size: 14.5px; }
-[data-tema="colorido"] body::before { background: #fff; }
+[data-tema="colorido"] body::before { background: var(--bg); }
 [data-tema="colorido"] .bgfx { display: none; }
 [data-tema="colorido"] :is(.title, .pf-h, .page-h, .bar .brand, .sec, .empty h3, .ftile b, .wz-q, .money span, .money input, .summary .v, .band .name, .band .big, .for, .gcard h3, .dt-title h1, .panel .price, .stats3 b, .nav button, .sheet-head h2, .signin h1, .invite h2) { font-weight: 600; letter-spacing: -0.02em; }
 [data-tema="colorido"] .title { font-size: 1.9rem; }
-[data-tema="colorido"] :is(.card, .list, .band, .tabs, .empty, .secret-note, .gcard, .ftile, .occ-opt, .chip, .qcard, .stat) { border: 1.5px solid var(--line); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
-[data-tema="colorido"] :is(.icon-btn, .circle-btn, .logo, .x, .mini-av) { box-shadow: none; border: 1.5px solid var(--line); }
-[data-tema="colorido"] .nav-in { background: #fff; border: 1.5px solid var(--line); box-shadow: 0 10px 30px rgba(20,20,20,.10); }
-[data-tema="colorido"] .nav button { background: var(--soft); }
+[data-tema="colorido"] :is(.card, .list, .tabs, .empty, .secret-note, .gcard, .ftile, .occ-opt, .chip, .stat) { border: 1.5px solid var(--line); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+[data-tema="colorido"] :is(.icon-btn, .circle-btn, .logo, .x, .mini-av) { box-shadow: none; border: 1.5px solid var(--ink); background: transparent; }
+[data-tema="colorido"] .nav-in { background: #fff; border: 1.5px solid var(--line); box-shadow: 0 10px 30px rgba(28,27,26,.10); }
+[data-tema="colorido"] .nav button { background: transparent; border: 1.5px solid var(--ink); }
 [data-tema="colorido"] .nav button[aria-current="page"] { background: var(--ink); color: #fff; }
 [data-tema="colorido"] .btn-primary { box-shadow: none; }
+[data-tema="colorido"] .chip { border-color: var(--ink); background: transparent; }
+[data-tema="colorido"] .chip[aria-pressed="true"] { background: var(--ink); }
 
-/* Superficies de color (antes oscuras): pastel con texto negro */
-[data-tema="colorido"] .solid { background: var(--green); color: var(--ink); }
-[data-tema="colorido"] :is(.invite p, .summary .k, .panel .meta, .panel .host, .panel .short, .banner .bt span) { color: rgba(20,20,20,.62); }
-[data-tema="colorido"] .panel .meta { border-color: rgba(20,20,20,.12); }
-[data-tema="colorido"] .btn-ghost-light { color: var(--ink); border-color: var(--ink); }
-[data-tema="colorido"] .banner .bi { color: var(--ink); }
-[data-tema="colorido"] .banner.solid { background: var(--pink); }
-[data-tema="colorido"] .invite.solid { background: var(--blue); }
-[data-tema="colorido"] .summary.solid { background: var(--yellow); }
-[data-tema="colorido"] .panel.solid { background: var(--green); }
+/* Bloques de color. "on" = texto blanco; los claros (salvia, mostaza) llevan texto negro. */
+[data-tema="colorido"] .solid { background: var(--wine); color: #fff; }
+[data-tema="colorido"] .banner.solid { background: var(--wine); }
+[data-tema="colorido"] .invite.solid { background: var(--teal); }
+[data-tema="colorido"] .summary.solid { background: var(--lav); }
+[data-tema="colorido"] .panel.solid { background: var(--wine); }
+[data-tema="colorido"] :is(.invite p, .summary .k, .panel .meta, .panel .host, .panel .short, .banner .bt span) { color: rgba(255,255,255,.78); }
+[data-tema="colorido"] .btn-ghost-light { color: #fff; border-color: rgba(255,255,255,.85); }
 
 /* Perfil */
-[data-tema="colorido"] .pf-av { box-shadow: 0 0 0 8px var(--yellow), 0 0 0 16px #FFF5CC; border-color: #fff; background: var(--pink); }
+[data-tema="colorido"] .pf-av { box-shadow: 0 0 0 8px var(--terra), 0 0 0 16px #F3C9BD; border-color: #fff; background: var(--lav); color: #fff; }
 [data-tema="colorido"] .stats3 div { box-shadow: none; border: none; }
-[data-tema="colorido"] .stats3 div:nth-child(1) { background: var(--pink); }
-[data-tema="colorido"] .stats3 div:nth-child(2) { background: var(--yellow); }
-[data-tema="colorido"] .stats3 div:nth-child(3) { background: var(--blue); }
-[data-tema="colorido"] .menu .row .ic { width: 38px; height: 38px; border-radius: 50%; }
-[data-tema="colorido"] .menu .row .ic svg { width: 20px; height: 20px; }
-[data-tema="colorido"] .menu .row:nth-child(4n+1) .ic { background: var(--pink); }
-[data-tema="colorido"] .menu .row:nth-child(4n+2) .ic { background: var(--yellow); }
-[data-tema="colorido"] .menu .row:nth-child(4n+3) .ic { background: var(--blue); }
-[data-tema="colorido"] .menu .row:nth-child(4n+4) .ic { background: var(--green); }
+[data-tema="colorido"] .stats3 div:nth-child(1) { background: var(--terra); color: #fff; }
+[data-tema="colorido"] .stats3 div:nth-child(2) { background: var(--lav); color: #fff; }
+[data-tema="colorido"] .stats3 div:nth-child(3) { background: var(--sage); }
+[data-tema="colorido"] .stats3 div:is(:nth-child(1), :nth-child(2)) span { color: rgba(255,255,255,.85); }
+[data-tema="colorido"] .menu .row .ic { width: 38px; height: 38px; border-radius: 50%; color: #fff; }
+[data-tema="colorido"] .menu .row .ic svg { width: 19px; height: 19px; }
+[data-tema="colorido"] .menu .row:nth-child(5n+1) .ic { background: var(--terra); }
+[data-tema="colorido"] .menu .row:nth-child(5n+2) .ic { background: var(--lav); }
+[data-tema="colorido"] .menu .row:nth-child(5n+3) .ic { background: var(--sage); color: var(--ink); }
+[data-tema="colorido"] .menu .row:nth-child(5n+4) .ic { background: var(--teal); }
+[data-tema="colorido"] .menu .row:nth-child(5n+5) .ic { background: var(--wine); }
 
-/* Festividades y ocasiones con su color */
-[data-tema="colorido"] :is(.ftile, .occ-opt)[data-occ="navidad"] { background: var(--green); border-color: transparent; }
-[data-tema="colorido"] :is(.ftile, .occ-opt)[data-occ="aniversario"] { background: var(--blue); border-color: transparent; }
-[data-tema="colorido"] :is(.ftile, .occ-opt)[data-occ="sanvalentin"] { background: var(--pink); border-color: transparent; }
-[data-tema="colorido"] :is(.ftile, .occ-opt)[data-occ="cumple"] { background: var(--yellow); border-color: transparent; }
-[data-tema="colorido"] :is(.ftile, .occ-opt)[data-occ="otro"] { background: var(--soft); border-color: transparent; }
+/* Cada ocasión con su color (tarjetas de festividad, opciones del asistente y banda de la festividad) */
+[data-tema="colorido"] [data-occ="cumple"] { --oc: var(--terra); --on: #fff; }
+[data-tema="colorido"] [data-occ="navidad"] { --oc: var(--sage); --on: var(--ink); }
+[data-tema="colorido"] [data-occ="aniversario"] { --oc: var(--lav); --on: #fff; }
+[data-tema="colorido"] [data-occ="sanvalentin"] { --oc: var(--wine); --on: #fff; }
+[data-tema="colorido"] [data-occ="otro"] { --oc: var(--teal); --on: #fff; }
+[data-tema="colorido"] :is(.ftile, .occ-opt, .band)[data-occ] { background: var(--oc); color: var(--on); border-color: transparent; }
+[data-tema="colorido"] :is(.ftile, .occ-opt)[data-occ] :is(.fi, svg, .go) { color: var(--on); }
+[data-tema="colorido"] :is(.ftile, .band)[data-occ] :is(span.s, .lbl, .days) { color: var(--on); opacity: .82; }
+[data-tema="colorido"] .band[data-occ] .meter { background: rgba(255,255,255,.45); }
+[data-tema="colorido"] .band[data-occ] .meter i { background: var(--on); }
 [data-tema="colorido"] .ftile .fi { filter: none; }
-[data-tema="colorido"] .ftile span.s { color: rgba(20,20,20,.6); }
-[data-tema="colorido"] .ftile.new span.s { color: rgba(255,255,255,.7); }
-[data-tema="colorido"] .occ-opt[aria-pressed="true"] { background: var(--ink) !important; color: #fff; }
-[data-tema="colorido"] .band { background: var(--blue); border-color: transparent; }
-[data-tema="colorido"] .band .lbl { color: rgba(20,20,20,.62); }
-[data-tema="colorido"] .meter { background: rgba(255,255,255,.7); }
+[data-tema="colorido"] .ftile.new { background: var(--mustard); color: var(--ink); border-color: transparent; }
+[data-tema="colorido"] .ftile.new :is(.fi, .go) { color: var(--ink); }
+[data-tema="colorido"] .ftile.new span.s { color: rgba(28,27,26,.7); }
+[data-tema="colorido"] .occ-opt[aria-pressed="true"] { background: var(--ink) !important; color: #fff !important; box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--ink); }
+[data-tema="colorido"] .occ-opt[aria-pressed="true"] svg { color: #fff !important; }
 [data-tema="colorido"] .tabs { background: var(--soft); border-color: transparent; }
 [data-tema="colorido"] .secret-note { background: var(--soft); border-color: transparent; }
-[data-tema="colorido"] .warn { background: #FFF4C7; }
+[data-tema="colorido"] .warn { background: #F4EFC9; }
 
-/* Regalos: cada tarjeta con un fondo pastel distinto */
-[data-tema="colorido"] .grid > :nth-child(4n+1) .tile { background: var(--pink); }
-[data-tema="colorido"] .grid > :nth-child(4n+2) .tile { background: var(--yellow); }
-[data-tema="colorido"] .grid > :nth-child(4n+3) .tile { background: var(--blue); }
-[data-tema="colorido"] .grid > :nth-child(4n+4) .tile { background: var(--green); }
-[data-tema="colorido"] .tile .ph { color: var(--ink); opacity: .55; }
-[data-tema="colorido"] .stamp { border-color: var(--ink); background: var(--check); }
-[data-tema="colorido"] .hero-img { background: var(--pink); box-shadow: 0 0 0 10px #FFE9F7, 0 0 0 22px #FFF6FC; }
-[data-tema="colorido"] .sheet { background: #fff; }
-[data-tema="colorido"] .photo-pick { background: var(--soft); border-color: #DAD4C8; }
+/* Regalos: fondo de color en cada tarjeta */
+[data-tema="colorido"] .grid > :nth-child(4n+1) .tile { background: var(--lav); }
+[data-tema="colorido"] .grid > :nth-child(4n+2) .tile { background: var(--sage); }
+[data-tema="colorido"] .grid > :nth-child(4n+3) .tile { background: var(--terra); }
+[data-tema="colorido"] .grid > :nth-child(4n+4) .tile { background: var(--mustard); }
+[data-tema="colorido"] .tile .ph { color: #fff; opacity: .8; }
+[data-tema="colorido"] .stamp { border-color: var(--ink); background: var(--mustard); }
+[data-tema="colorido"] .hero-img { background: var(--lav); box-shadow: 0 0 0 10px #DADCF4, 0 0 0 22px #ECEDFA; }
+[data-tema="colorido"] .hero-img .ph { color: #fff; opacity: .85; }
+[data-tema="colorido"] .sheet { background: var(--bg); }
+[data-tema="colorido"] .photo-pick { background: #fff; border-color: #D8D1C4; }
+[data-tema="colorido"] .dots i.on { background: var(--terra); }
+
+/* Fechas, entregas y recordatorios (los dos temas) */
+:root { --late: #C62828; }
+.late-box { display: flex; gap: 10px; align-items: flex-start; background: #FDECEA; color: var(--late); border-radius: 18px; padding: 12px 14px; font-size: .92rem; font-weight: 600; line-height: 1.35; }
+.late-box svg { flex: none; width: 20px; height: 20px; }
+.ontime { display: flex; gap: 8px; align-items: center; font-size: .86rem; font-weight: 500; }
+.ontime svg { flex: none; width: 18px; height: 18px; }
+.late-badge { position: absolute; z-index: 2; left: 8px; bottom: 8px; background: var(--late); color: #fff; border-radius: 99px; padding: 3px 9px; font-size: .7rem; font-weight: 700; }
+.datechip { position: relative; display: inline-flex; align-items: center; gap: 6px; border: 1.5px solid currentColor; border-radius: 999px; padding: 5px 12px; font-size: .82rem; font-weight: 600; cursor: pointer; }
+.datechip svg { width: 15px; height: 15px; }
+.datechip input { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
+.days { font-size: .84rem; font-weight: 600; }
+.remind { display: flex; align-items: center; gap: 12px; border-radius: 24px; padding: 14px 14px 14px 16px; margin-bottom: 30px; }
+.remind .rt { flex: 1; min-width: 0; }
+.remind .rt b { display: block; font-weight: 700; font-size: .98rem; }
+.remind .rt span { display: block; font-size: .84rem; opacity: .85; }
+.remind .ri svg { width: 26px; height: 26px; }
+.remind { background: var(--ink); color: #fff; }
+[data-tema="colorido"] .remind { background: var(--terra); }
 
 /* Ajustes */
 .themes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -413,6 +442,7 @@ textarea.input { min-height: 84px; resize: vertical; }
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getMessaging, getToken, deleteToken, isSupported as messagingSupported } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, onSnapshot, query, where, limit, getDocs, arrayUnion, deleteField } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // Mismo proyecto de Firebase que Mi Cartera, pero datos aparte en la colección "regalos".
@@ -517,6 +547,16 @@ const myItems = () => S.items.filter(i => i.owner === me()).sort((a, b) => (b.cr
 const theirItems = () => S.items.filter(i => i.owner === partner());
 const spent = f => Object.values(f.bought || {}).reduce((s, b) => s + (Number(b.price) || 0), 0);
 const fiestaName = f => f.name || occ(f.occasion).l;
+const pad2 = n => String(n).padStart(2, "0");
+const isoOf = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const todayISO = () => isoOf(new Date());
+const addDaysISO = (iso, n) => { const [y, m, d] = iso.split("-").map(Number); return isoOf(new Date(y, m - 1, d + n)); };
+const daysUntil = iso => { if (!iso) return null; const [y, m, d] = iso.split("-").map(Number); const t = new Date(); return Math.round((new Date(y, m - 1, d) - new Date(t.getFullYear(), t.getMonth(), t.getDate())) / 86400000); };
+const fShort = iso => { const [y, m, d] = iso.split("-").map(Number); return `${d} ${MES[m - 1]}`; };
+const daysText = n => n == null ? "" : n < 0 ? "Ya pasó" : n === 0 ? "¡Es hoy!" : n === 1 ? "Es mañana" : `Faltan ${n} días`;
+// Entrega: la tienda dice en cuántos días llega si lo pides hoy; se cuenta desde hoy.
+const arrivalOf = i => (linkFresh(i) && Number.isFinite(Number(i.linkDeliveryDays)) && i.linkDeliveryDays !== null && i.linkDeliveryDays !== undefined) ? addDaysISO(todayISO(), Math.max(0, Number(i.linkDeliveryDays))) : null;
+const isLate = (i, f) => { const a = arrivalOf(i); return !!(a && f && f.date && a > f.date); };
 
 // Precio y foto: si el link ya se revisó, se usan los de la tienda (se actualizan solos); si no, los que puso la persona.
 const linkFresh = i => !!(i && i.url && i.linkUrl === i.url);
@@ -666,7 +706,7 @@ function renderFiestas() {
     const fs = [...S.fiestas].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     html += `<div class="ftiles">
       <button class="ftile new" data-go="#nueva"><span class="fi">${I("plus")}</span><b>Nueva festividad</b><span class="s">¿Qué estás celebrando?</span><span class="go">${I("arrow")}</span></button>
-      ${fs.map(f => { const n = Object.keys(f.bought || {}).length; return `<button class="ftile" data-occ="${esc(f.occasion)}" data-go="#f/${esc(f.id)}"><span class="fi">${I(occ(f.occasion).i)}</span><b>${esc(fiestaName(f))}</b><span class="s">${f.date ? esc(fDate(f.date)) + " · " : ""}te quedan ${mxn(f.budget - spent(f))}${n ? ` · ${n} comprado${n > 1 ? "s" : ""}` : ""}</span><span class="go">${I("arrow")}</span></button>`; }).join("")}
+      ${fs.map(f => { const n = Object.keys(f.bought || {}).length; return `<button class="ftile" data-occ="${esc(f.occasion)}" data-go="#f/${esc(f.id)}"><span class="fi">${I(occ(f.occasion).i)}</span><b>${esc(fiestaName(f))}</b><span class="s">${f.date ? esc(daysText(daysUntil(f.date))) + " · " : ""}te quedan ${mxn(f.budget - spent(f))}${n ? ` · ${n} comprado${n > 1 ? "s" : ""}` : ""}</span><span class="go">${I("arrow")}</span></button>`; }).join("")}
     </div>`;
     if (!fs.length) html += `<p class="hint center" style="margin-top:18px">Aún no hay festividades. Toca <b>Nueva festividad</b> cuando se acerque un cumple, Navidad o su aniversario.</p>`;
     html += `<div class="secret-note">${I("shield")}<span>Todo esto es secreto. ${esc(nameOf(p))} no ve tus festividades, tu presupuesto ni lo que ya compraste.</span></div>`;
@@ -784,8 +824,10 @@ function renderFiesta(fid) {
   let html = `<div class="wrap screen">
     ${topBar(`<button class="icon-btn" data-go="#fiestas" aria-label="Atrás">${I("back")}</button>`,
       `${refreshBtn()}<button class="icon-btn bagbtn" id="toBought" aria-label="Comprados: ${nb}">${I("bag")}${nb ? `<b>${nb}</b>` : ""}</button>`)}
-    <div class="band">
-      <div class="band-row"><span class="name">${esc(fiestaName(f))}</span><span class="lbl">${f.date ? esc(fDate(f.date)) : esc(occ(f.occasion).l)}</span></div>
+    <div class="band" data-occ="${esc(f.occasion)}">
+      <div class="band-row"><span class="name">${esc(fiestaName(f))}</span>
+        <label class="datechip">${I("cal")}<span>${f.date ? esc(fDate(f.date)) : "Poner fecha"}</span><input type="date" id="fDate" value="${esc(f.date || "")}" aria-label="Fecha de la festividad"></label></div>
+      ${f.date ? `<div class="band-row"><span class="days">${esc(daysText(daysUntil(f.date)))}</span></div>` : ""}
       <div class="band-row"><span class="lbl">${I("lock")} Presupuesto fijo: ${mxn(f.budget)}</span></div>
       <div class="band-row"><span class="big">Te quedan ${mxn(left)}</span></div>
       <div class="meter" aria-hidden="true"><i style="width:${pct}%"></i></div>
@@ -809,7 +851,7 @@ function renderFiesta(fid) {
       return `<a class="gcard" href="#f/${esc(f.id)}/i/${esc(i.id)}">
         <div class="tile ${isB ? "bought" : ""}">${photoHtml(i)}
           <div class="top">${isB ? `<span>Comprado</span>` : `<i></i>`}<span class="p">${mxn(isB ? Number(i.paid) : priceOf(i))}</span></div>
-          ${isB ? `<span class="stamp">Listo</span>` : ""}
+          ${isB ? `<span class="stamp">Listo</span>` : isLate(i, f) ? `<span class="late-badge">No llega a tiempo</span>` : ""}
         </div>
         <h3>${esc(i.title)}</h3>
         ${was ? `<span class="was">Ya se lo diste en ${esc(was)}</span>` : ""}
@@ -822,6 +864,11 @@ function renderFiesta(fid) {
   wireGo();
   app.querySelectorAll("[data-tab]").forEach(b => b.addEventListener("click", () => { S.tab = b.dataset.tab; render(); }));
   $("#toBought").addEventListener("click", () => { S.tab = "comprados"; render(); });
+  $("#fDate").addEventListener("change", async ev => {
+    const v = ev.target.value;
+    try { await updateDoc(doc(fdb, "regalos", S.listId, "privado", me(), "fiestas", f.id), { date: v || "" }); toast(v ? "Fecha guardada. Te aviso antes del día." : "Fecha quitada"); }
+    catch (e) { writeErr(e); }
+  });
   $("#delF").addEventListener("click", async ev => {
     if (!arm("delF", ev.currentTarget, "¿Seguro? Toca otra vez para borrar")) return;
     try { await deleteDoc(doc(fdb, "regalos", S.listId, "privado", me(), "fiestas", f.id)); location.replace("#fiestas"); toast("Festividad borrada"); }
@@ -840,6 +887,11 @@ function renderDetail(fid, iid) {
   const url = safeUrl(it.url);
   const occs = (it.occasions || []).length ? it.occasions.map(k => k === "otro" && it.otherOccasion ? it.otherOccasion : occ(k).l).join(" · ") : "Cualquier ocasión";
   const short = !b && price > left;
+  const arr = !b && !it.gone ? arrivalOf(it) : null;
+  const late = arr && f.date && arr > f.date;
+  const deliveryHtml = !arr ? "" : late
+    ? `<div class="late-box">${I("cal")}<span>Cuidado: si lo pides hoy, este artículo llegaría el ${esc(fShort(arr))} y tu festejo es el ${esc(fShort(f.date))}.</span></div>`
+    : `<span class="ontime">${I("check")}Si lo pides hoy, llegaría el ${esc(fShort(arr))}${f.date ? ". Llega a tiempo." : "."}</span>`;
   app.innerHTML = `<div class="wrap no-nav screen" style="padding-bottom:0">
     ${topBar(`<button class="icon-btn" id="dBack" aria-label="Atrás">${I("back")}</button>`, b ? `<span class="icon-btn" aria-label="Comprado">${I("check")}</span>` : "")}
     <div class="hero-img">${photoHtml(it)}</div>
@@ -849,6 +901,7 @@ function renderDetail(fid, iid) {
       <div class="body">
         <p>${esc(it.gone ? "Este regalo ya no está en su wishlist, pero sigue en tus compras." : (it.note || "Sin descripción."))}</p>
         ${b ? `<span class="host">Lo que pagaste</span>` : it.gone ? "" : `<span class="host">${esc(priceNote(it, nameOf(partner())))}</span>`}
+        ${deliveryHtml}
         <div class="price"><small>$</small>${esc(new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 }).format(price))}</div>
         <div class="acts">
           ${url ? `<a class="btn btn-ghost-light" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Ver tienda ${I("ext")}</a>` : `<span></span>`}
@@ -896,8 +949,17 @@ function renderProfile() {
   const p = partner(), src = S.user.photoURL;
   const full = (S.user.displayName || firstName(S.user)).trim();
   const bought = S.fiestas.reduce((n, f) => n + Object.keys(f.bought || {}).length, 0);
+  const soon = S.fiestas.map(f => ({ f, d: daysUntil(f.date) })).filter(x => x.d != null && x.d >= 0 && x.d <= 14).sort((a, b) => a.d - b.d)[0];
+  const remindHtml = !soon ? "" : (() => {
+    const n = Object.keys(soon.f.bought || {}).length;
+    const lateN = theirItems().filter(i => !(soon.f.bought || {})[i.id] && isLate(i, soon.f)).length;
+    const head = soon.d === 0 ? `Hoy es ${fiestaName(soon.f)}` : soon.d === 1 ? `Mañana es ${fiestaName(soon.f)}` : `Quedan ${soon.d} días para ${fiestaName(soon.f)}`;
+    const sub = n ? `Llevas ${n} regalo${n > 1 ? "s" : ""} tachado${n > 1 ? "s" : ""}.` : "¿Ya compraste tus regalos?";
+    return `<button class="remind" data-go="#f/${esc(soon.f.id)}" style="width:100%;border:none;text-align:left"><span class="ri">${I("cal")}</span><span class="rt"><b>${esc(head)}</b><span>${esc(sub)}${lateN ? ` ${lateN} de su wishlist ya no llegaría${lateN > 1 ? "n" : ""} a tiempo.` : ""}</span></span><span class="ch">${I("chev")}</span></button>`;
+  })();
   app.innerHTML = `<div class="wrap screen">
     <div class="pf-head"><h1 class="title">Perfil</h1><div class="hdr-btns">${refreshBtn()}<button class="circle-btn" data-go="#ajustes" aria-label="Ajustes">${I("gear")}</button><button class="circle-btn" id="qNew" aria-label="Nueva festividad">${I("plus")}</button></div></div>
+    <div style="height:14px"></div>${remindHtml}
     <div class="pf-avatar"><div class="pf-av">${src ? `<img src="${esc(src)}" alt="" referrerpolicy="no-referrer">` : esc(firstName(S.user).charAt(0))}</div></div>
     <div class="card pf-card">
       <div class="pf-name">
@@ -931,14 +993,14 @@ function renderProfile() {
 
 /* ---------- Ajustes ---------- */
 const TEMAS = [
-  { k: "colorido", l: "Colorido", d: "Blanco con tarjetas de colores pastel", sw: ["#FFB8E6", "#FFE07A", "#A8E6F8", "#B8F1A0"] },
+  { k: "colorido", l: "Colorido", d: "Terracota, lavanda, salvia y turquesa", sw: ["#D95B3F", "#8F94DB", "#9CC487", "#2F8FA6"] },
   { k: "discreto", l: "Discreto", d: "Gris perla, blanco y negro", sw: ["#E8E9EF", "#FFFFFF", "#8B8C97", "#1F1E25"] },
 ];
 const temaActual = () => document.documentElement.getAttribute("data-tema") || "colorido";
 function setTema(k) {
   document.documentElement.setAttribute("data-tema", k);
   try { localStorage.setItem("regalos.tema", k); } catch (e) {}
-  const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", k === "discreto" ? "#E8E9EF" : "#FFFFFF");
+  const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", k === "discreto" ? "#E8E9EF" : "#F4F1EB");
 }
 function renderSettings() {
   const cur = temaActual();
@@ -951,13 +1013,48 @@ function renderSettings() {
         ${cur === t.k ? `<span class="ok">${I("check")} En uso</span>` : ""}
       </button>`).join("")}</div>
     <p class="hint" style="margin-top:14px">El color se guarda en este cel. ${partner() ? esc(nameOf(partner())) + " puede elegir el suyo en su cel." : ""}</p>
+    <h2 class="sec">Avisos</h2>
+    <div class="list menu">
+      <button class="row" id="pushBtn"><span class="ic">${I("cal")}</span><span class="tx"><b id="pushT">Avisos de festividades</b><span id="pushS">${esc(pushStateText())}</span></span><span class="ch">${I("chev")}</span></button>
+    </div>
+    <p class="hint" style="margin-top:10px">Te llega un aviso 14, 7, 3 y 1 día antes de cada festividad con fecha, y el mismo día. Solo a ti: ${partner() ? esc(nameOf(partner())) : "tu pareja"} no recibe nada de tus festividades.</p>
     <h2 class="sec">App</h2>
     <div class="list menu">
       <button class="row" data-refresh><span class="ic">${I("refresh")}</span><span class="tx"><b>Actualizar</b><span>Trae la versión más nueva y los precios recientes</span></span><span class="ch">${I("chev")}</span></button>
     </div>
   </div>`;
   wireGo();
+  $("#pushBtn").addEventListener("click", enablePush);
   app.querySelectorAll(".theme-opt").forEach(b => b.addEventListener("click", () => { setTema(b.dataset.pick); render(); toast(b.dataset.pick === "discreto" ? "Modo discreto" : "Modo colorido"); }));
+}
+
+/* ---------- Avisos (notificaciones push) ---------- */
+const VAPID_KEY = "BBAeJ9V9CTbcTl3AYxrgkdhqwP3SM7l55cJ-TdnDuH2WG11sF5ROXub4S5ZGS7Ys59P5e-ZbdM8_HqGssgGNYBQ";
+const hashStr = t => { let h = 0; for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
+function pushStateText() {
+  if (!("Notification" in window) || !("serviceWorker" in navigator)) return /iPhone|iPad/.test(navigator.userAgent) ? "En iPhone: primero agrega la app a tu pantalla de inicio y ábrela desde ahí" : "Este navegador no permite avisos";
+  let on = false; try { on = !!localStorage.getItem("regalos.push"); } catch (e) {}
+  if (Notification.permission === "granted" && on) return "Activados en este cel · toca para probar";
+  if (Notification.permission === "denied") return "Bloqueados. Actívalos en los ajustes del cel para esta app";
+  return "Toca para activarlos en este cel";
+}
+async function enablePush() {
+  const sub = $("#pushS");
+  if (!("Notification" in window) || !("serviceWorker" in navigator)) { toast(pushStateText()); return; }
+  try {
+    if (!(await messagingSupported())) { toast("Este navegador no permite avisos con la app cerrada"); return; }
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") { toast("No se activaron los avisos"); if (sub) sub.textContent = pushStateText(); return; }
+    const reg = await navigator.serviceWorker.register("sw.js"); await navigator.serviceWorker.ready;
+    let had = ""; try { had = localStorage.getItem("regalos.push") || ""; } catch (e) {}
+    const token = await getToken(getMessaging(fbApp), { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+    if (!token) { toast("No se pudo registrar este cel"); return; }
+    await setDoc(doc(fdb, "regalos", S.listId, "privado", me(), "avisos", "t-" + hashStr(token)), { token, device: (navigator.userAgent || "").slice(0, 140), createdAt: Date.now() });
+    try { localStorage.setItem("regalos.push", token); } catch (e) {}
+    if (had === token) { await reg.showNotification("Regalos", { body: "Así se verán tus avisos de festividades.", icon: "icon-192.png" }); toast("Te mandé un aviso de prueba"); }
+    else toast("¡Listo! Te avisaré antes de cada festividad");
+    if (sub) sub.textContent = pushStateText();
+  } catch (e) { console.error(e); toast(e && e.code === "permission-denied" ? "Firebase no dio permiso. Faltan las reglas nuevas." : "No se pudieron activar: " + ((e && (e.code || e.message)) || "error")); }
 }
 
 /* ---------- Agregar / editar regalo ---------- */

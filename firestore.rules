@@ -52,6 +52,11 @@ service cloud.firestore {
           && request.resource.data.budget == resource.data.budget
           && request.resource.data.occasion == resource.data.occasion;
       }
+
+      // Cels donde cada quien activó los avisos de sus festividades (solo los ve y cambia su dueño).
+      match /privado/{uid}/avisos/{tokenId} {
+        allow read, write: if inList() && request.auth.uid == uid;
+      }
     }
   }
 }

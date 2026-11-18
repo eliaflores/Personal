@@ -1,0 +1,20 @@
+name: Regalos - avisos de festividades
+
+on:
+  schedule:
+    - cron: "13 15 * * *"   # 9:13 en CDMX
+  workflow_dispatch:
+
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --prefix regalos-precios --no-audit --no-fund
+      - run: node regalos-precios/avisos.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

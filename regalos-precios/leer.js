@@ -52,9 +52,49 @@ function fromProduct(p) {
     for (const c of cands) { const n = num(c); if (okPrice(n)) { price = n; currency = of.priceCurrency || ""; break; } }
     if (okPrice(price)) break;
   }
+  // schema.org: offers.shippingDetails.deliveryTime.{handlingTime,transitTime}.maxValue (en días)
+  let deliveryDays = null;
+  for (const of of [].concat(p.offers || [])) {
+    const dt = [].concat(of.shippingDetails || [])[0]?.deliveryTime;
+    if (dt) { const h = Number(dt.handlingTime?.maxValue ?? dt.handlingTime?.minValue ?? 0), tr = Number(dt.transitTime?.maxValue ?? dt.transitTime?.minValue); if (Number.isFinite(tr)) { deliveryDays = h + tr; break; } }
+  }
   let img = [].concat(p.image || [])[0];
   if (img && typeof img === "object") img = img.url || img.contentUrl;
-  return { price, currency, image: typeof img === "string" ? img : "" };
+  return { price, currency, image: typeof img === "string" ? img : "", deliveryDays };
+}
+
+// Fecha de entrega: "martes, 25 de noviembre", "24 - 27 de noviembre", "mañana, 20 de nov." -> la fecha más tardía.
+const MONTHS = { ene: 1, enero: 1, feb: 2, febrero: 2, mar: 3, marzo: 3, abr: 4, abril: 4, may: 5, mayo: 5, jun: 6, junio: 6, jul: 7, julio: 7, ago: 8, agosto: 8, sep: 9, sept: 9, septiembre: 9, setiembre: 9, oct: 10, octubre: 10, nov: 11, noviembre: 11, dic: 12, diciembre: 12,
+  jan: 1, january: 1, february: 2, march: 3, apr: 4, april: 4, june: 6, july: 7, aug: 8, august: 8, september: 9, october: 10, november: 11, dec: 12, december: 12 };
+function mxToday() { const [y, m, d] = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City" }).format(new Date()).split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)); }
+function parseDelivery(text, today = mxToday()) {
+  const t = String(text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const dates = [];
+  for (const m of t.matchAll(/(\d{1,2})\s*(?:de\s+)?([a-z]{3,10})\.?/g)) {
+    const mo = MONTHS[m[2]]; const day = +m[1];
+    if (!mo || day < 1 || day > 31) continue;
+    let d = new Date(Date.UTC(today.getUTCFullYear(), mo - 1, day));
+    if (d - today < -20 * 86400000) d = new Date(Date.UTC(today.getUTCFullYear() + 1, mo - 1, day));
+    dates.push(d);
+  }
+  for (const m of t.matchAll(/\b([a-z]{3,10})\.?\s+(\d{1,2})\b/g)) {     // "November 25"
+    const mo = MONTHS[m[1]]; const day = +m[2];
+    if (!mo || day < 1 || day > 31) continue;
+    let d = new Date(Date.UTC(today.getUTCFullYear(), mo - 1, day));
+    if (d - today < -20 * 86400000) d = new Date(Date.UTC(today.getUTCFullYear() + 1, mo - 1, day));
+    dates.push(d);
+  }
+  if (!dates.length) { if (/\bmanana\b|tomorrow/.test(t)) return 1; if (/\bhoy\b|today/.test(t)) return 0; return null; }
+  const last = new Date(Math.max(...dates));
+  const days = Math.round((last - today) / 86400000);
+  return days >= 0 && days < 120 ? days : null;
+}
+function amazonDelivery(html) {
+  const all = [...html.matchAll(/data-csa-c-delivery-time\s*=\s*["']([^"']+)["']/gi)].map((m) => decode(m[1]));
+  if (all.length) return all[0];
+  const i = html.search(/id=["']mir-layout-DELIVERY_BLOCK["']/);
+  if (i > -1) return html.slice(i, i + 3000).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 200);
+  return "";
 }
 
 function amazon(html) {
@@ -72,13 +112,16 @@ function amazon(html) {
 
 function parse(html, url) {
   const host = new URL(url).hostname;
-  const r = { price: NaN, currency: "", image: "" };
+  const r = { price: NaN, currency: "", image: "", deliveryDays: null };
   for (const p of jsonLdProducts(html)) {
     const x = fromProduct(p);
+    if (r.deliveryDays == null && x.deliveryDays != null) r.deliveryDays = x.deliveryDays;
     if (!okPrice(r.price) && okPrice(x.price)) { r.price = x.price; r.currency = x.currency; }
     if (!r.image && x.image) r.image = x.image;
   }
   if (/amazon\.|amzn\.|^a\.co$/.test(host) || /id=["']corePrice/.test(html)) {
+    const dt = amazonDelivery(html);
+    if (dt) { r.deliveryDays = parseDelivery(dt); }
     const a = amazon(html);
     if (okPrice(a.price)) { r.price = a.price; r.currency = r.currency || "MXN"; }
     if (a.image) r.image = a.image;
@@ -216,7 +259,7 @@ async function leer(url) {
     status = res.status; finalUrl = res.url || url;
     if (res.ok) html = (await res.text()).slice(0, 4000000);
   } catch { status = -1; }
-  let r = html && !looksBlocked(html, finalUrl) ? parse(html, finalUrl) : { price: NaN, currency: "", image: "" };
+  let r = html && !looksBlocked(html, finalUrl) ? parse(html, finalUrl) : { price: NaN, currency: "", image: "", deliveryDays: null };
   if (!okPrice(r.price) && /mercadoli[bv]re|meli\.la/i.test(finalUrl + url)) {
     try { const api = await mercadoLibreApi(hops.map((h) => { try { return decodeURIComponent(decodeURIComponent(h)); } catch { return h; } }).join(" ")); if (api) { if (okPrice(api.price)) { r.price = api.price; r.currency = api.currency; } r.image = r.image || api.image; } } catch { /* sin API */ }
   }
@@ -232,6 +275,7 @@ async function leer(url) {
       via = `jina ${jn.status}`;
       if (!okPrice(r.price) && okPrice(jn.price)) { r.price = jn.price; r.currency = jn.currency || mx(); via += " precio"; }
       if (jn.image && (!r.image || /images\/P\//.test(r.image))) { r.image = jn.image; via += " foto"; }
+      if (r.deliveryDays == null && jn.deliveryDays != null) { r.deliveryDays = jn.deliveryDays; via += " entrega"; }
     }
   }
   if (!okPrice(r.price) || !r.image) {           // 2) Microlink, si todavía falta algo
@@ -247,4 +291,4 @@ async function leer(url) {
   return { ...r, ok: okPrice(r.price), blocked: blocked && !okPrice(r.price), status, host, size: html.length, via };
 }
 
-module.exports = { leer, parse, num, asinOf };
+module.exports = { leer, parse, num, asinOf, parseDelivery };

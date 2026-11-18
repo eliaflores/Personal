@@ -30,6 +30,10 @@ App aparte (carpeta [`regalos/`](regalos/)) para regalarse en pareja:
 
 - **Precio y foto del link:** al pegar el link de la tienda, el precio y la foto se toman de ahí y se revisan cada 3 horas, así el precio no se queda viejo. Lo hace el Action [`Regalos - precios de la tienda`](.github/workflows/regalos-precios.yml) cada media hora con [`regalos-precios/`](regalos-precios/). Si una tienda no deja leer su página (Amazon a veces pide captcha), se usa el precio que se puso a mano.
 
+- **Fechas y avisos:** cada festividad puede tener fecha. Si activas los avisos en Ajustes, te llega una notificación 14, 7, 3 y 1 día antes y el mismo día ("Quedan 3 días para Navidad 2026, ¿ya compraste tus regalos?"). Lo manda el Action [`Regalos - avisos de festividades`](.github/workflows/regalos-avisos.yml) cada mañana, solo a los cels de quien creó la festividad.
+- **¿Llega a tiempo?:** si la tienda dice cuándo entrega (Amazon lo dice), la app avisa en rojo cuando un regalo llegaría después de la fecha de la festividad.
+- **Colores:** en Ajustes se elige el tema Colorido (normal) o Discreto (gris perla).
+
 Usa el mismo proyecto de Firebase para iniciar sesión con Google, pero guarda todo en su propia colección (`regalos`), separada de los datos de Mi Cartera. Las fotos que se suben se guardan comprimidas dentro de Firestore. El Action de precios usa el mismo secreto `FIREBASE_SERVICE_ACCOUNT` que los recordatorios y no imprime links ni precios en sus registros, porque el repo es público.
 
 ### Configuración
