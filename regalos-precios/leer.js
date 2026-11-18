@@ -225,20 +225,21 @@ async function leer(url) {
     if (asin) r.image = await amazonImage(asin);
   }
   let via = "";
-  if (!okPrice(r.price) || !r.image) {
-    const m = await microlink(real);
-    if (m) {
-      via = `microlink ${m.status}`;
-      if (!okPrice(r.price) && okPrice(m.price)) { r.price = m.price; r.currency = /\.mx(\/|$)/.test(new URL(finalUrl).hostname + "/") ? "MXN" : ""; via += " precio"; }
-      if (m.image && (!r.image || /images\/P\//.test(r.image))) { r.image = m.image; via += " foto"; }
-    }
-  }
-  if (!okPrice(r.price) || !r.image) {
+  const mx = () => (/\.mx$/.test(new URL(real).hostname) || /amzn\.|a\.co|meli\.la/.test(url) ? "MXN" : "");
+  if (!okPrice(r.price) || !r.image) {           // 1) Jina: el que mejor funciona con Amazon
     const jn = await jina(real);
     if (jn) {
-      via += (via ? ", " : "") + `jina ${jn.status}`;
-      if (!okPrice(r.price) && okPrice(jn.price)) { r.price = jn.price; r.currency = jn.currency || (/\.mx$/.test(new URL(finalUrl).hostname) ? "MXN" : ""); via += " precio"; }
+      via = `jina ${jn.status}`;
+      if (!okPrice(r.price) && okPrice(jn.price)) { r.price = jn.price; r.currency = jn.currency || mx(); via += " precio"; }
       if (jn.image && (!r.image || /images\/P\//.test(r.image))) { r.image = jn.image; via += " foto"; }
+    }
+  }
+  if (!okPrice(r.price) || !r.image) {           // 2) Microlink, si todavía falta algo
+    const m = await microlink(real);
+    if (m) {
+      via += (via ? ", " : "") + `microlink ${m.status}`;
+      if (!okPrice(r.price) && okPrice(m.price)) { r.price = m.price; r.currency = mx(); via += " precio"; }
+      if (m.image && (!r.image || /images\/P\//.test(r.image))) { r.image = m.image; via += " foto"; }
     }
   }
   const blocked = !html || looksBlocked(html, finalUrl);

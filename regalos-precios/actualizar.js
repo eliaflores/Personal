@@ -24,8 +24,8 @@ function due(it, now) {
   if (!it.url) return !!it.linkUrl;            // le quitaron el link: limpiar
   if (FORCE) return true;
   if (it.linkUrl !== it.url || !it.linkCheckedAt) return true;
-  // Lo que viene de Microlink se revisa cada 12 h para no pasar el límite gratis del día.
-  const every = it.linkVia === "microlink" ? 12 * HOUR : it.linkStatus === "ok" ? RECHECK_OK : RECHECK_FAIL;
+  // Lo que se lee con servicios gratis (Jina, Microlink) se revisa cada 6 h para no pasar sus límites.
+  const every = it.linkVia === "servicio" ? 6 * HOUR : it.linkStatus === "ok" ? RECHECK_OK : RECHECK_FAIL;
   return now - it.linkCheckedAt > every;
 }
 
@@ -48,13 +48,15 @@ function due(it, now) {
     stats.revisados++;
     const r = await leer(it.url);
     const sameUrl = it.linkUrl === it.url;
-    const upd = { linkUrl: it.url, linkCheckedAt: Date.now(), linkVia: r.via ? "microlink" : "directo" };
+    const upd = { linkUrl: it.url, linkCheckedAt: Date.now(), linkVia: r.via ? "servicio" : "directo" };
     const mxn = !r.currency || r.currency === "MXN" || r.currency === "MXP";
     if (r.ok && mxn) {
-      upd.linkPrice = Math.round(r.price * 100) / 100; upd.linkStatus = "ok"; stats.conPrecio++;
+      upd.linkPrice = Math.round(r.price * 100) / 100; upd.linkPriceAt = Date.now(); upd.linkStatus = "ok"; stats.conPrecio++;
     } else {
-      upd.linkStatus = r.ok ? "otra-moneda" : r.blocked ? "bloqueado" : "sin-precio";
-      if (!sameUrl) upd.linkPrice = DEL;          // link nuevo sin precio: no dejar el del link anterior
+      const fail = r.ok ? "otra-moneda" : r.blocked ? "bloqueado" : "sin-precio";
+      // Si esta vez falló pero ya teníamos un precio de este mismo link, se conserva (con su fecha).
+      if (sameUrl && Number(it.linkPrice) > 0) { upd.linkStatus = "ok"; upd.linkLastFail = fail; }
+      else { upd.linkStatus = fail; upd.linkPrice = DEL; upd.linkPriceAt = DEL; }
       r.blocked ? stats.bloqueados++ : stats.sinPrecio++;
     }
     if (r.image) upd.linkImage = r.image;

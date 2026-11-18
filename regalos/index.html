@@ -430,7 +430,7 @@ function ago(ms) {
 function priceNote(i, who) {
   if (!i.url) return `Precio aproximado que puso ${who}`;
   if (!linkFresh(i) || !i.linkCheckedAt) return "Buscando el precio en la tienda… (tarda hasta una hora)";
-  if (i.linkStatus === "ok" && Number(i.linkPrice) > 0) return `Precio de ${hostOf(i.url)}, revisado ${ago(i.linkCheckedAt)}`;
+  if (Number(i.linkPrice) > 0) return `Precio de ${hostOf(i.url).replace(/^(amzn\.to|a\.co)$/, "Amazon").replace(/^meli\.la$/, "Mercado Libre")}, revisado ${ago(i.linkPriceAt || i.linkCheckedAt)}`;
   return Number(i.price) > 0 ? `La tienda no dejó leer el precio; es el que puso ${who}` : "La tienda no dejó leer el precio. Ponlo a mano.";
 }
 function photoHtml(item) {
@@ -775,7 +775,7 @@ function renderMine() {
     ? `<div class="grid">${mine.map(i => `<button class="gcard" data-edit="${esc(i.id)}">
         <div class="tile">${photoHtml(i)}<div class="top"><i></i>${priceOf(i) > 0 ? `<span class="p">${mxn(priceOf(i))}</span>` : `<span>Sin precio</span>`}</div></div>
         <h3>${esc(i.title)}</h3>
-        ${i.url ? `<span class="was">${esc(!linkFresh(i) || !i.linkCheckedAt ? "Buscando precio…" : i.linkStatus === "ok" ? "Precio de la tienda" : "La tienda no dejó leer el precio")}</span>` : ""}
+        ${i.url ? `<span class="was">${esc(!linkFresh(i) || !i.linkCheckedAt ? "Buscando precio…" : Number(i.linkPrice) > 0 ? "Precio de la tienda" : "La tienda no dejó leer el precio")}</span>` : ""}
         <div class="desc"><p>${esc(i.note || (i.url ? hostOf(safeUrl(i.url)) : "Toca para editar"))}</p>${I("arrow")}</div>
       </button>`).join("")}</div>`
     : `<div class="empty"><h3>Tu wishlist está vacía</h3><p>Toca <b>Agregar</b> y pega el link de la tienda: el precio y la foto se toman solos.</p></div>`;
