@@ -63,6 +63,8 @@ function due(it, now) {
     if (r.deliveryDays != null) { upd.linkDeliveryDays = r.deliveryDays; upd.linkDeliveryAt = Date.now(); }
     else if (!sameUrl) { upd.linkDeliveryDays = DEL; upd.linkDeliveryAt = DEL; }
     else if (it.linkDeliveryAt && Date.now() - it.linkDeliveryAt > 3 * 24 * HOUR) { upd.linkDeliveryDays = DEL; upd.linkDeliveryAt = DEL; }   // muy viejo: mejor no adivinar
+    // Nombre: si la persona no escribió uno, se pone el de la tienda.
+    if (it.titleAuto && r.title) { upd.title = r.title.slice(0, 120); upd.titleAuto = false; }
     if (r.image) upd.linkImage = r.image;
     else if (!sameUrl || /logo|frontend-assets|nav-sprite|favicon|sprite/i.test(it.linkImage || "")) upd.linkImage = DEL;   // quitar logos que se colaron antes
     // Solo la tienda y el resultado: nunca el link, el nombre del regalo ni el precio.

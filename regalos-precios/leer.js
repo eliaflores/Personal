@@ -110,10 +110,34 @@ function amazon(html) {
   return { price, image, currency: "MXN" };
 }
 
+
+  // Nombre del producto: el de la tienda, sin el nombre de la tienda y acortado si es larguísimo.
+  const STORE = /(amazon(\.com)?(\.mx)?|mercado ?libre|liverpool|walmart|coppel|sears|el palacio de hierro|palacio de hierro|shein|sanborns|costco|sam'?s club|bodega aurrera|elektra|best buy|home depot|sephora|nike|adidas|zara|h&m)/i;
+  function cleanTitle(t) {
+    t = decode(String(t || "")).replace(/\s+/g, " ").trim();
+    t = t.replace(/^amazon\.com(\.mx)?\s*:\s*/i, "");
+    t = t.replace(/\s*:\s*[^:]{2,40}$/, (m) => (/amazon/i.test(m) || m.length < 30 ? "" : m));           // ": Hogar y Cocina"
+    t = t.replace(new RegExp("\\s*[|\\-–—:]\\s*" + STORE.source + "[^|]*$", "i"), "");                   // " | Mercado Libre"
+    if (!t || t.length < 3 || /captcha|robot|verifica|verify|human|humano|acceso denegado|access denied|page not found|no encontrad/i.test(t) || new RegExp("^" + STORE.source + "$", "i").test(t)) return "";
+    if (t.length > 70) { const cut = t.slice(20).search(/,| - | – | \| | \(|\. /); if (cut > -1) t = t.slice(0, 20 + cut); }
+    if (t.length > 90) t = t.slice(0, 90).replace(/\s+\S*$/, "");
+    return t.replace(/[\s,;:\-–]+$/, "");
+  }
+  function titleOf(html, prods) {
+    const am = html.match(/id=["']productTitle["'][^>]*>([\s\S]*?)<\/span>/i);
+    const cands = [am && am[1].replace(/<[^>]+>/g, " "), ...prods.map((p) => p.name)];
+    const meta = (k) => { const m = html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${k}["'][^>]*content=["']([^"']+)["']`, "i")) || html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]*(?:property|name)=["']${k}["']`, "i")); return m && m[1]; };
+    cands.push(meta("og:title"), meta("twitter:title"), (html.match(/<title[^>]*>([^<]*)/i) || [])[1]);
+    for (const c of cands) { const t = cleanTitle(c); if (t) return t; }
+    return "";
+  }
+
 function parse(html, url) {
   const host = new URL(url).hostname;
-  const r = { price: NaN, currency: "", image: "", deliveryDays: null };
-  for (const p of jsonLdProducts(html)) {
+  const r = { price: NaN, currency: "", image: "", deliveryDays: null, title: "" };
+  const prods = jsonLdProducts(html);
+  r.title = titleOf(html, prods);
+  for (const p of prods) {
     const x = fromProduct(p);
     if (r.deliveryDays == null && x.deliveryDays != null) r.deliveryDays = x.deliveryDays;
     if (!okPrice(r.price) && okPrice(x.price)) { r.price = x.price; r.currency = x.currency; }
@@ -259,7 +283,7 @@ async function leer(url) {
     status = res.status; finalUrl = res.url || url;
     if (res.ok) html = (await res.text()).slice(0, 4000000);
   } catch { status = -1; }
-  let r = html && !looksBlocked(html, finalUrl) ? parse(html, finalUrl) : { price: NaN, currency: "", image: "", deliveryDays: null };
+  let r = html && !looksBlocked(html, finalUrl) ? parse(html, finalUrl) : { price: NaN, currency: "", image: "", deliveryDays: null, title: "" };
   if (!okPrice(r.price) && /mercadoli[bv]re|meli\.la/i.test(finalUrl + url)) {
     try { const api = await mercadoLibreApi(hops.map((h) => { try { return decodeURIComponent(decodeURIComponent(h)); } catch { return h; } }).join(" ")); if (api) { if (okPrice(api.price)) { r.price = api.price; r.currency = api.currency; } r.image = r.image || api.image; } } catch { /* sin API */ }
   }
@@ -276,6 +300,7 @@ async function leer(url) {
       if (!okPrice(r.price) && okPrice(jn.price)) { r.price = jn.price; r.currency = jn.currency || mx(); via += " precio"; }
       if (jn.image && (!r.image || /images\/P\//.test(r.image))) { r.image = jn.image; via += " foto"; }
       if (r.deliveryDays == null && jn.deliveryDays != null) { r.deliveryDays = jn.deliveryDays; via += " entrega"; }
+      if (!r.title && jn.title) r.title = jn.title;
     }
   }
   if (!okPrice(r.price) || !r.image) {           // 2) Microlink, si todavía falta algo
@@ -291,4 +316,4 @@ async function leer(url) {
   return { ...r, ok: okPrice(r.price), blocked: blocked && !okPrice(r.price), status, host, size: html.length, via };
 }
 
-module.exports = { leer, parse, num, asinOf, parseDelivery };
+module.exports = { leer, parse, num, asinOf, parseDelivery, cleanTitle };
