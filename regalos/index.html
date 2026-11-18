@@ -409,9 +409,26 @@ const theirItems = () => S.items.filter(i => i.owner === partner());
 const spent = f => Object.values(f.bought || {}).reduce((s, b) => s + (Number(b.price) || 0), 0);
 const fiestaName = f => f.name || occ(f.occasion).l;
 
-function photoHtml(src) {
-  const s = safeImg(src);
-  return s ? `<img src="${s}" alt="" loading="lazy">` : `<div class="ph">${I("gift")}</div>`;
+// Precio y foto: si el link ya se revisó, se usan los de la tienda (se actualizan solos); si no, los que puso la persona.
+const linkFresh = i => !!(i && i.url && i.linkUrl === i.url);
+const priceOf = i => (linkFresh(i) && Number(i.linkPrice) > 0) ? Number(i.linkPrice) : (Number(i && i.price) || 0);
+const storeImg = i => (linkFresh(i) && typeof i.linkImage === "string" && /^https:\/\//.test(i.linkImage)) ? i.linkImage : "";
+const imgOf = i => (i && (safeImg(i.photo) || storeImg(i))) || "";
+function ago(ms) {
+  const m = Math.max(1, Math.round((Date.now() - ms) / 60000));
+  if (m < 60) return `hace ${m} min`;
+  const h = Math.round(m / 60); if (h < 24) return `hace ${h} h`;
+  const d = Math.round(h / 24); return `hace ${d} día${d > 1 ? "s" : ""}`;
+}
+function priceNote(i, who) {
+  if (!i.url) return `Precio aproximado que puso ${who}`;
+  if (!linkFresh(i) || !i.linkCheckedAt) return "Buscando el precio en la tienda… (tarda hasta una hora)";
+  if (i.linkStatus === "ok" && Number(i.linkPrice) > 0) return `Precio de ${hostOf(i.url)}, revisado ${ago(i.linkCheckedAt)}`;
+  return Number(i.price) > 0 ? `La tienda no dejó leer el precio; es el que puso ${who}` : "La tienda no dejó leer el precio. Ponlo a mano.";
+}
+function photoHtml(item) {
+  const s = imgOf(item);
+  return s ? `<img src="${esc(s)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<div class="ph">${I("gift")}</div>`;
 }
 
 /* ---------- Rutas (#) ---------- */
@@ -640,7 +657,7 @@ function renderFiesta(fid) {
   const p = partner(), bought = f.bought || {};
   const used = spent(f), left = f.budget - used;
   const pct = Math.min(100, Math.round((used / f.budget) * 100));
-  const ideas = theirItems().filter(i => !bought[i.id] && matchesOcc(i, f) && Number(i.price) <= left).sort((a, b) => Number(b.price) - Number(a.price));
+  const ideas = theirItems().filter(i => !bought[i.id] && matchesOcc(i, f) && priceOf(i) > 0 && priceOf(i) <= left).sort((a, b) => priceOf(b) - priceOf(a));
   const boughtList = Object.entries(bought).map(([id, b]) => ({ ...(S.items.find(i => i.id === id) || { id, title: b.title, price: b.price, gone: true }), id, paid: b.price }));
   const nb = boughtList.length;
 
@@ -670,8 +687,8 @@ function renderFiesta(fid) {
       const isB = S.tab === "comprados";
       const was = !isB ? givenElsewhere(i.id, f.id) : "";
       return `<a class="gcard" href="#f/${esc(f.id)}/i/${esc(i.id)}">
-        <div class="tile ${isB ? "bought" : ""}">${photoHtml(i.photo)}
-          <div class="top">${isB ? `<span>Comprado</span>` : `<i></i>`}<span class="p">${mxn(Number(isB ? i.paid : i.price))}</span></div>
+        <div class="tile ${isB ? "bought" : ""}">${photoHtml(i)}
+          <div class="top">${isB ? `<span>Comprado</span>` : `<i></i>`}<span class="p">${mxn(isB ? Number(i.paid) : priceOf(i))}</span></div>
           ${isB ? `<span class="stamp">Listo</span>` : ""}
         </div>
         <h3>${esc(i.title)}</h3>
@@ -699,19 +716,19 @@ function renderDetail(fid, iid) {
   const it = S.items.find(x => x.id === iid) || (b ? { id: iid, title: b.title, price: b.price, gone: true } : null);
   if (!f || !it) { location.replace(f ? "#f/" + fid : "#fiestas"); return; }
   const left = f.budget - spent(f);
-  const price = Number(b ? b.price : it.price);
+  const price = b ? Number(b.price) : priceOf(it);
   const url = safeUrl(it.url);
   const occs = (it.occasions || []).length ? it.occasions.map(k => k === "otro" && it.otherOccasion ? it.otherOccasion : occ(k).l).join(" · ") : "Cualquier ocasión";
   const short = !b && price > left;
   app.innerHTML = `<div class="wrap no-nav screen" style="padding-bottom:0">
     ${topBar(`<button class="icon-btn" id="dBack" aria-label="Atrás">${I("back")}</button>`, b ? `<span class="icon-btn" aria-label="Comprado">${I("check")}</span>` : "")}
-    <div class="hero-img">${photoHtml(it.photo)}</div>
+    <div class="hero-img">${photoHtml(it)}</div>
     <div class="dt-title"><h1>${esc(it.title)}</h1>${I("heart")}</div>
     <div class="full panel solid"><div class="in">
       <div class="meta"><span>${esc(occs)}</span><span>${esc(fiestaName(f))}</span></div>
       <div class="body">
         <p>${esc(it.gone ? "Este regalo ya no está en su wishlist, pero sigue en tus compras." : (it.note || "Sin descripción."))}</p>
-        ${url ? `<span class="host">De ${esc(hostOf(url))}</span>` : ""}
+        ${b ? `<span class="host">Lo que pagaste</span>` : it.gone ? "" : `<span class="host">${esc(priceNote(it, nameOf(partner())))}</span>`}
         <div class="price"><small>$</small>${esc(new Intl.NumberFormat("es-MX", { maximumFractionDigits: 2 }).format(price))}</div>
         <div class="acts">
           ${url ? `<a class="btn btn-ghost-light" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Ver tienda ${I("ext")}</a>` : `<span></span>`}
@@ -726,7 +743,7 @@ function renderDetail(fid, iid) {
     const btn = ev.currentTarget; btn.disabled = true;
     try {
       await updateDoc(doc(fdb, "regalos", S.listId, "privado", me(), "fiestas", fid), {
-        ["bought." + iid]: b ? deleteField() : { price: Number(it.price), title: String(it.title || "").slice(0, 120), at: Date.now() },
+        ["bought." + iid]: b ? deleteField() : { price: priceOf(it), title: String(it.title || "").slice(0, 120), at: Date.now() },
       });
       toast(b ? "Desmarcado" : "Tachado. Es secreto.");
     } catch (e) { btn.disabled = false; writeErr(e); }
@@ -741,11 +758,12 @@ function renderMine() {
     <p class="hint" style="margin:-8px 0 18px">Lo que pongas aquí se queda para todas las festividades. ${partner() ? esc(nameOf(partner())) : "Tu pareja"} solo ve lo que le alcanza con su presupuesto.</p>`;
   html += mine.length
     ? `<div class="grid">${mine.map(i => `<button class="gcard" data-edit="${esc(i.id)}">
-        <div class="tile">${photoHtml(i.photo)}<div class="top"><i></i><span class="p">${mxn(Number(i.price))}</span></div></div>
+        <div class="tile">${photoHtml(i)}<div class="top"><i></i>${priceOf(i) > 0 ? `<span class="p">${mxn(priceOf(i))}</span>` : `<span>Sin precio</span>`}</div></div>
         <h3>${esc(i.title)}</h3>
+        ${i.url ? `<span class="was">${esc(!linkFresh(i) || !i.linkCheckedAt ? "Buscando precio…" : i.linkStatus === "ok" ? "Precio de la tienda" : "La tienda no dejó leer el precio")}</span>` : ""}
         <div class="desc"><p>${esc(i.note || (i.url ? hostOf(safeUrl(i.url)) : "Toca para editar"))}</p>${I("arrow")}</div>
       </button>`).join("")}</div>`
-    : `<div class="empty"><h3>Tu wishlist está vacía</h3><p>Toca <b>Agregar</b>, sube una foto, pega el link y ponle precio y ocasión.</p></div>`;
+    : `<div class="empty"><h3>Tu wishlist está vacía</h3><p>Toca <b>Agregar</b> y pega el link de la tienda: el precio y la foto se toman solos.</p></div>`;
   html += `</div>`;
   app.innerHTML = html;
   wireGo();
@@ -812,6 +830,7 @@ function openSheet(editId) {
   const it = editId ? S.items.find(x => x.id === editId) : null;
   const sel = new Set(it ? (it.occasions || []) : []);
   let photo = it ? safeImg(it.photo) : "";
+  const shopImg = it ? storeImg(it) : "";
   const root = $("#sheetRoot");
   root.innerHTML = `
     <div class="sheet-bg" id="sheetBg">
@@ -819,13 +838,13 @@ function openSheet(editId) {
         <div class="grip" aria-hidden="true"></div>
         <div class="sheet-head"><h2 id="sheetTitle">${it ? "Editar regalo" : "Nuevo regalo"}</h2><button type="button" class="x" id="sheetX" aria-label="Cerrar">×</button></div>
         <label class="photo-pick" id="pick">
-          <span id="pickInner">${photo ? `<img src="${photo}" alt=""><span class="chg">Cambiar foto</span>` : `<span class="lbl">${I("camera")}Agregar foto</span>`}</span>
+          <span id="pickInner">${photo ? `<img src="${photo}" alt=""><span class="chg">Cambiar foto</span>` : shopImg ? `<img src="${esc(shopImg)}" alt="" referrerpolicy="no-referrer"><span class="chg">Foto de la tienda · cambiar</span>` : `<span class="lbl">${I("camera")}Agregar foto<span class="opt" style="font-weight:400;font-size:.8rem">o déjala vacía y se toma del link</span></span>`}</span>
           <input type="file" id="fPhoto" accept="image/*" aria-label="Foto del regalo">
         </label>
         <label class="field">¿Qué es?<input class="input" id="fTitle" required maxlength="120" placeholder="Ej. Libro “Cien años de soledad”" value="${esc(it?.title)}"></label>
         <label class="field">Descripción <span class="opt">(talla, color, modelo…)</span><textarea class="input" id="fNote" maxlength="300" placeholder="Ej. en pasta dura, la edición de aniversario">${esc(it?.note)}</textarea></label>
         <label class="field">Link <span class="opt">(Amazon, Liverpool, Mercado Libre…)</span><input class="input" id="fUrl" inputmode="url" autocomplete="off" placeholder="https://…" value="${esc(it?.url)}"></label>
-        <label class="field">Precio aproximado (MXN)<input class="input" id="fPrice" required inputmode="decimal" placeholder="Ej. 450" value="${it ? esc(it.price) : ""}"></label>
+        <label class="field">Precio (MXN) <span class="opt">Si pones el link, el precio se toma de la tienda y se mantiene al día. Este se usa si la tienda no deja leerlo.</span><input class="input" id="fPrice" inputmode="decimal" placeholder="${it && linkFresh(it) && Number(it.linkPrice) > 0 ? "En la tienda: " + esc(mxn(Number(it.linkPrice))) : "Ej. 450"}" value="${it && Number(it.price) > 0 ? esc(it.price) : ""}"></label>
         <div class="field">¿Para qué ocasión me lo darías? <span class="opt">Si no eliges, sirve para cualquiera</span>
           <div class="chips" style="margin-top:4px">${OCCASIONS.map(o => `<button type="button" class="chip" data-o="${o.k}" aria-pressed="${sel.has(o.k)}">${o.l}</button>`).join("")}</div>
         </div>
@@ -856,11 +875,11 @@ function openSheet(editId) {
     const title = $("#fTitle").value.trim();
     const price = Number($("#fPrice").value.replace(/[^\d.]/g, ""));
     if (!title) return;
-    if (!(price > 0)) { toast("Pon un precio aproximado"); $("#fPrice").focus(); return; }
     const rawUrl = $("#fUrl").value.trim();
+    if (!(price > 0) && !rawUrl) { toast("Pon el link de la tienda o un precio aproximado"); $("#fPrice").focus(); return; }
     if (rawUrl && !safeUrl(rawUrl)) { toast("Ese link no se ve bien. Revísalo."); $("#fUrl").focus(); return; }
     const body = {
-      title, price, url: rawUrl ? safeUrl(rawUrl) : "", photo: photo || "",
+      title, price: price > 0 ? price : 0, url: rawUrl ? safeUrl(rawUrl) : "", photo: photo || "",
       occasions: OCCASIONS.map(o => o.k).filter(k => sel.has(k)),
       otherOccasion: sel.has("otro") ? $("#fOther").value.trim() : "",
       note: $("#fNote").value.trim(),
@@ -869,7 +888,7 @@ function openSheet(editId) {
     try {
       if (it) await updateDoc(doc(fdb, "regalos", S.listId, "items", it.id), body);
       else await addDoc(collection(fdb, "regalos", S.listId, "items"), { ...body, owner: me(), createdAt: Date.now() });
-      close(); toast(it ? "Cambios guardados" : "Agregado a tu wishlist");
+      close(); toast(rawUrl && (!it || it.url !== safeUrl(rawUrl)) ? "Guardado. En menos de una hora aparece el precio y la foto de la tienda." : it ? "Cambios guardados" : "Agregado a tu wishlist");
     } catch (e) { $("#fSave").disabled = false; writeErr(e); }
   });
 }

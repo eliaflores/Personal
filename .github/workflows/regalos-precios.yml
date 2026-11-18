@@ -1,0 +1,24 @@
+name: Regalos - precios de la tienda
+
+on:
+  schedule:
+    - cron: "23 * * * *"   # cada hora
+  workflow_dispatch:
+
+concurrency:
+  group: regalos-precios
+  cancel-in-progress: false
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --prefix regalos-precios --no-audit --no-fund
+      - run: node regalos-precios/actualizar.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

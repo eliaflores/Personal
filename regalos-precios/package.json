@@ -1,0 +1,8 @@
+{
+  "name": "regalos-precios",
+  "private": true,
+  "description": "Lee el precio y la foto de los links de la wishlist de Regalos y los mantiene al día",
+  "dependencies": {
+    "firebase-admin": "12.1.0"
+  }
+}

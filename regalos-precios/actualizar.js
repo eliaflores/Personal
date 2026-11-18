@@ -1,0 +1,62 @@
+// Revisa los links de la wishlist de Regalos y guarda el precio y la foto de la tienda.
+// Lo corre GitHub Actions (ver .github/workflows/regalos-precios.yml). Solo toca la colección "regalos".
+// Los registros del Action son públicos en un repo público: aquí nunca se imprimen links, nombres ni precios.
+const admin = require("firebase-admin");
+const { leer } = require("./leer");
+
+if (process.env.FIRESTORE_EMULATOR_HOST) admin.initializeApp({ projectId: "personal-75acf" });
+else {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (!raw) { console.error("Falta el secreto FIREBASE_SERVICE_ACCOUNT"); process.exit(1); }
+  admin.initializeApp({ credential: admin.credential.cert(JSON.parse(raw)) });
+}
+const db = admin.firestore();
+const DEL = admin.firestore.FieldValue.delete();
+
+const HOUR = 3600 * 1000;
+const RECHECK_OK = 12 * HOUR;     // precio leído bien: se vuelve a revisar dos veces al día
+const RECHECK_FAIL = 4 * HOUR;    // la tienda no dejó leer: se reintenta más tarde
+const MAX_PER_RUN = Number(process.env.MAX_PER_RUN || 80);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function due(it, now) {
+  if (!it.url) return !!it.linkUrl;            // le quitaron el link: limpiar
+  if (it.linkUrl !== it.url || !it.linkCheckedAt) return true;
+  return now - it.linkCheckedAt > (it.linkStatus === "ok" ? RECHECK_OK : RECHECK_FAIL);
+}
+
+(async () => {
+  const now = Date.now();
+  const todo = [];
+  for (const list of (await db.collection("regalos").get()).docs) {
+    for (const d of (await list.ref.collection("items").get()).docs) {
+      const it = d.data();
+      if (due(it, now)) todo.push({ ref: d.ref, it, fresh: it.linkUrl !== it.url || !it.linkCheckedAt });
+    }
+  }
+  todo.sort((a, b) => (b.fresh - a.fresh) || ((a.it.linkCheckedAt || 0) - (b.it.linkCheckedAt || 0)));
+  const stats = { revisados: 0, conPrecio: 0, sinPrecio: 0, bloqueados: 0, limpiados: 0 };
+  for (const { ref, it } of todo.slice(0, MAX_PER_RUN)) {
+    if (!it.url) {
+      await ref.update({ linkUrl: DEL, linkPrice: DEL, linkImage: DEL, linkCheckedAt: DEL, linkStatus: DEL });
+      stats.limpiados++; continue;
+    }
+    stats.revisados++;
+    const r = await leer(it.url);
+    const sameUrl = it.linkUrl === it.url;
+    const upd = { linkUrl: it.url, linkCheckedAt: Date.now() };
+    const mxn = !r.currency || r.currency === "MXN" || r.currency === "MXP";
+    if (r.ok && mxn) {
+      upd.linkPrice = Math.round(r.price * 100) / 100; upd.linkStatus = "ok"; stats.conPrecio++;
+    } else {
+      upd.linkStatus = r.ok ? "otra-moneda" : r.blocked ? "bloqueado" : "sin-precio";
+      if (!sameUrl) upd.linkPrice = DEL;          // link nuevo sin precio: no dejar el del link anterior
+      r.blocked ? stats.bloqueados++ : stats.sinPrecio++;
+    }
+    if (r.image) upd.linkImage = r.image; else if (!sameUrl) upd.linkImage = DEL;
+    await ref.update(upd);
+    await sleep(1500);
+  }
+  console.log(`Pendientes: ${todo.length}.`, Object.entries(stats).map(([k, v]) => `${k}: ${v}`).join(", "));
+  process.exit(0);
+})().catch((e) => { console.error("Error:", e.message); process.exit(1); });
