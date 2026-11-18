@@ -443,7 +443,7 @@ function render() {
   setNav(r);
   if (!S.authReady) { app.innerHTML = `<div class="wrap no-nav"><p class="hint center" style="margin-top:40vh">Cargando…</p></div>`; return; }
   if (!S.user) return renderSignIn();
-  if (S.error) { app.innerHTML = `<div class="wrap no-nav screen"><div class="empty" style="margin-top:20vh"><h3>No se pudo abrir la lista</h3><p>${esc(S.error)}</p></div></div>`; return; }
+  if (S.error) { app.innerHTML = `<div class="wrap no-nav screen"><div class="empty" style="margin-top:20vh"><h3>No se pudo abrir la lista</h3><p>${esc(S.error)}</p><button class="btn btn-primary" style="margin-top:16px" onclick="location.reload()">Volver a intentar</button></div></div>`; return; }
   if (!S.loaded) { app.innerHTML = `<div class="wrap no-nav"><p class="hint center" style="margin-top:40vh">${S.stale ? "Todavía no se puede conectar. Revisa tu internet; se carga sola en cuanto responda." : "Cargando su lista de regalos…"}</p></div>`; return; }
   if (!S.list) return renderCreate();
   if (r.v === "wizard") return renderWizard();
@@ -887,10 +887,18 @@ function openList(id) {
   let got = { list: false, items: false, fiestas: false };
   const timer = setTimeout(() => { if (!S.loaded) { S.stale = true; render(); } }, 10000);
   const done = k => { got[k] = true; if (got.list && got.items && got.fiestas) { S.loaded = true; clearTimeout(timer); } dataRender(); };
-  const denied = err => { clearTimeout(timer); S.error = err && err.code === "permission-denied" ? "Firebase no dio permiso. Revisa que pegaste las reglas nuevas." : "No se pudo cargar la lista."; render(); };
-  unsubs.push(onSnapshot(doc(fdb, "regalos", id), snap => { S.list = snap.exists() ? snap.data() : null; done("list"); }, denied));
-  unsubs.push(onSnapshot(collection(fdb, "regalos", id, "items"), snap => { S.items = snap.docs.map(d => ({ id: d.id, ...d.data() })); done("items"); }, denied));
-  unsubs.push(onSnapshot(collection(fdb, "regalos", id, "privado", me(), "fiestas"), snap => { S.fiestas = snap.docs.map(d => ({ id: d.id, ...d.data() })); done("fiestas"); }, denied));
+  const denied = part => err => {
+    clearTimeout(timer);
+    S.error = err && err.code === "permission-denied"
+      ? (part === "fiestas"
+        ? "Firebase no deja leer tus festividades secretas. Las reglas publicadas en Firebase son las viejas: en Firestore Database → Rules pega las reglas nuevas (deben incluir la palabra “privado”) y dale Publicar."
+        : `Firebase no dio permiso para leer ${part === "items" ? "los regalos" : "la lista"}. Revisa que en Firestore Database → Rules estén las reglas nuevas y dale Publicar.`)
+      : "No se pudo cargar la lista. Revisa tu internet y recarga.";
+    render();
+  };
+  unsubs.push(onSnapshot(doc(fdb, "regalos", id), snap => { S.list = snap.exists() ? snap.data() : null; done("list"); }, denied("list")));
+  unsubs.push(onSnapshot(collection(fdb, "regalos", id, "items"), snap => { S.items = snap.docs.map(d => ({ id: d.id, ...d.data() })); done("items"); }, denied("items")));
+  unsubs.push(onSnapshot(collection(fdb, "regalos", id, "privado", me(), "fiestas"), snap => { S.fiestas = snap.docs.map(d => ({ id: d.id, ...d.data() })); done("fiestas"); }, denied("fiestas")));
 }
 
 async function findList() {
@@ -911,7 +919,7 @@ async function findList() {
     if (!res.empty) return openList(res.docs[0].id);
     S.list = null; S.loaded = true; render();
   } catch (e) {
-    S.error = e && e.code === "permission-denied" ? "Firebase no dio permiso. Revisa que pegaste las reglas nuevas." : "No se pudo conectar. Revisa tu internet y recarga.";
+    S.error = e && e.code === "permission-denied" ? "Firebase no dio permiso para buscar tu lista. Revisa que en Firestore Database → Rules estén las reglas nuevas y dale Publicar." : "No se pudo conectar. Revisa tu internet y recarga.";
     render();
   }
 }
