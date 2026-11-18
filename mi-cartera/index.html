@@ -939,6 +939,17 @@ function futPayList(f){
   return {credit:new Set(credit),cash:true,debits:debit,onlyCash:true};
 }
 let recoCache=null;
+// apartados reservados para una compra planeada: cuánto de cada uno es para cuál compra
+function earmarks(){
+  const byAcc={}, byFut={};
+  const futs=new Map(all("future").filter(f=>!f.done).map(f=>[f.id,f]));
+  all("account").filter(a=>a.forFut&&futs.has(a.forFut)).sort((x,y)=>(x.createdAt||0)-(y.createdAt||0)).forEach(a=>{
+    const f=futs.get(a.forFut); const used=(byFut[f.id]||[]).reduce((x,y)=>x+y.amt,0);
+    const want=+a.forAmt>0?Math.min(+a.forAmt,+a.balance||0):(+a.balance||0);
+    const amt=r2(Math.max(0,Math.min(want,(+f.amount||0)-used)));
+    if(amt>0.009){ byAcc[a.id]=amt; (byFut[f.id]=byFut[f.id]||[]).push({acc:a,amt}); } });
+  return {byAcc,byFut};
+}
 function recommendFutures(){
   if(recoCache) return recoCache;
   const t=today(); const base=buildPlan({noFutures:true,horizon:Math.max(150,+settings().horizon||60)});
@@ -946,7 +957,8 @@ function recommendFutures(){
   const idxOf=d=>Math.max(0,Math.min(bal.length-1,daysBetween(t,d)));
   const freeAt=d=>{ let m=Infinity; for(let k=idxOf(d);k<bal.length;k++) m=Math.min(m,bal[k]); return m; };
   const commit=(d,amt)=>{ for(let k=idxOf(d);k<bal.length;k++) bal[k]=r2(bal[k]-amt); };
-  const accs=all("account"); const accLeft={}; accs.forEach(a=>accLeft[a.id]=+a.balance||0);
+  const em=earmarks();
+  const accs=all("account"); const accLeft={}; accs.forEach(a=>accLeft[a.id]=r2((+a.balance||0)-(em.byAcc[a.id]||0)));
   const reserved={};
   const credit=all("card").filter(c=>c.type==="credito");
   const futs=all("future").filter(f=>!f.done).sort((a,b)=>(a.by||"9999").localeCompare(b.by||"9999")||(a.createdAt||0)-(b.createdAt||0));
@@ -959,6 +971,9 @@ function recommendFutures(){
     const savIds=f.allowSavings?((f.savingsIds&&f.savingsIds.length)?f.savingsIds:accs.map(a=>a.id)):[];
     const savAccs=d=>savIds.map(id=>accs.find(a=>a.id===id)).filter(a=>a&&!accUsable(a)&&accAvailable(a,d)).sort((a,b)=>(+a.rate||0)-(+b.rate||0));
     const savAvail=d=>r2(savAccs(d).reduce((s,a)=>s+Math.max(0,accLeft[a.id]||0),0));
+    // lo que ya tienes reservado en un apartado para esta compra se usa primero
+    const earList=(em.byFut[f.id]||[]).filter(x=>accAvailable(x.acc,from)).map(x=>({acc:x.acc,left:x.amt}));
+    const earTot=r2(earList.reduce((x,y)=>x+y.left,0)); const needAmt=r2(Math.max(0,amt-earTot));
     const options=[];
     const pl=futPayList(f);
     for(const c of credit){
@@ -968,7 +983,7 @@ function recommendFutures(){
       let best=null;
       for(let d=new Date(from),i=0;d<=by&&i<200;d=addDays(d,1),i++){ const C=cutOnOrAfter(c,d); const due=nextPayOnOrAfter(c,addDays(C,1)); const fl=daysBetween(d,due); if(!best||fl>best.float) best={date:new Date(d),cut:C,due,float:fl}; }
       const months=+f.msiMax>1?+f.msiMax:0; const cuota=months?r2(amt/months):amt;
-      const savNeed=Math.max(0,r2(cuota-Math.max(0,freeAt(best.due))));
+      const savNeed=Math.max(0,r2(Math.max(0,cuota-earTot)-Math.max(0,freeAt(best.due))));
       const affordable=savNeed<=0.009||(savIds.length>0&&savAvail(best.due)>=savNeed);
       const utilAfter=st.limit?(st.debt+(reserved[c.id]||0)+amt)/st.limit:1;
       const score=best.float+(months?20:0)-(utilAfter>0.7?40:utilAfter>0.3?8:0)-(affordable?0:200)-(savNeed>0?15:0)-(+c.rate||0)/50;
@@ -978,9 +993,9 @@ function recommendFutures(){
     if(pl.cash){
       const debitCard=pl.debits.map(id=>get(id)).filter(Boolean).sort((a,b)=>(cardState(b).balance||0)-(cardState(a).balance||0))[0]||null;
       const cashName=debitCard&&!(pl.onlyCash&&pl.debits.length>1)?(debitCard.type==="efectivo"?debitCard.name:"tu débito "+debitCard.name):"efectivo o débito";
-      let d0=null; for(let d=new Date(from),i=0;d<=by&&i<200;d=addDays(d,1),i++){ if(freeAt(d)>=amt){ d0=new Date(d); break; } }
+      let d0=null; for(let d=new Date(from),i=0;d<=by&&i<200;d=addDays(d,1),i++){ if(freeAt(d)>=needAmt){ d0=new Date(d); break; } }
       if(d0) options.push({type:"cash",ok:true,date:d0,savNeed:0,affordable:true,score:10,debit:debitCard,cashName});
-      else { const d=new Date(by); const savNeed=r2(amt-Math.max(0,freeAt(d))); const can=savIds.length>0&&savAvail(d)>=savNeed;
+      else { const d=new Date(by); const savNeed=r2(needAmt-Math.max(0,freeAt(d))); const can=savIds.length>0&&savAvail(d)>=savNeed;
         options.push({type:"cash",ok:can,date:d,savNeed,affordable:can,score:can?0:-300,debit:debitCard,cashName,why:can?"":`Te faltarían ${money(savNeed)}${f.allowSavings?" aun usando tus apartados":""}`}); }
     }
     let pick=options.filter(o=>o.ok&&o.affordable).sort((a,b)=>b.score-a.score)[0]||null;
@@ -994,7 +1009,8 @@ function recommendFutures(){
     if(pick){
       pick.payments=[];
       const payOn=(d,a)=>{ if(d>base.end){ pick.payments.push({date:d,amount:r2(a),cash:r2(a),fromSav:[],beyond:true,short:0}); return; }
-        const cash=Math.min(a,Math.max(0,freeAt(d))); const fromSav=a-cash>0.009?draw(d,r2(a-cash)):[]; const drawn=r2(fromSav.reduce((x,y)=>x+y.amt,0));
+        const fromEar=[]; let rest=a; for(const x of earList){ if(rest<=0.009) break; const take=Math.min(rest,x.left); if(take>0.009){ x.left=r2(x.left-take); rest=r2(rest-take); fromEar.push({acc:x.acc,amt:r2(take),ear:true}); } }
+        const cash=Math.min(rest,Math.max(0,freeAt(d))); const fromSav=[...fromEar,...(rest-cash>0.009?draw(d,r2(rest-cash)):[])]; const drawn=r2(fromSav.reduce((x,y)=>x+y.amt,0));
         const short=Math.max(0,r2(a-cash-drawn)); const cashPart=r2(a-drawn);
         commit(d,cashPart); pick.payments.push({date:d,amount:r2(a),cash:cashPart,fromSav,short}); };
       if(pick.type==="card"){
@@ -1452,7 +1468,8 @@ function cashForm(){
 function cashAvailable(){
   const debits=all("card").filter(CASH_TYPES).map(c=>({card:c,bal:cardState(c).balance}));
   const cash=cashState().balance;
-  const usable=all("account").filter(a=>accUsable(a)&&accAvailable(a,today())).map(a=>({acc:a,bal:+a.balance||0}));
+  const em=earmarks().byAcc;
+  const usable=all("account").filter(a=>accUsable(a)&&accAvailable(a,today())).map(a=>({acc:a,bal:r2((+a.balance||0)-(em[a.id]||0))}));
   return {cash,debits,usable,total:r2(cash+debits.reduce((s,d)=>s+d.bal,0)+usable.reduce((s,d)=>s+d.bal,0))};
 }
 function buildPlan(opts={}){
@@ -2579,7 +2596,7 @@ function vFuturos(){
   <div class="spread"><span class="muted">${recs.length} compra(s) por hacer</span><b class="num">${money(tot)}</b></div>
   <div class="view" style="gap:12px">${recs.map(r=>{ const f=r.f; const alts=r.options.filter(o=>o!==r.pick);
     return `<div class="period"><div class="period-h"><div><b>${esc(f.name)}</b> <span class="chip">${esc(f.category||"Otros")}</span><div class="small muted">el ${fDate(ds(r.by))} <span class="chip">fecha fija</span>${f.msiMax>1?` · se puede a ${f.msiMax} MSI`:""}${f.allowSavings?" · puede usar apartados":""}</div></div><span class="num" style="font-size:18px;text-align:right">${money(f.amount)}${(f.parts||[]).length?`<div class="small muted" style="font-size:12px;font-weight:600">falta de ${money(+f.total||0)}</div>`:""}</span></div>
-      <div class="period-b">${(f.parts||[]).length?`<div class="small" style="color:var(--good)">Ya pagaste ${money(f.parts.reduce((x,y)=>x+(+y.amt||0),0))} (${f.parts.map(x=>`${money(x.amt)} el ${fDateS(x.date)}`).join(", ")}). Lo que falta sigue en tu plan.</div>`:""}${recoText(r)}
+      <div class="period-b">${(earmarks().byFut[f.id]||[]).length?`<div class="small" style="color:var(--good)">Reservado para esta compra: ${earmarks().byFut[f.id].map(x=>`${money(x.amt)} en ${esc(x.acc.name)}`).join(" y ")}.</div>`:""}${(f.parts||[]).length?`<div class="small" style="color:var(--good)">Ya pagaste ${money(f.parts.reduce((x,y)=>x+(+y.amt||0),0))} (${f.parts.map(x=>`${money(x.amt)} el ${fDateS(x.date)}`).join(", ")}). Lo que falta sigue en tu plan.</div>`:""}${recoText(r)}
       ${alts.length?`<details><summary class="small muted" style="cursor:pointer">Otras opciones (${alts.length})</summary><div class="tbl-wrap"><table><thead><tr><th>Con</th><th>Comprar el</th><th>Pagas hasta</th><th class="r">Días</th><th>Nota</th></tr></thead><tbody>${alts.map(o=>`<tr><td>${o.type==="card"?esc(o.card.name)+(o.months?` · ${o.months} MSI`:""):esc(o.cashName||"Efectivo o débito")}</td><td>${o.date?fDateS(ds(o.date)):"—"}</td><td>${o.due?fDateS(ds(o.due)):o.date?fDateS(ds(o.date)):"—"}</td><td class="r num">${o.float??"0"}</td><td class="small">${esc(o.why||(o.type==="card"&&o.utilAfter>0.7?"Uso alto de la tarjeta":o.savNeed>0?"Requiere usar apartados":"Buena opción"))}</td></tr>`).join("")}</tbody></table></div></details>`:""}
       <div class="row" style="justify-content:flex-end"><button class="btn sm" data-act="editFuture" data-id="${f.id}">Editar</button><button class="btn sm pri" data-act="buyFuture" data-id="${f.id}">Ya lo compré</button></div></div></div>`; }).join("")}</div>
   ${done.length?`<details><summary class="muted small" style="cursor:pointer">${done.length} compra(s) ya hechas</summary>${done.map(f=>`<div class="small" style="padding:4px 0">✓ ${esc(f.name)} · ${money(+f.doneAmount||+f.amount||0)}${+f.doneAmount&&+f.total&&Math.abs(f.total-f.doneAmount)>0.009?` <span class="muted">(planeado ${money(f.total)})</span>`:""}${f.doneDate?" · "+fDateS(f.doneDate):""} <button class="btn sm ghost" data-act="editFuture" data-id="${f.id}">Ver</button></div>`).join("")}</details>`:""}`;
@@ -2642,6 +2659,12 @@ function accountForm(a){
     <div class="small muted" id="aPurHelp"></div>
     <label class="row small" style="font-weight:600"><input type="checkbox" id="aNoMore" ${a.noMore?"checked":""}> Ya está completo: no apartar más dinero aquí</label>
     <label class="row small" style="font-weight:600"><input type="checkbox" id="aUsable" ${accUsable(a)?"checked":""}> Contar este dinero como disponible para mis pagos</label>
+    <div id="aForBox" class="view" style="gap:10px;padding-left:22px">
+      <label class="f">¿Es para un pago a futuro?<select id="aFor"><option value="">No, es para cualquier pago</option>${all("future").filter(f=>!f.done||f.id===a.forFut).map(f=>`<option value="${f.id}" ${a.forFut===f.id?"selected":""}>${esc(f.name)} · ${money(+f.amount||0)}${f.by?` · ${fDateS(f.by)}`:""}</option>`).join("")}</select></label>
+      <div id="aForAmtBox" class="view" style="gap:10px">${seg("afor",[["total","Todo el apartado"],["parcial","Solo una parte"]],+a.forAmt>0?"parcial":"total")}
+        <label class="f" id="aForAmtL">¿Cuánto de este apartado?<input type="number" id="aForAmt" step="0.01" inputmode="decimal" value="${+a.forAmt||""}" placeholder="Ej. 1500"></label></div>
+      <div class="small muted" id="aForHelp"></div>
+    </div>
     ${seg("aliq",[["1","Lo saco cuando quiera"],["0","Está a plazo"]],a.liquid===false?"0":"1")}
     <label class="f" id="aFromL">Disponible a partir de<input type="date" id="aFrom" value="${a.availFrom||""}"></label>
     <div><div class="small muted" style="font-weight:600;margin-bottom:6px">Color</div><div class="swatches" id="asw" data-sel="${a.color}">${[...CAT_COLORS,...CARD_COLORS.slice(0,12)].map(col=>`<button type="button" style="background:${col}" data-col="${col}" class="${col===a.color?"on":""}" aria-label="Color ${col}"></button>`).join("")}</div></div>
@@ -2651,14 +2674,22 @@ function accountForm(a){
   $("#aFromL").hidden=segVal("aliq")==="1";
   const help={ahorro:"Cuenta para tu fondo de ahorro (emergencias).",inversion:"Cuenta para tu fondo de inversión.",meta:"Es para algo específico: no cuenta para tu fondo de ahorro y el plan le aparta dinero con prioridad.",gastar:"Es dinero para usar: cuenta como disponible para tus pagos."};
   const updPur=()=>{ const v=segVal("apur"); $("#aGoalBox").hidden=v!=="meta"; $("#aGoalTgtL").hidden=$("#aGoal").value!=="__new"; $("#aPurHelp").textContent=help[v]||""; };
-  $$('[data-seg="apur"] button').forEach(b=>b.onclick=()=>{ $$('[data-seg="apur"] button').forEach(x=>x.classList.remove("on")); b.classList.add("on"); if(b.dataset.v==="gastar") $("#aUsable").checked=true; updPur(); });
+  $$('[data-seg="apur"] button').forEach(b=>b.onclick=()=>{ $$('[data-seg="apur"] button').forEach(x=>x.classList.remove("on")); b.classList.add("on"); if(b.dataset.v==="gastar") $("#aUsable").checked=true; updPur(); if(typeof updFor==="function") try{ updFor(); }catch(e){} });
   $("#aGoal").onchange=updPur; updPur();
+  const updFor=()=>{ const on=$("#aUsable").checked; $("#aForBox").hidden=!on; const fid=$("#aFor").value; const f=get(fid); $("#aForAmtBox").hidden=!fid; const part=segVal("afor")==="parcial"; $("#aForAmtL").hidden=!part;
+    if(!all("future").some(x=>!x.done)){ $("#aForHelp").textContent="Cuando tengas compras futuras, aquí puedes reservar este dinero para una de ellas."; return; }
+    $("#aForHelp").textContent=!fid?"Si es para algo en específico (las muelas, un viaje…), elígelo y el plan usará este dinero primero para pagarlo."
+      :`Ese dinero queda reservado para ${f?f.name:"esa compra"}: el plan lo usa primero para pagarla y ya no lo cuenta para tus otros pagos.${part?" Lo demás del apartado sigue disponible.":" Si el apartado tiene más de lo que cuesta, lo que sobra sigue disponible; si tiene menos, el resto sale de tu dinero normal."}`; };
+  $$('[data-seg="afor"] button').forEach(b=>b.onclick=()=>{ $$('[data-seg="afor"] button').forEach(x=>x.classList.remove("on")); b.classList.add("on"); updFor(); });
+  $("#aUsable").onchange=updFor; $("#aFor").onchange=updFor; updFor();
   $$("#asw button").forEach(b=>b.onclick=()=>{ $$("#asw button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); });
   $("#aSave").onclick=async()=>{
     const inst=$("#aInst").value, name=$("#aName").value.trim()||inst;
     const pur=segVal("apur")||"ahorro"; let goalId="";
     if(pur==="meta"){ if($("#aGoal").value==="__new"){ const tg=+$("#aGoalTgt").value; if(!(tg>0)){ $("#aErr").textContent="Escribe el monto de la meta."; return; } const g=await put({kind:"goal",name,target:r2(tg),saved:0,history:[],color:$("#asw .on")?.dataset.col||CAT_COLORS[0],deadline:""}); goalId=g.id; } else goalId=$("#aGoal").value; }
-    const o={...a,kind:"account",inst,name,purpose:pur,goalId,usable:$("#aUsable").checked,noMore:$("#aNoMore").checked,rate:+$("#aRate").value||0,liquid:segVal("aliq")==="1",availFrom:segVal("aliq")==="1"?"":$("#aFrom").value,color:$("#asw .on")?.dataset.col||CAT_COLORS[0]};
+    const forFut=$("#aUsable").checked?$("#aFor").value:""; const forPart=!!forFut&&segVal("afor")==="parcial"; const forAmt=forPart?r2(+$("#aForAmt").value||0):0;
+    if(forPart&&!(forAmt>0)){ $("#aErr").textContent="Escribe cuánto de este apartado es para esa compra."; return; }
+    const o={...a,kind:"account",inst,name,purpose:pur,goalId,forFut,forAmt,usable:$("#aUsable").checked,noMore:$("#aNoMore").checked,rate:+$("#aRate").value||0,liquid:segVal("aliq")==="1",availFrom:segVal("aliq")==="1"?"":$("#aFrom").value,color:$("#asw .on")?.dataset.col||CAT_COLORS[0]};
     if(isNew){ const b=+$("#aBal").value||0; o.balance=r2(b); o.history=b?[{date:todayS(),amount:r2(b),type:"inicial"}]:[]; o.createdAt=Date.now(); }
     await put(o); closeDialog(); toast("Apartado guardado");
   };
@@ -2669,6 +2700,7 @@ function accountDetail(id){
   openDialog(esc(a.name),`
     <div class="spread"><span class="num" style="font-size:26px">${money(a.balance)}</span><span class="chip">${esc(a.inst)}</span></div>
     <div class="small muted">${a.rate?`Rinde ${a.rate}% anual · aprox. ${money((+a.balance||0)*a.rate/100/12)} al mes antes de impuestos · `:""}${a.liquid===false?`Disponible ${a.availFrom?"desde el "+fDate(a.availFrom):"al vencer el plazo"}`:"Disponible cuando quieras"}</div>
+    ${a.forFut&&get(a.forFut)&&!get(a.forFut).done?(()=>{ const amt=earmarks().byAcc[a.id]||0; return `<div class="note acc small">Reservado para <b>${esc(get(a.forFut).name)}</b>: ${money(amt)}${+a.forAmt>0?` de este apartado`:""}. El plan usa este dinero primero para pagarla. <a href="#" data-act="editAccount" data-id="${a.id}">Cambiar</a></div>`; })():""}
     <div class="fgrid"><label class="f">Desde (al depositar)<select id="acFrom">${fromOptions()}</select></label><label class="f">A dónde va (al retirar)<select id="acTo">${moneyAccOpts(guessDest(a),a.id)}<option value="">Ninguna (solo restar del apartado)</option></select></label></div>
     ${looseRetiros(a.id).length?`<div class="note warn small">Tienes ${looseRetiros(a.id).length} retiro(s) de este apartado que no llegaron a ninguna cuenta. <a href="#" data-act="fixRetiros" data-id="${a.id}">Decir a dónde fueron</a></div>`:""}
     <div class="fgrid"><label class="f">Monto<input type="number" id="acAmt" step="0.01" inputmode="decimal"></label><label class="f">Fecha<input type="date" id="acDate" value="${todayS()}"></label></div>
@@ -2723,7 +2755,7 @@ function vAccounts(){
   <div class="grid g-2">
     <div class="panel"><div class="list">${accs.slice().sort((a,b)=>(+b.balance||0)-(+a.balance||0)).map(a=>`<div class="item" data-act="openAccount" data-id="${a.id}">
       <span class="thumb" style="background:${a.color}22;color:${a.color}">${esc(a.inst.slice(0,2))}</span>
-      <div class="main"><div class="title">${esc(a.name)}</div><div class="row small muted" style="gap:6px"><span>${esc(a.inst)}</span><span class="chip">${esc(purposeLabel(a))}</span>${accUsable(a)?`<span class="chip acc">cuenta para pagos</span>`:""}${a.noMore?`<span class="chip good">completo</span>`:""}${a.rate?`<span class="chip good">${a.rate}% anual</span>`:""}${accAvailable(a,today())?"":`<span class="chip">desde ${a.availFrom?fDateS(a.availFrom):"plazo"}</span>`}</div>
+      <div class="main"><div class="title">${esc(a.name)}</div><div class="row small muted" style="gap:6px"><span>${esc(a.inst)}</span><span class="chip">${esc(purposeLabel(a))}</span>${accUsable(a)?`<span class="chip acc">cuenta para pagos</span>`:""}${a.forFut&&get(a.forFut)&&!get(a.forFut).done?`<span class="chip warn">para ${esc(get(a.forFut).name)}${+a.forAmt>0?` · ${money(a.forAmt)}`:""}</span>`:""}${a.noMore?`<span class="chip good">completo</span>`:""}${a.rate?`<span class="chip good">${a.rate}% anual</span>`:""}${accAvailable(a,today())?"":`<span class="chip">desde ${a.availFrom?fDateS(a.availFrom):"plazo"}</span>`}</div>
         <label class="pstop"><input type="checkbox" data-act="toggleNoMore" data-kind="acc" data-id="${a.id}" ${a.noMore?"checked":""}> Completo: no apartar más</label></div>
       <div class="num">${money(a.balance)}</div></div>`).join("")}</div></div>
     <div class="panel"><div class="panel-h"><h3>Dónde está tu dinero</h3></div><div class="chart-box"><canvas id="chAcc"></canvas></div></div>
@@ -2873,7 +2905,8 @@ function expForm(e){
     ${lopts.length?`<label class="f">¿Es algo de tu plan de pagos?<select id="eLink"><option value="">No, es un gasto normal</option>${groups.map(g=>`<optgroup label="${esc(g)}">${lopts.filter(x=>x.group===g).map(x=>`<option value="${esc(x.key)}" ${x.key===e.link?"selected":""}>${esc(x.label)}</option>`).join("")}</optgroup>`).join("")}</select></label>
     <div id="ePartBox" hidden>${seg("epart",[["total","Pago total"],["parcial","Pago parcial"]],"total")}
       <label class="small" id="eCloseL" style="font-weight:700;margin-top:10px;display:flex;flex-wrap:nowrap;align-items:center;gap:8px;cursor:pointer" hidden><input type="checkbox" id="eClose" style="flex:0 0 auto;width:20px;height:20px;margin:0"> <span id="eCloseT" style="flex:1;min-width:0">Compra completada: costó menos y ya no falta nada</span></label></div>
-    <div class="note small" id="eLinkNote" hidden></div>`:""}
+    <div class="note small" id="eLinkNote" hidden></div>
+    <label class="small" id="eUseAccL" style="font-weight:700;display:flex;flex-wrap:nowrap;align-items:center;gap:8px;cursor:pointer" hidden><input type="checkbox" id="eUseAcc" checked style="flex:0 0 auto;width:20px;height:20px;margin:0"> <span id="eUseAccT" style="flex:1;min-width:0"></span></label>`:""}
     <div class="fgrid">
       <label class="f">Monto<input type="number" id="eAmt" step="0.01" inputmode="decimal" value="${e.amount||""}" placeholder="0.00" required></label>
       <label class="f">Fecha<input type="date" id="eDate" value="${e.date}"></label>
@@ -2908,7 +2941,10 @@ function expForm(e){
     if($("#ePartBox")) $("#ePartBox").hidden=!(li&&li.partial);
     const canClose=!!(li&&li.partial&&partOn()&&(li.type==="fut"||li.type==="fijo"));
     if($("#eCloseL")){ $("#eCloseL").hidden=!canClose; if(!canClose) $("#eClose").checked=false; if(li) $("#eCloseT").textContent=li.type==="fut"?"Compra completada: costó menos y ya no falta nada":"Pago completado: salió más barato y ya no falta nada"; }
+    const ems=li&&li.type==="fut"?(earmarks().byFut[li.id]||[]):[]; const srcC=get($("#eCard").value); const ul=$("#eUseAccL");
+    if(ul){ ul.hidden=!(ems.length&&(!srcC||CASH_TYPES(srcC))); if(!ul.hidden){ const tot=r2(Math.min(ems.reduce((x,y)=>x+y.amt,0),+$("#eAmt").value||li.amount)); $("#eUseAccT").textContent=`Usar ${money(tot)} de ${ems.map(x=>x.acc.name).join(" y ")}: se pasa${srcC?` a ${srcC.name}`:" a tu efectivo"} para pagar esto`; } }
     if(!li){ n.hidden=true; return; } n.hidden=false; let txt=li.note;
+    if(ems.length&&srcC&&srcC.type==="credito") txt+=` Tienes ${money(ems.reduce((x,y)=>x+y.amt,0))} reservados en ${ems.map(x=>x.acc.name).join(" y ")}; úsalos para pagar la tarjeta.`;
     const aP=+$("#eAmt").value||0;
     if(canClose){ const left=r2(li.amount-aP); const planned=r2((li.paidBefore||0)+li.amount);
       txt=$("#eClose").checked&&aP>0?`Con esto queda cerrado: pagaste ${money(r2((li.paidBefore||0)+aP))} de ${money(planned)} planeados${left>0.009?` (te ahorraste ${money(left)})`:""}. Ya no sale como pendiente.`
@@ -2918,7 +2954,7 @@ function expForm(e){
     if(li.type==="card"){ const a=+$("#eAmt").value||0, st=li.st; if(a>=st.payTotal-0.5){ const nc=nextCutAfter(get(li.id),st.stmtCut), np=nextPayOnOrAfter(get(li.id),addDays(nc,1)); txt+=` Con esto queda pagado tu corte; tu siguiente pago será el del corte del ${fDateS(ds(nc))} (vence ${fDateS(ds(np))}).`; } else if(a>0) txt+=` Te quedarían ${money(r2(st.payTotal-a))} por pagar de este corte.`; }
     if(li.type==="loan"&&li.viaCard) txt+=` Se carga a ${li.viaCard.name}, como lo tienes configurado.`;
     const src=$("#eCard").value, sc=get(src), a2=+$("#eAmt").value||0;
-    if(!(li.type==="loan"&&li.viaCard)&&a2>0&&(!sc||CASH_TYPES(sc))){ const bal=sc?cardState(sc).balance:cashState().balance; if(a2>bal+0.009) txt+=` Ojo: en ${sc?sc.name:"efectivo"} tienes ${money(bal)}.`; }
+    if(!(li.type==="loan"&&li.viaCard)&&a2>0&&(!sc||CASH_TYPES(sc))){ const fromAcc=$("#eUseAccL")&&!$("#eUseAccL").hidden&&$("#eUseAcc").checked?r2(Math.min(ems.reduce((x,y)=>x+y.amt,0),a2)):0; const bal=r2((sc?cardState(sc).balance:cashState().balance)+fromAcc); if(a2>bal+0.009) txt+=` Ojo: en ${sc?sc.name:"efectivo"} tienes ${money(bal)}${fromAcc?` contando lo del apartado`:""}.`; }
     n.innerHTML=esc(txt); };
   const setPart=v=>$$('[data-seg="epart"] button').forEach(x=>x.classList.toggle("on",x.dataset.v===v));
   $$('[data-seg="epart"] button').forEach(b=>b.onclick=()=>{ setPart(b.dataset.v); const li=lmap[$("#eLink")?$("#eLink").value:""];
@@ -2930,7 +2966,7 @@ function expForm(e){
       if(li.cardId!==undefined&&[...$("#eCard").options].some(o=>o.value===li.cardId)) $("#eCard").value=li.cardId; if(li.msi!==undefined) setMsi(li.msi); }
     updMsi(); updLink(); };
   if($("#eLink")) $("#eLink").onchange=()=>applyLink(true);
-  $("#eCard").onchange=()=>{ updMsi(); updLink(); }; if($("#eClose")) $("#eClose").onchange=updLink;
+  $("#eCard").onchange=()=>{ updMsi(); updLink(); }; if($("#eClose")) $("#eClose").onchange=updLink; if($("#eUseAcc")) $("#eUseAcc").onchange=updLink;
   $("#eAmt").oninput=()=>{ const li=lmap[$("#eLink")?$("#eLink").value:""]; if(li&&li.partial){ const a=+$("#eAmt").value||0; if(a>0) setPart(a<li.amount-0.009?"parcial":"total"); } updMsi(); updLink(); }; $("#msiPb").oninput=updMsi;
   applyLink(!!e.link&&!e.amount); updMsi();
   const drawPh=()=>{ $("#ePh").innerHTML=photos.map((p,i)=>`<div class="ph"><img src="${esc(photoSrc(p))}" data-zoom="${i}" alt="Foto ${i+1}"><button type="button" data-rm="${i}" aria-label="Quitar foto">×</button></div>`).join("")+`<label class="drop">＋ Foto<br>o imagen<input type="file" accept="image/*" multiple id="eFile" hidden></label>`;
@@ -2953,6 +2989,7 @@ function expForm(e){
         closeDialog(); return; }
     }
     const closeIt=!!($("#eClose")&&$("#eClose").checked&&li&&(li.type==="fut"||li.type==="fijo"));
+    const useAcc=!!(li&&li.type==="fut"&&$("#eUseAccL")&&!$("#eUseAccL").hidden&&$("#eUseAcc").checked); const useTo=$("#eCard").value||"cash";
     const isPart=!closeIt&&!!(li&&li.partial&&(li.type==="fut"||li.type==="fijo")&&amt<li.amount-0.009);
     const linkFields=!li?{}:li.type==="fut"?{futId:li.id,...(isPart?{futPart:true}:{})}:li.type==="fijo"?{flowId:li.id,flowDate:li.date,flowPart:isPart}:li.type==="sub"?{subId:li.id,subDate:li.date,linkPrev:get(li.id).lastGenerated||""}:{};
     const c=get($("#eCard").value); const msi=c&&c.type==="credito"?+segVal("msi"):0;
@@ -2961,6 +2998,7 @@ function expForm(e){
     const asOf = pb>0 ? (pb===(+e.msiPaidBefore||0)&&e.msiAsOf ? e.msiAsOf : todayS()) : "";
     const {link:_lk,fromFuture:_ff,...e0}=e;
     const saved=await put({...(e.id?e0:{}),...linkFields,kind:"exp",amount:r2(amt),date:$("#eDate").value||todayS(),desc:$("#eDesc").value.trim(),category:$("#eCat").value,cardId:$("#eCard").value,msi,msiPaidBefore:pb,msiAsOf:asOf,photos,notes:$("#eNote").value.trim(),createdAt:e.createdAt||Date.now()});
+    if(useAcc){ let need=r2(amt); for(const x of (earmarks().byFut[li.id]||[])){ if(need<=0.009) break; const take=Math.min(need,x.amt); await accWithdraw(get(x.acc.id),take,saved.date,useTo); need=r2(need-take); } }
     const futLink=li&&li.type==="fut"?li.id:e.fromFuture;
     if(futLink&&isPart){ const fu=get(futLink); if(fu) await put({...fu,amount:r2((+fu.amount||0)-amt),total:fu.total||fu.amount,parts:[...(fu.parts||[]),{expId:saved.id,amt:r2(amt),date:saved.date}]}); }
     else if(futLink){ const fu=get(futLink); if(fu){ const paidAll=r2((fu.parts||[]).reduce((x,y)=>x+(+y.amt||0),0)+amt); await put({...fu,done:true,doneDate:saved.date,expId:saved.id,doneAmount:paidAll,total:fu.total||r2((fu.parts||[]).reduce((x,y)=>x+(+y.amt||0),0)+(+fu.amount||0))}); } }
