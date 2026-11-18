@@ -108,6 +108,17 @@ async function mercadoLibreApi(url) {
   return { price: num(j.price), currency: j.currency_id || "MXN", image: (j.pictures && j.pictures[0] && j.pictures[0].secure_url) || j.thumbnail || "" };
 }
 
+// Amazon: aunque la página pida captcha, el link trae el código del producto (ASIN) y su servidor de imágenes sí responde.
+const asinOf = (u) => (String(u).match(/(?:\/dp\/|\/gp\/product\/|\/gp\/aw\/d\/|\/exec\/obidos\/asin\/)([A-Z0-9]{10})(?:[/?#]|$)/i) || [])[1];
+async function amazonImage(asin) {
+  const src = `https://m.media-amazon.com/images/P/${asin.toUpperCase()}.01._SCLZZZZZZZ_.jpg`;
+  try {
+    const r = await fetch(src, { signal: AbortSignal.timeout(15000), headers: { "User-Agent": UA } });
+    const b = await r.arrayBuffer();
+    return r.ok && /image\//.test(r.headers.get("content-type") || "") && b.byteLength > 2000 ? src : "";   // si no existe, Amazon manda un gif de 1×1
+  } catch { return ""; }
+}
+
 async function leer(url) {
   let html = "", finalUrl = url, status = 0;
   try {
@@ -122,9 +133,13 @@ async function leer(url) {
   if (!okPrice(r.price) && /mercadoli[bv]re|meli\.la/i.test(finalUrl + url)) {
     try { const api = await mercadoLibreApi(finalUrl + " " + url); if (api) { if (okPrice(api.price)) { r.price = api.price; r.currency = api.currency; } r.image = r.image || api.image; } } catch { /* sin API */ }
   }
+  if (!r.image && /amazon\.|amzn\.|a\.co\//i.test(finalUrl + " " + url)) {
+    const asin = asinOf(finalUrl) || asinOf(url);
+    if (asin) r.image = await amazonImage(asin);
+  }
   const blocked = !html || looksBlocked(html, finalUrl);
   let host = ""; try { host = new URL(finalUrl).hostname.replace(/^www\./, ""); } catch { /* link raro */ }
   return { ...r, ok: okPrice(r.price), blocked: blocked && !okPrice(r.price), status, host, size: html.length };
 }
 
-module.exports = { leer, parse, num };
+module.exports = { leer, parse, num, asinOf };

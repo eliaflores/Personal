@@ -419,7 +419,8 @@ const fiestaName = f => f.name || occ(f.occasion).l;
 const linkFresh = i => !!(i && i.url && i.linkUrl === i.url);
 const priceOf = i => (linkFresh(i) && Number(i.linkPrice) > 0) ? Number(i.linkPrice) : (Number(i && i.price) || 0);
 const storeImg = i => (linkFresh(i) && typeof i.linkImage === "string" && /^https:\/\//.test(i.linkImage)) ? i.linkImage : "";
-const imgOf = i => (i && (safeImg(i.photo) || storeImg(i))) || "";
+// Foto: primero la de la tienda; la que subió la persona solo si la eligió a propósito o si la tienda no tiene.
+const imgOf = i => (i && ((i.ownPhoto && safeImg(i.photo)) || storeImg(i) || safeImg(i.photo))) || "";
 function ago(ms) {
   const m = Math.max(1, Math.round((Date.now() - ms) / 60000));
   if (m < 60) return `hace ${m} min`;
@@ -845,6 +846,7 @@ function openSheet(editId) {
   const sel = new Set(it ? (it.occasions || []) : []);
   let photo = it ? safeImg(it.photo) : "";
   const shopImg = it ? storeImg(it) : "";
+  let ownPhoto = !!(it && it.ownPhoto && photo);
   const root = $("#sheetRoot");
   root.innerHTML = `
     <div class="sheet-bg" id="sheetBg">
@@ -852,9 +854,10 @@ function openSheet(editId) {
         <div class="grip" aria-hidden="true"></div>
         <div class="sheet-head"><h2 id="sheetTitle">${it ? "Editar regalo" : "Nuevo regalo"}</h2><button type="button" class="x" id="sheetX" aria-label="Cerrar">×</button></div>
         <label class="photo-pick" id="pick">
-          <span id="pickInner">${photo ? `<img src="${photo}" alt=""><span class="chg">Cambiar foto</span>` : shopImg ? `<img src="${esc(shopImg)}" alt="" referrerpolicy="no-referrer"><span class="chg">Foto de la tienda · cambiar</span>` : `<span class="lbl">${I("camera")}Agregar foto<span class="opt" style="font-weight:400;font-size:.8rem">o déjala vacía y se toma del link</span></span>`}</span>
+          <span id="pickInner"></span>
           <input type="file" id="fPhoto" accept="image/*" aria-label="Foto del regalo">
         </label>
+        <button type="button" class="link-danger" id="useShop" style="color:var(--ink);align-self:center;margin-top:-6px" hidden>Usar la foto de la tienda</button>
         <label class="field">¿Qué es?<input class="input" id="fTitle" required maxlength="120" placeholder="Ej. Libro “Cien años de soledad”" value="${esc(it?.title)}"></label>
         <label class="field">Descripción <span class="opt">(talla, color, modelo…)</span><textarea class="input" id="fNote" maxlength="300" placeholder="Ej. en pasta dura, la edición de aniversario">${esc(it?.note)}</textarea></label>
         <label class="field">Link <span class="opt">(Amazon, Liverpool, Mercado Libre…)</span><input class="input" id="fUrl" inputmode="url" autocomplete="off" placeholder="https://…" value="${esc(it?.url)}"></label>
@@ -868,11 +871,20 @@ function openSheet(editId) {
       </form>
     </div>`;
   const close = () => (root.innerHTML = "");
+  const paintPick = () => {
+    const showOwn = photo && (ownPhoto || !shopImg);
+    $("#pickInner").innerHTML = showOwn ? `<img src="${photo}" alt=""><span class="chg">Tu foto · cambiar</span>`
+      : shopImg ? `<img src="${esc(shopImg)}" alt="" referrerpolicy="no-referrer"><span class="chg">Foto de la tienda · poner la mía</span>`
+      : `<span class="lbl">${I("camera")}Agregar foto<span class="opt" style="font-weight:400;font-size:.8rem;text-align:center">o déjala vacía: se pone la de la tienda del link</span></span>`;
+    $("#useShop").hidden = !(shopImg && showOwn);
+  };
+  paintPick();
+  $("#useShop").addEventListener("click", () => { ownPhoto = false; paintPick(); });
   $("#sheetX").addEventListener("click", close);
   $("#sheetBg").addEventListener("click", e => { if (e.target.id === "sheetBg") close(); });
   $("#fPhoto").addEventListener("change", async e => {
     const file = e.target.files && e.target.files[0]; if (!file) return;
-    try { photo = await compress(file); $("#pickInner").innerHTML = `<img src="${photo}" alt=""><span class="chg">Cambiar foto</span>`; }
+    try { photo = await compress(file); ownPhoto = true; paintPick(); }
     catch (err) { toast("No se pudo leer esa foto. Prueba con otra."); }
   });
   root.querySelectorAll("[data-o]").forEach(b => b.addEventListener("click", () => {
@@ -893,7 +905,7 @@ function openSheet(editId) {
     if (!(price > 0) && !rawUrl) { toast("Pon el link de la tienda o un precio aproximado"); $("#fPrice").focus(); return; }
     if (rawUrl && !safeUrl(rawUrl)) { toast("Ese link no se ve bien. Revísalo."); $("#fUrl").focus(); return; }
     const body = {
-      title, price: price > 0 ? price : 0, url: rawUrl ? safeUrl(rawUrl) : "", photo: photo || "",
+      title, price: price > 0 ? price : 0, url: rawUrl ? safeUrl(rawUrl) : "", photo: photo || "", ownPhoto: !!(ownPhoto && photo),
       occasions: OCCASIONS.map(o => o.k).filter(k => sel.has(k)),
       otherOccasion: sel.has("otro") ? $("#fOther").value.trim() : "",
       note: $("#fNote").value.trim(),
