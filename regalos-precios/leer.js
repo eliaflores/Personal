@@ -119,6 +119,32 @@ async function amazonImage(asin) {
   } catch { return ""; }
 }
 
+// Respaldo: Microlink (servicio gratis que abre la página con un navegador real). Plan gratis: ~50 consultas al día.
+const PRICE_RULES = [
+  [/amazon\./i, "#corePrice_feature_div .a-offscreen, #corePriceDisplay_desktop_feature_div .a-offscreen, #apex_desktop .a-offscreen, #apex_offerDisplay_desktop .a-offscreen, .a-price .a-offscreen", "text"],
+  [/mercadoli[bv]re/i, 'meta[itemprop="price"]', "content"],
+  [/./, 'meta[property="product:price:amount"], meta[itemprop="price"], meta[property="og:price:amount"]', "content"],
+];
+const ML_FRACTION = ".ui-pdp-price__second-line .andes-money-amount__fraction, .andes-money-amount__fraction";
+let microlinkOff = false;   // si se acaba el límite del día, no seguir intentando en esta corrida
+async function microlink(url) {
+  if (microlinkOff || process.env.MICROLINK === "off") return null;
+  const q = new URLSearchParams({ url, meta: "true" });
+  const [, sel, attr] = PRICE_RULES.find(([re]) => re.test(url));
+  q.set("data.price.selector", sel); q.set("data.price.attr", attr);
+  if (/mercadoli[bv]re/i.test(url)) { q.set("data.fraction.selector", ML_FRACTION); q.set("data.fraction.attr", "text"); }
+  try {
+    const r = await fetch("https://api.microlink.io/?" + q, { signal: AbortSignal.timeout(45000) });
+    if (r.status === 429) { microlinkOff = true; return { status: 429 }; }
+    const j = await r.json().catch(() => ({}));
+    const d = (j && j.data) || {};
+    let price = num(d.price);
+    if (!okPrice(price)) price = num(d.fraction);
+    const image = (d.image && d.image.url) || "";
+    return { status: r.status, price, image, currency: "" };
+  } catch { return { status: -1 }; }
+}
+
 async function leer(url) {
   let html = "", finalUrl = url, status = 0;
   try {
@@ -137,9 +163,18 @@ async function leer(url) {
     const asin = asinOf(finalUrl) || asinOf(url);
     if (asin) r.image = await amazonImage(asin);
   }
+  let via = "";
+  if (!okPrice(r.price) || !r.image) {
+    const m = await microlink(finalUrl || url);
+    if (m) {
+      via = `microlink ${m.status}`;
+      if (!okPrice(r.price) && okPrice(m.price)) { r.price = m.price; r.currency = /\.mx(\/|$)/.test(new URL(finalUrl).hostname + "/") ? "MXN" : ""; via += " precio"; }
+      if (m.image && (!r.image || /images\/P\//.test(r.image))) { r.image = m.image; via += " foto"; }
+    }
+  }
   const blocked = !html || looksBlocked(html, finalUrl);
   let host = ""; try { host = new URL(finalUrl).hostname.replace(/^www\./, ""); } catch { /* link raro */ }
-  return { ...r, ok: okPrice(r.price), blocked: blocked && !okPrice(r.price), status, host, size: html.length };
+  return { ...r, ok: okPrice(r.price), blocked: blocked && !okPrice(r.price), status, host, size: html.length, via };
 }
 
 module.exports = { leer, parse, num, asinOf };

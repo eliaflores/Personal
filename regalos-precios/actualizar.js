@@ -24,7 +24,9 @@ function due(it, now) {
   if (!it.url) return !!it.linkUrl;            // le quitaron el link: limpiar
   if (FORCE) return true;
   if (it.linkUrl !== it.url || !it.linkCheckedAt) return true;
-  return now - it.linkCheckedAt > (it.linkStatus === "ok" ? RECHECK_OK : RECHECK_FAIL);
+  // Lo que viene de Microlink se revisa cada 12 h para no pasar el límite gratis del día.
+  const every = it.linkVia === "microlink" ? 12 * HOUR : it.linkStatus === "ok" ? RECHECK_OK : RECHECK_FAIL;
+  return now - it.linkCheckedAt > every;
 }
 
 (async () => {
@@ -46,7 +48,7 @@ function due(it, now) {
     stats.revisados++;
     const r = await leer(it.url);
     const sameUrl = it.linkUrl === it.url;
-    const upd = { linkUrl: it.url, linkCheckedAt: Date.now() };
+    const upd = { linkUrl: it.url, linkCheckedAt: Date.now(), linkVia: r.via ? "microlink" : "directo" };
     const mxn = !r.currency || r.currency === "MXN" || r.currency === "MXP";
     if (r.ok && mxn) {
       upd.linkPrice = Math.round(r.price * 100) / 100; upd.linkStatus = "ok"; stats.conPrecio++;
@@ -57,9 +59,9 @@ function due(it, now) {
     }
     if (r.image) upd.linkImage = r.image; else if (!sameUrl) upd.linkImage = DEL;
     // Solo la tienda y el resultado: nunca el link, el nombre del regalo ni el precio.
-    console.log(`- ${r.host || "?"}: ${upd.linkStatus}, HTTP ${r.status}, página ${r.size} bytes, foto ${r.image ? "sí" : "no"}`);
+    console.log(`- ${r.host || "?"}: ${upd.linkStatus}, HTTP ${r.status}, página ${r.size} bytes, foto ${r.image ? "sí" : "no"}${r.via ? ", " + r.via : ""}`);
     await ref.update(upd);
-    await sleep(1500);
+    await sleep(r.via ? 3000 : 1500);
   }
   console.log(`Pendientes: ${todo.length}.`, Object.entries(stats).map(([k, v]) => `${k}: ${v}`).join(", "));
   process.exit(0);
