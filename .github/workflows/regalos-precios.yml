@@ -27,6 +27,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Revisar si Jina se puede usar desde la app (solo en modo detalle, con example.com)
+        if: ${{ github.event.inputs.detalle == 'true' }}
+        run: |
+          curl -s -o /dev/null -D - -X OPTIONS -H "Origin: https://eliaflores.github.io" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: x-return-format,x-timeout" https://r.jina.ai/https://example.com | grep -iE "^HTTP|access-control" || true
+          curl -s -o /dev/null -D - -H "Origin: https://eliaflores.github.io" -H "X-Return-Format: html" https://r.jina.ai/https://example.com | grep -iE "^HTTP|access-control" || true
       - run: npm install --prefix regalos-precios --no-audit --no-fund
       - run: node regalos-precios/actualizar.js
         env:
