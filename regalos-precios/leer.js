@@ -123,7 +123,8 @@ async function leer(url) {
     try { const api = await mercadoLibreApi(finalUrl + " " + url); if (api) { if (okPrice(api.price)) { r.price = api.price; r.currency = api.currency; } r.image = r.image || api.image; } } catch { /* sin API */ }
   }
   const blocked = !html || looksBlocked(html, finalUrl);
-  return { ...r, ok: okPrice(r.price), blocked: blocked && !okPrice(r.price), status };
+  let host = ""; try { host = new URL(finalUrl).hostname.replace(/^www\./, ""); } catch { /* link raro */ }
+  return { ...r, ok: okPrice(r.price), blocked: blocked && !okPrice(r.price), status, host, size: html.length };
 }
 
 module.exports = { leer, parse, num };

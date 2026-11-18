@@ -54,6 +54,8 @@ function due(it, now) {
       r.blocked ? stats.bloqueados++ : stats.sinPrecio++;
     }
     if (r.image) upd.linkImage = r.image; else if (!sameUrl) upd.linkImage = DEL;
+    // Solo la tienda y el resultado: nunca el link, el nombre del regalo ni el precio.
+    console.log(`- ${r.host || "?"}: ${upd.linkStatus}, HTTP ${r.status}, página ${r.size} bytes, foto ${r.image ? "sí" : "no"}`);
     await ref.update(upd);
     await sleep(1500);
   }
