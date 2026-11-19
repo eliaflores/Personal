@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Poner el número de versión (para que la app se actualice sola)
+        run: sed -i "s/__APP_BUILD__/${GITHUB_SHA::7}/" mi-cartera/index.html
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

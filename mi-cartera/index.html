@@ -498,6 +498,8 @@ h2{font-weight:700;letter-spacing:-.01em;text-transform:uppercase;font-size:22px
 .loancols .good b,.loancols .good small{color:var(--good)}
 
 .gtabs{margin:-4px 0 2px}
+
+.updbar{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 10px);z-index:9999;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ink,#1F1F1F);color:#fff;border-radius:14px;padding:10px 12px 10px 16px;font-weight:700;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
 </style>
 
 </head>
@@ -3323,6 +3325,23 @@ function hardRefresh(b){ if(b) b.classList.add("spin"); toast("Actualizando…")
   setTimeout(()=>{ const u=new URL(location.href); u.searchParams.set("v",Date.now()); location.replace(u.pathname+u.search+location.hash); },250); }
 $$(".btnRefresh").forEach(b=>b.onclick=()=>hardRefresh(b));
 document.addEventListener("click",e=>{ const b=e.target.closest(".btnRefresh2"); if(b) hardRefresh(b); });
+// versión publicada: el despliegue pone aquí el número de versión; si hay una más nueva, la app se actualiza sola
+const APP_BUILD="__APP_BUILD__";
+let updShown=false;
+async function checkUpdate(){
+  if(APP_BUILD.startsWith("__")||location.protocol!=="https:"||updShown) return;
+  try{ const r=await fetch(location.pathname+"?u="+Date.now(),{cache:"no-store"}); if(!r.ok) return; const t=await r.text(); const m=t.match(/const APP_BUILD="([^"]+)"/);
+    if(!m||m[1]===APP_BUILD||m[1].startsWith("__")) return;
+    const dlg=document.querySelector("dialog[open]");
+    let recent=false; try{ const k="mc-upd-"+m[1]; recent=Date.now()-(+sessionStorage.getItem(k)||0)<120000; sessionStorage.setItem(k,String(Date.now())); }catch(e){}
+    if(!dlg&&!recent){ updShown=true; hardRefresh(); return; }
+    updShown=true; const bar=document.createElement("div"); bar.className="updbar"; bar.innerHTML=`<span>Hay una versión nueva de la app</span><button type="button" class="btn sm pri">Actualizar</button>`;
+    bar.querySelector("button").onclick=()=>hardRefresh(); document.body.appendChild(bar);
+  }catch(e){}
+}
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") checkUpdate(); });
+window.addEventListener("pageshow",e=>{ if(e.persisted) checkUpdate(); });
+setTimeout(checkUpdate,4000); setInterval(checkUpdate,20*60*1000);
 try{ if(sessionStorage.getItem("mc-refreshed")){ sessionStorage.removeItem("mc-refreshed"); setTimeout(()=>toast("Listo, ya está actualizado"),600); } }catch(e){}
 $("#btnNav").onclick=()=>document.body.classList.add("nav-open");
 $("#scrim").onclick=()=>document.body.classList.remove("nav-open");
