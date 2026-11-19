@@ -8,7 +8,7 @@
 <script>
   // Tema guardado en este cel: "colorido" (normal) o "discreto" (gris perla).
   (function () { var t = "colorido"; try { t = localStorage.getItem("regalos.tema") || t; } catch (e) {} document.documentElement.setAttribute("data-tema", t);
-    if (t === "discreto") document.querySelector('meta[name="theme-color"]').setAttribute("content", "#E8E9EF"); })();
+    if (t === "discreto") document.querySelector('meta[name="theme-color"]').setAttribute("content", "#111116"); })();
 </script>
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=5">
 <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png?v=5">
@@ -19,7 +19,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap">
 <style>
 /* Layout: app de una columna para el cel. Fondo gris perla con manchas difuminadas, tarjetas blancas tipo vidrio,
    acentos casi negros y títulos con serifa; barra de navegación en píldora blanca. Un solo tema claro a propósito. */
@@ -38,8 +38,16 @@
   --warn: #8A6A2F;
   --danger: #B5483A;
   --shadow: 0 1px 2px rgba(31,30,37,.04), 0 14px 34px rgba(60,62,80,.10);
-  --f-title: "DM Serif Display", Georgia, "Times New Roman", serif;
-  --f: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-title: "Lexend", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f: "Lexend", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --on-ink: #FFFFFF;                 /* texto sobre botones/píldoras de color --ink */
+  --glass-border: rgba(255,255,255,.9);
+  --tile-bg: linear-gradient(145deg, #F4F4F7, #DFE0E7);
+  --sheet-bg: #F4F4F7;
+  --nav-bg: rgba(255,255,255,.85);
+  --late-bg: #FDECEA;
+  --solid-bg: linear-gradient(110deg, #7B7C86 0%, #3A3943 45%, #1F1E25 100%);
+  --photo-bg: #FFFFFF;               /* fondo para fotos de producto (se ven completas) */
   --nav-h: 68px;
   color-scheme: light;
   padding-top: env(safe-area-inset-top, 0px);
@@ -48,7 +56,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body { background: var(--bg); color: var(--ink); font-family: var(--f); font-size: 15px; line-height: 1.45; -webkit-tap-highlight-color: transparent; }
-body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: rgba(232,233,239,.92); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
 .bgfx { position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background:
     radial-gradient(42% 32% at 8% 12%, rgba(255,255,255,.95), transparent 70%),
@@ -69,8 +77,8 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .wrap.no-nav { padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px)); }
 .full { margin-left: calc(-1 * max(18px, env(safe-area-inset-left, 0px))); margin-right: calc(-1 * max(18px, env(safe-area-inset-right, 0px))); }
 .full > .in { padding-left: max(22px, env(safe-area-inset-left, 0px)); padding-right: max(22px, env(safe-area-inset-right, 0px)); }
-.solid { background: linear-gradient(110deg, #7B7C86 0%, #3A3943 45%, var(--ink) 100%); color: #fff; }
-.card { background: var(--glass); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,.9); border-radius: 30px; box-shadow: var(--shadow); }
+.solid { background: var(--solid-bg); color: #fff; }
+.card { background: var(--glass); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); border: 1px solid var(--glass-border); border-radius: 30px; box-shadow: var(--shadow); }
 
 /* Top bar */
 .bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding-block: 12px 14px; }
@@ -85,15 +93,15 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .icon-btn, .circle-btn { border: none; background: var(--card); color: var(--ink); width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; box-shadow: var(--shadow); }
 .icon-btn svg, .circle-btn svg { width: 22px; height: 22px; }
 .bagbtn { position: relative; }
-.bagbtn b { position: absolute; top: -2px; right: -2px; background: var(--ink); color: #fff; font-size: .7rem; min-width: 20px; height: 20px; border-radius: 99px; display: grid; place-items: center; padding: 0 5px; font-weight: 700; border: 2px solid var(--bg); }
-.mini-av { width: 46px; height: 46px; border-radius: 50%; border: 3px solid #fff; overflow: hidden; display: grid; place-items: center; background: var(--soft-2); color: var(--ink); font-weight: 700; font-size: 1.05rem; padding: 0; box-shadow: var(--shadow); }
+.bagbtn b { position: absolute; top: -2px; right: -2px; background: var(--ink); color: var(--on-ink); font-size: .7rem; min-width: 20px; height: 20px; border-radius: 99px; display: grid; place-items: center; padding: 0 5px; font-weight: 700; border: 2px solid var(--bg); }
+.mini-av { width: 46px; height: 46px; border-radius: 50%; border: 3px solid var(--card); overflow: hidden; display: grid; place-items: center; background: var(--soft-2); color: var(--ink); font-weight: 700; font-size: 1.05rem; padding: 0; box-shadow: var(--shadow); }
 .mini-av img { width: 100%; height: 100%; object-fit: cover; }
 
 /* Buttons */
 .btn { border: none; border-radius: 999px; padding: 14px 22px; font-weight: 600; font-size: 1rem; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; text-decoration: none; }
 .btn svg { width: 20px; height: 20px; }
-.btn-primary { background: var(--ink); color: #fff; box-shadow: 0 10px 22px rgba(31,30,37,.22); }
-.btn-light { background: #fff; color: var(--ink); }
+.btn-primary { background: var(--ink); color: var(--on-ink); box-shadow: 0 10px 22px rgba(31,30,37,.22); }
+.btn-light { background: #fff; color: #1F1E25; }
 .btn-ghost-light { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,.75); }
 .btn-block { width: 100%; }
 .btn[disabled] { opacity: .4; cursor: not-allowed; box-shadow: none; }
@@ -108,7 +116,7 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .ic svg { width: 21px; height: 21px; }
 
 /* Listas */
-.list { background: var(--glass); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,.9); border-radius: 30px; box-shadow: var(--shadow); overflow: hidden; }
+.list { background: var(--glass); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); border: 1px solid var(--glass-border); border-radius: 30px; box-shadow: var(--shadow); overflow: hidden; }
 .row { display: flex; align-items: center; gap: 14px; padding: 16px 18px; width: 100%; background: none; border: none; text-align: left; text-decoration: none; color: inherit; }
 .row + .row { border-top: 1px solid var(--line); }
 .row .tx { flex: 1; min-width: 0; }
@@ -120,9 +128,9 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .menu .row .ic svg { width: 23px; height: 23px; stroke-width: 1.7; }
 .row.armed { background: var(--danger); color: #fff; }
 .row.armed .ic, .row.armed .ch { color: #fff; }
-.secret-note { display: flex; gap: 10px; align-items: flex-start; background: var(--glass); border-radius: 20px; padding: 12px 14px; color: var(--ink-2); font-size: .86rem; margin-top: 16px; border: 1px solid rgba(255,255,255,.9); }
+.secret-note { display: flex; gap: 10px; align-items: flex-start; background: var(--glass); border-radius: 20px; padding: 12px 14px; color: var(--ink-2); font-size: .86rem; margin-top: 16px; border: 1px solid var(--glass-border); }
 .secret-note svg { flex: none; width: 20px; height: 20px; color: var(--ink); }
-.empty { text-align: center; padding: 26px 18px; background: var(--glass); border: 1px solid rgba(255,255,255,.9); border-radius: 28px; color: var(--muted); box-shadow: var(--shadow); }
+.empty { text-align: center; padding: 26px 18px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 28px; color: var(--muted); box-shadow: var(--shadow); }
 .empty h3 { font-family: var(--f-title); font-weight: 400; color: var(--ink); font-size: 1.3rem; margin-bottom: 6px; }
 .empty p { margin: 0; font-size: .92rem; }
 
@@ -136,10 +144,10 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .ftile span.s { color: var(--muted); font-size: .82rem; line-height: 1.35; font-variant-numeric: tabular-nums; }
 .ftile .go { margin-top: 10px; color: var(--ink); }
 .ftile .go svg { width: 22px; height: 22px; stroke-width: 2; }
-.ftile.new { background: var(--ink); color: #fff; }
-.ftile.new .fi { color: #fff; filter: none; }
-.ftile.new span.s { color: rgba(255,255,255,.7); }
-.ftile.new .go { color: #fff; }
+.ftile.new { background: var(--ink); color: var(--on-ink); }
+.ftile.new .fi { color: var(--on-ink); filter: none; }
+.ftile.new span.s { color: var(--on-ink); opacity: .7; }
+.ftile.new .go { color: var(--on-ink); }
 
 /* Wizard */
 .wz { min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; }
@@ -154,12 +162,12 @@ h1, h2, h3 { margin: 0; text-wrap: balance; }
 .occ-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .occ-opt { border: none; background: var(--card); border-radius: 26px; padding: 20px 12px; display: flex; flex-direction: column; align-items: center; gap: 10px; font-weight: 600; box-shadow: var(--shadow); }
 .occ-opt svg { width: 34px; height: 34px; color: var(--icon); stroke-width: 1.6; }
-.occ-opt[aria-pressed="true"] { background: var(--ink); color: #fff; }
-.occ-opt[aria-pressed="true"] svg { color: #fff; }
+.occ-opt[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
+.occ-opt[aria-pressed="true"] svg { color: var(--on-ink); }
 .occ-opt.wide { grid-column: 1 / -1; flex-direction: row; justify-content: center; }
 .input { width: 100%; border: 1.5px solid var(--line); background: var(--card); border-radius: 18px; padding: 13px 16px; font-size: 16px; min-height: 52px; }
 .input:focus { border-color: var(--ink); outline: none; }
-.input::placeholder { color: #B6B7C1; }
+.input::placeholder { color: var(--muted); opacity: .75; }
 textarea.input { min-height: 84px; resize: vertical; }
 .money { position: relative; }
 .money span { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); font-family: var(--f-title); font-size: 2rem; color: var(--muted); pointer-events: none; }
@@ -167,7 +175,7 @@ textarea.input { min-height: 84px; resize: vertical; }
 .money small { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); color: var(--muted); font-weight: 600; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { border: none; background: var(--card); border-radius: 999px; padding: 9px 15px; font-weight: 600; font-size: .88rem; min-height: 40px; font-variant-numeric: tabular-nums; box-shadow: 0 2px 8px rgba(60,62,80,.07); }
-.chip[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
 .summary { border-radius: 28px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
 .summary .k { font-size: .74rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.65); }
 .summary .v { font-family: var(--f-title); font-size: 1.5rem; }
@@ -176,7 +184,7 @@ textarea.input { min-height: 84px; resize: vertical; }
 .wz-foot { padding-block: 16px 8px; display: flex; flex-direction: column; gap: 6px; }
 
 /* Festividad */
-.band { border-radius: 30px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; background: var(--glass); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,.9); box-shadow: var(--shadow); }
+.band { border-radius: 30px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; background: var(--glass); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); border: 1px solid var(--glass-border); box-shadow: var(--shadow); }
 .band-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .band .name { font-family: var(--f-title); font-size: 1.35rem; }
 .band .lbl { display: flex; align-items: center; gap: 6px; font-size: .84rem; color: var(--muted); font-weight: 500; }
@@ -185,21 +193,21 @@ textarea.input { min-height: 84px; resize: vertical; }
 .meter { height: 8px; background: var(--soft-2); border-radius: 99px; overflow: hidden; }
 .meter i { display: block; height: 100%; background: var(--ink); border-radius: 99px; }
 .for { font-family: var(--f-title); font-weight: 400; font-size: 1.55rem; margin: 24px 0 12px; }
-.tabs { display: flex; gap: 6px; margin-bottom: 18px; background: var(--glass); border-radius: 999px; padding: 6px; box-shadow: var(--shadow); border: 1px solid rgba(255,255,255,.9); }
+.tabs { display: flex; gap: 6px; margin-bottom: 18px; background: var(--glass); border-radius: 999px; padding: 6px; box-shadow: var(--shadow); border: 1px solid var(--glass-border); }
 .tabs button { flex: 1; border: none; background: none; padding: 10px 8px; font-weight: 600; color: var(--muted); font-size: .92rem; border-radius: 999px; }
-.tabs button[aria-selected="true"] { background: var(--ink); color: #fff; }
+.tabs button[aria-selected="true"] { background: var(--ink); color: var(--on-ink); }
 
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .gcard { display: flex; flex-direction: column; gap: 8px; text-decoration: none; color: inherit; background: var(--card); border: none; padding: 8px 8px 14px; border-radius: 28px; text-align: left; min-width: 0; box-shadow: var(--shadow); }
-.tile { position: relative; aspect-ratio: 1 / 1; max-width: 100%; border-radius: 22px; overflow: hidden; background: linear-gradient(145deg, #F4F4F7, #DFE0E7); }
+.tile { position: relative; aspect-ratio: 1 / 1; max-width: 100%; border-radius: 22px; overflow: hidden; background: var(--tile-bg); }
 .tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .tile .ph { position: absolute; inset: 0; display: grid; place-items: center; color: var(--icon); opacity: .7; }
 .tile .ph svg { width: 40%; height: 40%; stroke-width: 1.4; }
 .tile .top { position: absolute; inset: 8px 8px auto 8px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
-.tile .top span { background: rgba(255,255,255,.92); color: var(--ink); border-radius: 99px; padding: 3px 9px; font-size: .72rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.tile .top .p { background: var(--ink); color: #fff; font-weight: 600; font-size: .8rem; font-variant-numeric: tabular-nums; flex: none; }
-.tile.bought::after { content: ""; position: absolute; inset: 0; background: rgba(232,233,239,.55); }
-.stamp { position: absolute; z-index: 2; left: 50%; top: 55%; transform: translate(-50%,-50%) rotate(-8deg); border: 2.5px solid var(--ink); color: var(--ink); background: rgba(255,255,255,.9); border-radius: 12px; padding: 4px 10px; font-weight: 700; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; }
+.tile .top span { background: var(--card); color: var(--ink); border-radius: 99px; padding: 3px 9px; font-size: .72rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tile .top .p { background: var(--ink); color: var(--on-ink); font-weight: 600; font-size: .8rem; font-variant-numeric: tabular-nums; flex: none; }
+.tile.bought::after { content: ""; position: absolute; inset: 0; background: var(--bg); opacity: .55; }
+.stamp { position: absolute; z-index: 2; left: 50%; top: 55%; transform: translate(-50%,-50%) rotate(-8deg); border: 2.5px solid var(--ink); color: var(--ink); background: var(--card); border-radius: 12px; padding: 4px 10px; font-weight: 700; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; }
 .gcard h3 { font-family: var(--f-title); font-weight: 400; font-size: 1.12rem; line-height: 1.2; padding-inline: 6px; overflow-wrap: anywhere; }
 .gcard .desc { display: flex; gap: 6px; align-items: flex-end; padding-inline: 6px; }
 .gcard .desc p { margin: 0; flex: 1; min-width: 0; font-size: .78rem; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -208,7 +216,7 @@ textarea.input { min-height: 84px; resize: vertical; }
 .del-fiesta { display: flex; justify-content: center; margin-top: 30px; }
 
 /* Detalle */
-.hero-img { position: relative; width: 74%; max-width: 320px; aspect-ratio: 1; margin: 4px auto 20px; border-radius: 50%; overflow: hidden; background: linear-gradient(145deg, #F4F4F7, #DFE0E7); border: 6px solid #fff; box-shadow: 0 0 0 10px rgba(255,255,255,.45), 0 0 0 22px rgba(255,255,255,.22), 0 24px 44px rgba(60,62,80,.18); }
+.hero-img { position: relative; width: 100%; max-width: 380px; aspect-ratio: 1; margin: 4px auto 12px; border-radius: 30px; overflow: hidden; background: var(--tile-bg); box-shadow: var(--shadow); }
 .hero-img img { width: 100%; height: 100%; object-fit: cover; }
 .hero-img .ph { position: absolute; inset: 0; display: grid; place-items: center; color: var(--icon); opacity: .7; }
 .hero-img .ph svg { width: 40%; height: 40%; stroke-width: 1.4; }
@@ -230,13 +238,13 @@ textarea.input { min-height: 84px; resize: vertical; }
 /* Perfil */
 .pf-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 14px 0 0; }
 .pf-avatar { display: flex; justify-content: center; margin: -6px 0 -46px; position: relative; z-index: 2; }
-.pf-av { width: 116px; height: 116px; border-radius: 50%; overflow: hidden; border: 5px solid #fff; background: var(--soft-2); color: var(--ink); display: grid; place-items: center; font-family: var(--f-title); font-size: 2.8rem; box-shadow: 0 0 0 9px rgba(255,255,255,.5), 0 0 0 18px rgba(255,255,255,.22), 0 14px 30px rgba(60,62,80,.16); }
+.pf-av { width: 116px; height: 116px; border-radius: 50%; overflow: hidden; border: 5px solid var(--card); background: var(--soft-2); color: var(--ink); display: grid; place-items: center; font-family: var(--f-title); font-size: 2.8rem; box-shadow: 0 0 0 9px rgba(255,255,255,.5), 0 0 0 18px rgba(255,255,255,.22), 0 14px 30px rgba(60,62,80,.16); }
 .pf-av img { width: 100%; height: 100%; object-fit: cover; }
 .pf-card { padding: 62px 18px 18px; display: flex; flex-direction: column; gap: 16px; }
 .pf-name { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .pf-name h2 { font-weight: 700; font-size: 1.3rem; line-height: 1.2; overflow-wrap: anywhere; }
 .pf-name span.u { display: block; color: var(--muted); font-size: .88rem; margin-top: 2px; }
-.pill-dark { flex: none; display: inline-flex; align-items: center; gap: 6px; background: var(--ink); color: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 600; font-size: .85rem; border: none; }
+.pill-dark { flex: none; display: inline-flex; align-items: center; gap: 6px; background: var(--ink); color: var(--on-ink); border-radius: 999px; padding: 8px 14px; font-weight: 600; font-size: .85rem; border: none; }
 .pill-dark svg { width: 16px; height: 16px; }
 .stats3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .stats3 div { background: var(--card); border-radius: 22px; padding: 14px 6px; text-align: center; box-shadow: 0 4px 14px rgba(60,62,80,.07); min-width: 0; }
@@ -248,7 +256,7 @@ textarea.input { min-height: 84px; resize: vertical; }
 .banner .bt { flex: 1; min-width: 0; }
 .banner .bt b { display: block; font-weight: 700; font-size: .95rem; }
 .banner .bt span { display: block; font-size: .82rem; color: rgba(255,255,255,.75); }
-.btn-mini { flex: none; border: none; background: #fff; color: var(--ink); border-radius: 999px; padding: 10px 16px; font-weight: 600; font-size: .88rem; }
+.btn-mini { flex: none; border: none; background: #fff; color: #1F1E25; border-radius: 999px; padding: 10px 16px; font-weight: 600; font-size: .88rem; }
 .menu { margin-top: 12px; }
 
 /* Mi wishlist */
@@ -257,16 +265,17 @@ textarea.input { min-height: 84px; resize: vertical; }
 
 /* Bottom nav */
 .nav { position: fixed; z-index: 8; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); pointer-events: none; }
-.nav-in { pointer-events: auto; display: flex; gap: 8px; padding: 8px; border-radius: 999px; background: rgba(255,255,255,.85); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 14px 34px rgba(60,62,80,.18); border: 1px solid rgba(255,255,255,.95); }
+.nav-in { pointer-events: auto; display: flex; gap: 8px; padding: 8px; border-radius: 999px; background: var(--nav-bg); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 14px 34px rgba(60,62,80,.18); border: 1px solid var(--glass-border); }
 .nav button { border: none; background: var(--soft); color: var(--ink); height: 52px; min-width: 52px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; font-family: var(--f-title); font-size: 1.02rem; transition: background .15s, padding .15s; }
 .nav button svg { width: 22px; height: 22px; }
 .nav button .lb { display: none; }
-.nav button[aria-current="page"] { background: var(--ink); color: #fff; padding: 0 22px; }
+.nav button[aria-current="page"] { background: var(--ink); color: var(--on-ink); padding: 0 22px; }
 .nav button[aria-current="page"] .lb { display: inline; }
 
 /* Sheet */
 .sheet-bg { position: fixed; inset: 0; background: rgba(31,30,37,.4); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
-.sheet { background: #F4F4F7; width: 100%; max-width: 560px; max-height: 94%; overflow-y: auto; border-radius: 32px 32px 0 0; padding: 16px max(18px, env(safe-area-inset-right, 0px)) calc(22px + env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 14px; }
+.sheet { background: var(--sheet-bg); width: 100%; max-width: 560px; max-height: 94%; overflow-y: auto; border-radius: 32px 32px 0 0; padding: 16px max(18px, env(safe-area-inset-right, 0px)) calc(22px + env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 14px; }
+.sheet > * { flex-shrink: 0; }   /* en formularios largos, que la foto no se aplaste */
 .grip { width: 44px; height: 5px; border-radius: 99px; background: #CACBD4; margin: 0 auto 2px; }
 .sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .sheet-head h2 { font-family: var(--f-title); font-weight: 400; font-size: 1.7rem; }
@@ -277,10 +286,10 @@ textarea.input { min-height: 84px; resize: vertical; }
 .photo-pick img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .photo-pick .lbl { display: flex; flex-direction: column; align-items: center; gap: 6px; font-weight: 600; }
 .photo-pick .lbl svg { width: 34px; height: 34px; stroke-width: 1.6; }
-.photo-pick .chg { position: absolute; right: 10px; bottom: 10px; background: var(--ink); color: #fff; border-radius: 99px; padding: 6px 12px; font-size: .8rem; font-weight: 600; }
+.photo-pick .chg { position: absolute; right: 10px; bottom: 10px; background: var(--ink); color: var(--on-ink); border-radius: 99px; padding: 6px 12px; font-size: .8rem; font-weight: 600; }
 .photo-pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 
-.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-h) + 34px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: #fff; padding: 11px 18px; border-radius: 16px; font-weight: 500; font-size: .9rem; z-index: 30; max-width: calc(100% - 32px); text-align: center; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-h) + 34px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--on-ink); padding: 11px 18px; border-radius: 16px; font-weight: 500; font-size: .9rem; z-index: 30; max-width: calc(100% - 32px); text-align: center; }
 
 .signin { min-height: 80vh; display: flex; flex-direction: column; justify-content: center; gap: 18px; text-align: center; align-items: center; }
 .signin .logo { width: 96px; height: 96px; }
@@ -316,11 +325,11 @@ textarea.input { min-height: 84px; resize: vertical; }
   --f-title: "Lexend", "DM Sans", system-ui, sans-serif;
   --f: "Lexend", "DM Sans", system-ui, sans-serif;
 }
-[data-tema="colorido"] body { font-size: 14.5px; }
+body { font-size: 14.5px; }
 [data-tema="colorido"] body::before { background: var(--bg); }
 [data-tema="colorido"] .bgfx { display: none; }
-[data-tema="colorido"] :is(.title, .pf-h, .page-h, .bar .brand, .sec, .empty h3, .ftile b, .wz-q, .money span, .money input, .summary .v, .band .name, .band .big, .for, .gcard h3, .dt-title h1, .panel .price, .stats3 b, .nav button, .sheet-head h2, .signin h1, .invite h2) { font-weight: 600; letter-spacing: -0.02em; }
-[data-tema="colorido"] .title { font-size: 1.9rem; }
+:is(.title, .pf-h, .page-h, .bar .brand, .sec, .empty h3, .ftile b, .wz-q, .money span, .money input, .summary .v, .band .name, .band .big, .for, .gcard h3, .dt-title h1, .panel .price, .stats3 b, .nav button, .sheet-head h2, .signin h1, .invite h2) { font-weight: 600; letter-spacing: -0.02em; }
+.title { font-size: 1.9rem; }
 [data-tema="colorido"] :is(.card, .list, .tabs, .empty, .secret-note, .gcard, .ftile, .occ-opt, .chip, .stat) { border: 1.5px solid var(--line); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
 [data-tema="colorido"] :is(.icon-btn, .circle-btn, .logo, .x, .mini-av) { box-shadow: none; border: 1.5px solid var(--ink); background: transparent; }
 [data-tema="colorido"] .nav-in { background: #fff; border: 1.5px solid var(--line); box-shadow: 0 10px 30px rgba(28,27,26,.10); }
@@ -382,15 +391,57 @@ textarea.input { min-height: 84px; resize: vertical; }
 [data-tema="colorido"] .grid > :nth-child(4n+4) .tile { background: var(--mustard); }
 [data-tema="colorido"] .tile .ph { color: #fff; opacity: .8; }
 [data-tema="colorido"] .stamp { border-color: var(--ink); background: var(--mustard); }
-[data-tema="colorido"] .hero-img { background: var(--lav); box-shadow: 0 0 0 10px #DADCF4, 0 0 0 22px #ECEDFA; }
+[data-tema="colorido"] .hero-img { background: var(--lav); box-shadow: none; border: 1.5px solid var(--line); }
 [data-tema="colorido"] .hero-img .ph { color: #fff; opacity: .85; }
 [data-tema="colorido"] .sheet { background: var(--bg); }
 [data-tema="colorido"] .photo-pick { background: #fff; border-color: #D8D1C4; }
 [data-tema="colorido"] .dots i.on { background: var(--terra); }
 
+/* ---------- Tema "Discreto": oscuro, grafito con brillos suaves y acentos blancos ---------- */
+:root[data-tema="discreto"] {
+  --bg: #111116;
+  --glass: rgba(32,32,41,.78);
+  --card: #1D1D25;
+  --soft: #262630;
+  --soft-2: #30303B;
+  --ink: #F1F1F6;
+  --ink-2: #CFCFD8;
+  --muted: #9797A5;
+  --line: #2D2D38;
+  --icon: #B9B9C6;
+  --warn-bg: #2D2819;
+  --warn: #E7BE62;
+  --danger: #FF7B6B;
+  --late: #FF8A80;
+  --late-bg: rgba(229,57,53,.16);
+  --on-ink: #111116;
+  --glass-border: rgba(255,255,255,.07);
+  --tile-bg: linear-gradient(145deg, #2A2A34, #1E1E26);
+  --sheet-bg: #16161C;
+  --nav-bg: rgba(28,28,36,.88);
+  --solid-bg: linear-gradient(115deg, #3D3D4B 0%, #2B2B36 50%, #1F1F28 100%);
+  --shadow: 0 1px 2px rgba(0,0,0,.35), 0 16px 36px rgba(0,0,0,.40);
+  color-scheme: dark;
+}
+[data-tema="discreto"] .bgfx { background:
+    radial-gradient(45% 30% at 12% 8%, rgba(120,122,150,.22), transparent 70%),
+    radial-gradient(40% 30% at 92% 36%, rgba(90,95,130,.20), transparent 70%),
+    radial-gradient(46% 34% at 28% 70%, rgba(70,72,95,.25), transparent 70%),
+    radial-gradient(40% 30% at 88% 92%, rgba(130,110,120,.14), transparent 70%),
+    var(--bg); }
+[data-tema="discreto"] .warn { color: var(--ink); }
+[data-tema="discreto"] .lookup.done { color: var(--ink); }
+[data-tema="discreto"] .theme-opt[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--ink); }
+[data-tema="discreto"] .mini-av, [data-tema="discreto"] .pf-av { border-color: #2A2A34; }
+/* En oscuro, los bloques grandes no van en blanco (deslumbran): grafito con texto claro */
+[data-tema="discreto"] .remind { background: var(--solid-bg); color: #fff; border: 1px solid var(--glass-border) !important; }
+[data-tema="discreto"] .ftile.new { background: linear-gradient(145deg, #34343F, #26262F); color: var(--ink); border: 1px solid var(--glass-border); }
+[data-tema="discreto"] .ftile.new :is(.fi, .go) { color: var(--ink); }
+[data-tema="discreto"] .ftile.new span.s { color: var(--muted); opacity: 1; }
+
 /* Fechas, entregas y recordatorios (los dos temas) */
 :root { --late: #C62828; }
-.late-box { display: flex; gap: 10px; align-items: flex-start; background: #FDECEA; color: var(--late); border-radius: 18px; padding: 12px 14px; font-size: .92rem; font-weight: 600; line-height: 1.35; }
+.late-box { display: flex; gap: 10px; align-items: flex-start; background: var(--late-bg); color: var(--late); border-radius: 18px; padding: 12px 14px; font-size: .92rem; font-weight: 600; line-height: 1.35; }
 .late-box svg { flex: none; width: 20px; height: 20px; }
 .ontime { display: flex; gap: 8px; align-items: center; font-size: .86rem; font-weight: 500; }
 .ontime svg { flex: none; width: 18px; height: 18px; }
@@ -404,7 +455,7 @@ textarea.input { min-height: 84px; resize: vertical; }
 .remind .rt b { display: block; font-weight: 700; font-size: .98rem; }
 .remind .rt span { display: block; font-size: .84rem; opacity: .85; }
 .remind .ri svg { width: 26px; height: 26px; }
-.remind { background: var(--ink); color: #fff; }
+.remind { background: var(--ink); color: var(--on-ink); }
 [data-tema="colorido"] .remind { background: var(--terra); }
 
 .lookup:empty { display: none; }
@@ -414,6 +465,43 @@ textarea.input { min-height: 84px; resize: vertical; }
 .lookup .spin svg { animation: spin .8s linear infinite; }
 .lookup.done { color: var(--ink); }
 .lookup.warn-t { color: var(--muted); }
+
+/* Fotos: las de tienda/internet completas sobre blanco; galería de miniaturas */
+.tile img.fit, .hero-img img.fit, .photo-pick img.fit { object-fit: contain; background: var(--photo-bg); padding: 8%; }
+.thumbs { display: flex; gap: 8px; overflow-x: auto; padding: 2px; margin-top: -4px; }
+.thumbs:empty { display: none; }
+.thumbs .th { position: relative; flex: none; width: 64px; height: 64px; border-radius: 16px; overflow: hidden; border: 2px solid transparent; background: var(--tile-bg); padding: 0; cursor: pointer; }
+.thumbs .th img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumbs .th.fit img { object-fit: contain; background: var(--photo-bg); padding: 4px; }
+.thumbs .th[aria-current="true"] { border-color: var(--ink); }
+.thumbs .th .rm { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,.62); color: #fff; border: none; font-size: 15px; line-height: 1; display: grid; place-items: center; padding: 0; }
+.thumbs .add { position: relative; flex: none; width: 64px; height: 64px; border-radius: 16px; border: 1.5px dashed var(--muted); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--ink); font-size: .66rem; font-weight: 600; cursor: pointer; text-align: center; }
+.thumbs .add svg { width: 18px; height: 18px; }
+.thumbs .add input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.thumbs.gal { justify-content: center; margin: 0 0 6px; }
+.btn-sm { min-height: 44px; padding: 10px 16px; font-size: .92rem; }
+
+/* Perfil */
+.pf-card { padding: 18px; margin-top: 16px; }
+.pf-top2 { display: flex; align-items: center; gap: 16px; }
+.pf-av2 { position: relative; flex: none; width: 84px; height: 84px; cursor: pointer; }
+.pf-av2 .pic { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--soft-2); color: var(--ink); font-weight: 600; font-size: 2rem; box-shadow: 0 0 0 4px var(--card), 0 0 0 6px var(--line); }
+.pf-av2 .pic img { width: 100%; height: 100%; object-fit: cover; }
+.pf-av2 .cam { position: absolute; right: -2px; bottom: -2px; width: 30px; height: 30px; border-radius: 50%; background: var(--ink); color: var(--on-ink); display: grid; place-items: center; border: 3px solid var(--card); }
+.pf-av2 .cam svg { width: 15px; height: 15px; }
+.pf-av2 input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.pf-who { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.pf-who h2 { font-weight: 600; font-size: 1.3rem; line-height: 1.2; overflow-wrap: anywhere; }
+.pf-who .u { color: var(--muted); font-size: .88rem; }
+.pf-who .with { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; background: var(--soft); border-radius: 999px; padding: 4px 12px 4px 4px; font-size: .86rem; font-weight: 500; }
+.pf-who .mini { width: 26px; height: 26px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: var(--ink); color: var(--on-ink); font-size: .78rem; font-weight: 600; }
+.pf-who .mini img { width: 100%; height: 100%; object-fit: cover; }
+.pf-card .stats3 { margin-top: 18px; }
+.remind { margin: 12px 0 0 !important; }
+.banner { margin-top: 12px; }
+.for { display: flex; align-items: center; gap: 10px; }
+.for-av { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; }
+[data-tema="colorido"] .pf-av2 .pic { background: var(--lav); color: #fff; box-shadow: 0 0 0 4px #fff, 0 0 0 7px var(--terra); }
 
 /* Ajustes */
 .themes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -578,7 +666,13 @@ const itemName = i => {
   if (t && !(i.titleAuto && /^Regalo de /i.test(t))) return t;
   return i && i.url && !i.linkCheckedAt ? "Buscando el nombre…" : "Sin nombre";
 };
-const imgOf = i => (i && ((i.ownPhoto && safeImg(i.photo)) || storeImg(i) || safeImg(i.photo) || webImg(i))) || "";
+// Fotos propias (hasta 4). Los regalos viejos tienen una sola en "photo".
+const ownList = i => { if (!i) return []; const a = Array.isArray(i.photos) ? i.photos.filter(safeImg) : []; return a.length ? a : (safeImg(i.photo) ? [i.photo] : []); };
+const imgOf = i => (i && ((i.ownPhoto && ownList(i)[0]) || storeImg(i) || ownList(i)[0] || webImg(i))) || "";
+// Todas las fotos del regalo, la principal primero (para la galería del detalle).
+const galleryOf = i => { const main = imgOf(i); const all = [main, ...ownList(i), storeImg(i)]; if (!storeImg(i) && !ownList(i).length) all.push(webImg(i)); return [...new Set(all.filter(Boolean))]; };
+const isOwnImg = (i, src) => ownList(i).includes(src);
+const avatarOf = uid => (S.list && S.list.avatars && safeImg(S.list.avatars[uid])) || (S.user && uid === S.user.uid ? (S.user.photoURL || "") : "");
 function ago(ms) {
   const m = Math.max(1, Math.round((Date.now() - ms) / 60000));
   if (m < 60) return `hace ${m} min`;
@@ -591,9 +685,10 @@ function priceNote(i, who) {
   if (Number(i.linkPrice) > 0) return `Precio de ${hostOf(i.url).replace(/^(amzn\.to|a\.co)$/, "Amazon").replace(/^meli\.la$/, "Mercado Libre")}, revisado ${ago(i.linkPriceAt || i.linkCheckedAt)}`;
   return Number(i.price) > 0 ? `La tienda no dejó leer el precio; es el que puso ${who}` : "La tienda no dejó leer el precio. Ponlo a mano.";
 }
+// Las fotos de tienda o de internet se muestran completas sobre blanco; las propias llenan el cuadro.
 function photoHtml(item) {
   const s = imgOf(item);
-  return s ? `<img src="${esc(s)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<div class="ph">${I("gift")}</div>`;
+  return s ? `<img src="${esc(s)}" alt="" loading="lazy" referrerpolicy="no-referrer"${isOwnImg(item, s) ? "" : ' class="fit"'}>` : `<div class="ph">${I("gift")}</div>`;
 }
 
 /* ---------- Rutas (#) ---------- */
@@ -638,10 +733,10 @@ function render() {
 }
 
 function topBar(left, right) {
-  return `<div class="bar"><div class="l">${left}</div><div class="logo">${LOGO}</div><div class="r">${right || ""}</div></div>`;
+  return `<div class="bar"><div class="l">${left}</div><span></span><div class="r">${right || ""}</div></div>`;
 }
 function avatarBtn() {
-  const src = S.user.photoURL;
+  const src = avatarOf(me());
   return `<button class="mini-av" data-go="#" aria-label="Mi perfil">${src ? `<img src="${esc(src)}" alt="" referrerpolicy="no-referrer">` : esc(firstName(S.user).charAt(0))}</button>`;
 }
 function wireGo() {
@@ -847,7 +942,7 @@ function renderFiesta(fid) {
       <div class="band-row"><span class="big">Te quedan ${mxn(left)}</span></div>
       <div class="meter" aria-hidden="true"><i style="width:${pct}%"></i></div>
     </div>
-    <h2 class="for">Ideas para ${esc(nameOf(p))}</h2>
+    <h2 class="for">${avatarOf(p) ? `<img class="for-av" src="${esc(avatarOf(p))}" alt="" referrerpolicy="no-referrer">` : ""}Ideas para ${esc(nameOf(p))}</h2>
     <div class="tabs" role="tablist">
       <button role="tab" data-tab="ideas" aria-selected="${S.tab === "ideas"}">Te alcanza (${ideas.length})</button>
       <button role="tab" data-tab="comprados" aria-selected="${S.tab === "comprados"}">Comprados (${nb})</button>
@@ -909,7 +1004,8 @@ function renderDetail(fid, iid) {
     : `<span class="ontime">${I("check")}Si lo pides hoy, llegaría el ${esc(fShort(arr))}${f.date ? ". Llega a tiempo." : "."}</span>`;
   app.innerHTML = `<div class="wrap no-nav screen" style="padding-bottom:0">
     ${topBar(`<button class="icon-btn" id="dBack" aria-label="Atrás">${I("back")}</button>`, b ? `<span class="icon-btn" aria-label="Comprado">${I("check")}</span>` : "")}
-    <div class="hero-img">${photoHtml(it)}</div>
+    <div class="hero-img" id="hero">${photoHtml(it)}</div>
+    ${(() => { const g = galleryOf(it); return g.length > 1 ? `<div class="thumbs gal">${g.map((src, k) => `<button type="button" class="th ${isOwnImg(it, src) ? "" : "fit"}" data-src="${esc(src)}" aria-current="${k === 0}" aria-label="Foto ${k + 1}"><img src="${esc(src)}" alt="" referrerpolicy="no-referrer"></button>`).join("")}</div>` : ""; })()}
     <div class="dt-title"><h1>${esc(itemName(it))}</h1>${I("heart")}</div>
     <div class="full panel solid"><div class="in">
       <div class="meta"><span>${esc(occs)}</span><span>${esc(fiestaName(f))}</span></div>
@@ -926,6 +1022,10 @@ function renderDetail(fid, iid) {
       </div>
     </div></div>
   </div>`;
+  app.querySelectorAll(".gal .th").forEach(b => b.addEventListener("click", () => {
+    app.querySelectorAll(".gal .th").forEach(x => x.setAttribute("aria-current", String(x === b)));
+    $("#hero").innerHTML = `<img src="${esc(b.dataset.src)}" alt="" referrerpolicy="no-referrer"${b.classList.contains("fit") ? ' class="fit"' : ""}>`;
+  }));
   $("#dBack").addEventListener("click", () => history.length > 1 ? history.back() : location.replace("#f/" + fid));
   $("#buy").addEventListener("click", async ev => {
     const btn = ev.currentTarget; btn.disabled = true;
@@ -941,9 +1041,9 @@ function renderDetail(fid, iid) {
 /* ---------- Mi wishlist ---------- */
 function renderMine() {
   const mine = myItems();
-  let html = `<div class="wrap screen">${topBar(`<span class="brand">Regalos</span>`, refreshBtn() + avatarBtn())}
-    <div class="mine-head"><h1 class="title">Mi wishlist</h1><button class="btn btn-primary" id="add">${I("plus")} Agregar</button></div>
-    <p class="hint" style="margin:-8px 0 18px">Lo que pongas aquí se queda para todas las festividades. ${partner() ? esc(nameOf(partner())) : "Tu pareja"} solo ve lo que le alcanza con su presupuesto.</p>`;
+  let html = `<div class="wrap screen">
+    <div class="pf-head"><h1 class="title">Mi wishlist</h1><div class="hdr-btns">${refreshBtn()}<button class="btn btn-primary btn-sm" id="add">${I("plus")} Agregar</button></div></div>
+    <p class="hint" style="margin:10px 0 18px">Lo que pongas aquí se queda para todas las festividades. ${partner() ? esc(nameOf(partner())) : "Tu pareja"} solo ve lo que le alcanza con su presupuesto.</p>`;
   html += mine.length
     ? `<div class="grid">${mine.map(i => `<button class="gcard" data-edit="${esc(i.id)}">
         <div class="tile">${photoHtml(i)}<div class="top"><i></i>${priceOf(i) > 0 ? `<span class="p">${mxn(priceOf(i))}</span>` : `<span>Sin precio</span>`}</div></div>
@@ -973,58 +1073,84 @@ function renderProfile() {
     const sub = n ? `Llevas ${n} regalo${n > 1 ? "s" : ""} tachado${n > 1 ? "s" : ""}.` : "¿Ya compraste tus regalos?";
     return `<button class="remind" data-go="#f/${esc(soon.f.id)}" style="width:100%;border:none;text-align:left"><span class="ri">${I("cal")}</span><span class="rt"><b>${esc(head)}</b><span>${esc(sub)}${lateN ? ` ${lateN} de su wishlist ya no llegaría${lateN > 1 ? "n" : ""} a tiempo.` : ""}</span></span><span class="ch">${I("chev")}</span></button>`;
   })();
+  const av = avatarOf(me()), pav = p ? avatarOf(p) : "";
   app.innerHTML = `<div class="wrap screen">
-    <div class="pf-head"><h1 class="title">Perfil</h1><div class="hdr-btns">${refreshBtn()}<button class="circle-btn" data-go="#ajustes" aria-label="Ajustes">${I("gear")}</button><button class="circle-btn" id="qNew" aria-label="Nueva festividad">${I("plus")}</button></div></div>
-    <div style="height:14px"></div>${remindHtml}
-    <div class="pf-avatar"><div class="pf-av">${src ? `<img src="${esc(src)}" alt="" referrerpolicy="no-referrer">` : esc(firstName(S.user).charAt(0))}</div></div>
+    <div class="pf-head"><h1 class="title">Perfil</h1><div class="hdr-btns">${refreshBtn()}<button class="circle-btn" data-go="#ajustes" aria-label="Ajustes">${I("gear")}</button></div></div>
     <div class="card pf-card">
-      <div class="pf-name">
-        <div style="min-width:0"><h2>${esc(full)}</h2><span class="u">${p ? `Con ${esc(nameOf(p))}` : "Falta conectar a tu pareja"}</span></div>
-        <span class="pill-dark">${I("heart")} ${p ? "Pareja" : "Solo"}</span>
+      <div class="pf-top2">
+        <label class="pf-av2" title="Cambiar foto de perfil">
+          <span class="pic">${av ? `<img src="${esc(av)}" alt="" referrerpolicy="no-referrer">` : esc(firstName(S.user).charAt(0))}</span>
+          <span class="cam">${I("camera")}</span>
+          <input type="file" id="avIn" accept="image/*" aria-label="Cambiar foto de perfil">
+        </label>
+        <div class="pf-who">
+          <h2>${esc(full)}</h2>
+          ${p ? `<span class="with"><span class="mini">${pav ? `<img src="${esc(pav)}" alt="" referrerpolicy="no-referrer">` : esc(nameOf(p).charAt(0))}</span>Con ${esc(nameOf(p))}</span>` : `<span class="u">Falta conectar a tu pareja</span>`}
+        </div>
       </div>
       <div class="stats3">
         <div><b>${S.fiestas.length}</b><span>Festividades</span></div>
         <div><b>${myItems().length}</b><span>Mi wishlist</span></div>
         <div><b>${bought}</b><span>Comprados</span></div>
       </div>
-      ${p ? `<div class="banner solid">
-          <span class="bi">${I("star")}</span>
-          <div class="bt"><b>¿Qué estás celebrando?</b><span>Crea una festividad y ve qué te alcanza.</span></div>
-          <button class="btn-mini" data-go="#nueva">Crear</button>
-        </div>` : `<div class="invite solid">${inviteInner()}</div>`}
     </div>
+    ${remindHtml}
+    ${p ? `<div class="banner solid">
+        <span class="bi">${I("star")}</span>
+        <div class="bt"><b>¿Qué estás celebrando?</b><span>Crea una festividad y ve qué te alcanza.</span></div>
+        <button class="btn-mini" data-go="#nueva">Crear</button>
+      </div>` : `<div class="invite solid">${inviteInner()}</div>`}
     <div class="list menu">
-      <button class="row" data-go="#mia"><span class="ic">${I("heart")}</span><span class="tx"><b>Mi wishlist</b></span><span class="ch">${I("chev")}</span></button>
-      <button class="row" data-go="#fiestas"><span class="ic">${I("gift")}</span><span class="tx"><b>Mis festividades</b></span><span class="ch">${I("chev")}</span></button>
-      ${p ? `<div class="row"><span class="ic">${I("people")}</span><span class="tx"><b>${esc(nameOf(p))}</b><span>${theirItems().length} regalos en su wishlist</span></span></div>
+      <button class="row" data-go="#mia"><span class="ic">${I("heart")}</span><span class="tx"><b>Mi wishlist</b><span>${myItems().length} ${myItems().length === 1 ? "regalo" : "regalos"}</span></span><span class="ch">${I("chev")}</span></button>
+      <button class="row" data-go="#fiestas"><span class="ic">${I("gift")}</span><span class="tx"><b>Mis festividades</b><span>${S.fiestas.length ? S.fiestas.length + " en total" : "Crea la primera"}</span></span><span class="ch">${I("chev")}</span></button>
+      ${p ? `<div class="row"><span class="ic">${I("people")}</span><span class="tx"><b>${esc(nameOf(p))}</b><span>${theirItems().length} ${theirItems().length === 1 ? "regalo" : "regalos"} en su wishlist</span></span></div>
       <div class="row"><span class="ic">${I("shield")}</span><span class="tx"><b>Compras secretas</b><span>${esc(nameOf(p))} no ve lo que tachas</span></span></div>` : ""}
-      <button class="row" data-go="#ajustes"><span class="ic">${I("gear")}</span><span class="tx"><b>Ajustes</b><span>Colores de la app</span></span><span class="ch">${I("chev")}</span></button>
+      <button class="row" data-go="#ajustes"><span class="ic">${I("gear")}</span><span class="tx"><b>Ajustes</b><span>Colores, foto y avisos</span></span><span class="ch">${I("chev")}</span></button>
       <button class="row" id="logout"><span class="ic">${I("out")}</span><span class="tx"><b class="lb">Cerrar sesión</b></span><span class="ch">${I("chev")}</span></button>
     </div>
   </div>`;
   wireGo(); wireInvite();
-  $("#qNew").addEventListener("click", () => { if (p) go("#nueva"); else toast("Primero invita a tu pareja con el link"); });
+  $("#avIn").addEventListener("change", e => setAvatar(e.target.files && e.target.files[0]));
   $("#logout").addEventListener("click", ev => { if (arm("out", ev.currentTarget, "Toca otra vez para salir")) signOut(auth); });
+}
+
+// Foto de perfil: se guarda chiquita en la lista, así la ven los dos.
+async function setAvatar(file) {
+  if (!file) return;
+  try {
+    const img = await compress(file, 320, 60000);
+    await updateDoc(doc(fdb, "regalos", S.listId), { ["avatars." + me()]: img });
+    toast("Foto de perfil lista");
+  } catch (e) { e && e.code === "permission-denied" ? toast("Firebase no dio permiso. Faltan las reglas nuevas.") : toast("No se pudo cambiar la foto. Prueba con otra."); }
+}
+async function clearAvatar() {
+  try { await updateDoc(doc(fdb, "regalos", S.listId), { ["avatars." + me()]: deleteField() }); toast("Volviste a tu foto de Google"); }
+  catch (e) { writeErr(e); }
 }
 
 /* ---------- Ajustes ---------- */
 const TEMAS = [
   { k: "colorido", l: "Colorido", d: "Terracota, lavanda, salvia y turquesa", sw: ["#D95B3F", "#8F94DB", "#9CC487", "#2F8FA6"] },
-  { k: "discreto", l: "Discreto", d: "Gris perla, blanco y negro", sw: ["#E8E9EF", "#FFFFFF", "#8B8C97", "#1F1E25"] },
+  { k: "discreto", l: "Discreto", d: "Oscuro: grafito, gris y blanco", sw: ["#111116", "#262630", "#9797A5", "#F1F1F6"] },
 ];
 const temaActual = () => document.documentElement.getAttribute("data-tema") || "colorido";
 function setTema(k) {
   document.documentElement.setAttribute("data-tema", k);
   try { localStorage.setItem("regalos.tema", k); } catch (e) {}
-  const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", k === "discreto" ? "#E8E9EF" : "#F4F1EB");
+  const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", k === "discreto" ? "#111116" : "#F4F1EB");
 }
 function renderSettings() {
   const cur = temaActual();
   app.innerHTML = `<div class="wrap screen">
     <div class="pf-head"><div class="hdr-btns"><button class="icon-btn" data-go="#" aria-label="Atrás">${I("back")}</button><h1 class="title">Ajustes</h1></div></div>
+    <h2 class="sec">Foto de perfil</h2>
+    <div class="list menu">
+      <label class="row" style="cursor:pointer;position:relative"><span class="ic">${I("camera")}</span><span class="tx"><b>Cambiar mi foto</b><span>${S.list && S.list.avatars && S.list.avatars[me()] ? "Tienes una foto propia" : "Ahora usas la de tu cuenta de Google"}</span></span><span class="ch">${I("chev")}</span><input type="file" id="avIn2" accept="image/*" style="position:absolute;inset:0;opacity:0" aria-label="Cambiar mi foto"></label>
+      ${S.list && S.list.avatars && S.list.avatars[me()] ? `<button class="row" id="avClear"><span class="ic">${I("user")}</span><span class="tx"><b>Quitar mi foto</b><span>Volver a la de Google</span></span><span class="ch">${I("chev")}</span></button>` : ""}
+    </div>
     <h2 class="sec">Colores</h2>
     <div class="themes">${TEMAS.map(t => `<button class="theme-opt" data-pick="${t.k}" aria-pressed="${cur === t.k}">
-        <span class="sw">${t.sw.map(c => `<i style="background:${c};${c === "#FFFFFF" ? "box-shadow:inset 0 0 0 1.5px #E1E1E6" : ""}"></i>`).join("")}</span>
+        <span class="sw">${t.sw.map(c => `<i style="background:${c};box-shadow:inset 0 0 0 1.5px rgba(128,128,140,.35)"></i>`).join("")}</span>
         <b>${t.l}</b><span>${t.d}</span>
         ${cur === t.k ? `<span class="ok">${I("check")} En uso</span>` : ""}
       </button>`).join("")}</div>
@@ -1041,6 +1167,8 @@ function renderSettings() {
   </div>`;
   wireGo();
   $("#pushBtn").addEventListener("click", enablePush);
+  $("#avIn2").addEventListener("change", e => setAvatar(e.target.files && e.target.files[0]));
+  if ($("#avClear")) $("#avClear").addEventListener("click", clearAvatar);
   app.querySelectorAll(".theme-opt").forEach(b => b.addEventListener("click", () => { setTema(b.dataset.pick); render(); toast(b.dataset.pick === "discreto" ? "Modo discreto" : "Modo colorido"); }));
 }
 
@@ -1247,16 +1375,16 @@ async function enablePush() {
 }
 
 /* ---------- Agregar / editar regalo ---------- */
-function compress(file) {
+function compress(file, max = 900, cap = 170000) {
   return new Promise((res, rej) => {
     const img = new Image(), url = URL.createObjectURL(file);
     img.onload = () => {
-      const max = 720, k = Math.min(1, max / Math.max(img.width, img.height));
+      const k = Math.min(1, max / Math.max(img.width, img.height));
       const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
       const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
       URL.revokeObjectURL(url);
       let q = 0.78, out = c.toDataURL("image/jpeg", q);
-      while (out.length > 380000 && q > 0.4) { q -= 0.1; out = c.toDataURL("image/jpeg", q); }
+      while (out.length > cap && q > 0.35) { q -= 0.08; out = c.toDataURL("image/jpeg", q); }
       res(out);
     };
     img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("img")); };
@@ -1267,11 +1395,11 @@ function compress(file) {
 function openSheet(editId) {
   const it = editId ? S.items.find(x => x.id === editId) : null;
   const sel = new Set(it ? (it.occasions || []) : []);
-  let photo = it ? safeImg(it.photo) : "";
+  let photos = it ? ownList(it).slice(0, 4) : [];      // fotos propias (la primera es la principal)
   let shopImg = it ? storeImg(it) : "";
   let found = null;           // { url, r } de la última búsqueda en la tienda
   let webImage = it ? webImg(it) : "";
-  let ownPhoto = !!(it && it.ownPhoto && photo);
+  let ownPhoto = !!(it && it.ownPhoto && photos.length);
   const root = $("#sheetRoot");
   root.innerHTML = `
     <div class="sheet-bg" id="sheetBg">
@@ -1282,7 +1410,8 @@ function openSheet(editId) {
           <span id="pickInner"></span>
           <input type="file" id="fPhoto" accept="image/*" aria-label="Foto del regalo">
         </label>
-        <button type="button" class="link-danger" id="useShop" style="color:var(--ink);align-self:center;margin-top:-6px" hidden>Usar la foto de la tienda</button>
+        <div class="thumbs" id="thumbs"></div>
+        <button type="button" class="link-danger" id="useShop" style="color:var(--ink);align-self:center;margin-top:-6px" hidden>Usar la foto de la tienda como principal</button>
         <label class="field">Link de la tienda <span class="opt">(Amazon, Liverpool, Mercado Libre…). Con el link se llenan solos el nombre, la foto y el precio.</span><input class="input" id="fUrl" inputmode="url" autocomplete="off" placeholder="Pega aquí el link" value="${esc(it?.url)}"></label>
         <div class="lookup" id="lookup" aria-live="polite"></div>
         <label class="field">¿Qué es? <span class="opt">Opcional si pusiste el link</span><input class="input" id="fTitle" maxlength="120" placeholder="Se toma del link · o escribe, ej. Libro “Cien años de soledad”" value="${esc(it && !(it.titleAuto && /^Regalo de /i.test(it.title || "")) ? (it.title || "") : "")}"></label>
@@ -1298,13 +1427,28 @@ function openSheet(editId) {
     </div>`;
   const close = () => (root.innerHTML = "");
   const paintPick = () => {
+    const photo = photos[0] || "";
     const showOwn = photo && (ownPhoto || !shopImg);
     $("#pickInner").innerHTML = showOwn ? `<img src="${photo}" alt=""><span class="chg">Tu foto · cambiar</span>`
-      : shopImg ? `<img src="${esc(shopImg)}" alt="" referrerpolicy="no-referrer"><span class="chg">Foto de la tienda · poner la mía</span>`
-      : photo ? `<img src="${photo}" alt=""><span class="chg">Tu foto · cambiar</span>`
-      : webImage ? `<img src="${esc(webImage)}" alt="" referrerpolicy="no-referrer"><span class="chg">Foto de internet · poner la mía</span>`
+      : shopImg ? `<img class="fit" src="${esc(shopImg)}" alt="" referrerpolicy="no-referrer"><span class="chg">Foto de la tienda · poner la mía</span>`
+      : webImage ? `<img class="fit" src="${esc(webImage)}" alt="" referrerpolicy="no-referrer"><span class="chg">Foto de internet · poner la mía</span>`
       : `<span class="lbl">${I("camera")}Agregar foto<span class="opt" style="font-weight:400;font-size:.8rem;text-align:center">o déjala vacía: se pone la de la tienda del link</span></span>`;
     $("#useShop").hidden = !(shopImg && showOwn);
+    // Fila de fotos propias: tocar una la vuelve principal, la × la quita, y "+" agrega más (hasta 4).
+    $("#thumbs").innerHTML = photos.map((src, k) => `<span class="th" data-k="${k}" aria-current="${showOwn && k === 0}"><img src="${src}" alt=""><button type="button" class="rm" data-rm="${k}" aria-label="Quitar foto ${k + 1}">×</button></span>`).join("")
+      + (photos.length < 4 ? `<label class="add">${I("plus")}<span>${photos.length ? "Otra foto" : "Mis fotos"}</span><input type="file" id="fPhotos" accept="image/*" multiple aria-label="Agregar fotos"></label>` : "");
+    $("#thumbs").querySelectorAll(".th").forEach(t => t.addEventListener("click", e => {
+      if (e.target.closest(".rm")) return;
+      const k = +t.dataset.k; photos.unshift(...photos.splice(k, 1)); ownPhoto = true; paintPick();
+    }));
+    $("#thumbs").querySelectorAll(".rm").forEach(b => b.addEventListener("click", () => { photos.splice(+b.dataset.rm, 1); if (!photos.length) ownPhoto = false; paintPick(); }));
+    const more = $("#fPhotos");
+    if (more) more.addEventListener("change", async e => {
+      const files = [...(e.target.files || [])].slice(0, 4 - photos.length);
+      for (const f of files) { try { photos.push(await compress(f)); } catch (err) { toast("No se pudo leer una de las fotos."); } }
+      if (!shopImg && photos.length) ownPhoto = true;
+      paintPick();
+    });
   };
   paintPick();
   let lookSeq = 0;
@@ -1322,7 +1466,7 @@ function openSheet(editId) {
     if (!r.title && ft && !ft.value.trim()) { showLookup(`<span class="spin">${I("refresh")}</span> Buscando el nombre del producto…`, "busy"); r.title = await LK.searchTitle(url); if (seq !== lookSeq || !$("#lookup")) return; }
     if (r.title && ft && (!ft.value.trim() || ft.dataset.auto === "1")) { ft.value = r.title; ft.dataset.auto = "1"; }
     if (r.image) { shopImg = r.image; paintPick(); }
-    else if (!photo) {
+    else if (!photos.length) {
       const q = r.title || $("#fTitle").value.trim();
       if (q) { showLookup(`<span class="spin">${I("refresh")}</span> La tienda no dio foto. Buscándola en internet…`, "busy"); const w = await LK.searchWeb(q); if (seq !== lookSeq || !$("#lookup")) return; if (w) { webImage = w; r.webFound = true; paintPick(); } }
     }
@@ -1344,7 +1488,7 @@ function openSheet(editId) {
   $("#sheetBg").addEventListener("click", e => { if (e.target.id === "sheetBg") close(); });
   $("#fPhoto").addEventListener("change", async e => {
     const file = e.target.files && e.target.files[0]; if (!file) return;
-    try { photo = await compress(file); ownPhoto = true; paintPick(); }
+    try { photos.unshift(await compress(file)); photos = photos.slice(0, 4); ownPhoto = true; paintPick(); }
     catch (err) { toast("No se pudo leer esa foto. Prueba con otra."); }
   });
   root.querySelectorAll("[data-o]").forEach(b => b.addEventListener("click", () => {
@@ -1368,7 +1512,7 @@ function openSheet(editId) {
     if (!(price > 0) && !rawUrl) { toast("Pon el link de la tienda o un precio aproximado"); $("#fPrice").focus(); return; }
     if (rawUrl && !safeUrl(rawUrl)) { toast("Ese link no se ve bien. Revísalo."); $("#fUrl").focus(); return; }
     const body = {
-      title, titleAuto, price: price > 0 ? price : 0, url: rawUrl ? safeUrl(rawUrl) : "", photo: photo || "", ownPhoto: !!(ownPhoto && photo), webImage: webImage || "",
+      title, titleAuto, price: price > 0 ? price : 0, url: rawUrl ? safeUrl(rawUrl) : "", photo: photos[0] || "", photos, ownPhoto: !!(ownPhoto && photos.length), webImage: webImage || "",
       occasions: OCCASIONS.map(o => o.k).filter(k => sel.has(k)),
       otherOccasion: sel.has("otro") ? $("#fOther").value.trim() : "",
       note: $("#fNote").value.trim(),
@@ -1380,7 +1524,7 @@ function openSheet(editId) {
       else {
         const ref = await addDoc(collection(fdb, "regalos", S.listId, "items"), { ...body, owner: me(), createdAt: Date.now() });
         // Sin link ni foto: buscar una foto en internet con el nombre, sin hacerte esperar.
-        if (!body.url && !body.photo && !body.webImage && !titleAuto) LK.searchWeb(title).then(img => { if (img) updateDoc(ref, { webImage: img }).catch(() => {}); });
+        if (!body.url && !photos.length && !body.webImage && !titleAuto) LK.searchWeb(title).then(img => { if (img) updateDoc(ref, { webImage: img }).catch(() => {}); });
       }
       close(); toast(rawUrl && !body.linkUrl && (!it || it.url !== safeUrl(rawUrl)) ? "Guardado. En unos minutos aparece el precio y la foto de la tienda." : it ? "Cambios guardados" : "Agregado a tu wishlist");
     } catch (e) { $("#fSave").disabled = false; writeErr(e); }
