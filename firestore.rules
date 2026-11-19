@@ -23,10 +23,11 @@ service cloud.firestore {
       // Abrir por link de invitación (el id es aleatorio) y buscar tus propias listas.
       allow get: if signedIn();
       allow list: if isMember();
-      // Los miembros solo cambian nombres; una segunda persona solo puede agregarse a sí misma.
+      // Los miembros solo cambian nombres y fotos de perfil; una segunda persona solo puede agregarse a sí misma.
       allow update: if signedIn() && (
         (isMember() && request.resource.data.members == resource.data.members
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['names']))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['names', 'avatars'])
+          && request.resource.data.get('avatars', {}).size() <= 2)
         || (resource.data.members.size() == 1
           && request.resource.data.members == resource.data.members.concat([request.auth.uid])
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'names']))
