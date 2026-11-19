@@ -1089,8 +1089,35 @@ async function accWithdraw(a,amt,date,to){
     await accAdjust(a.id,-amt,date,rid,accName(to),"retiro"); if(isAcc(to)) await accAdjust(to,amt,date,rid,accName(a.id),"transferencia"); }
   else await put({...get(a.id),balance:r2((+get(a.id).balance||0)-amt),history:(get(a.id).history||[]).concat([{date,amount:r2(-amt),type:"retiro"}])});
 }
+// el depósito (movimiento) que corresponde a una línea del historial de un apartado, y al revés
+function depOfHist(a,h){ if(!a||!h||h.type!=="deposito") return null; if(h.tref) return get(h.tref)||null;
+  return all("transfer").find(t=>t.accountId===a.id&&t.date===h.date&&Math.abs((+t.amount||0)-(+h.amount||0))<0.01)||null; }
+function histOfDep(a,tr){ if(!a||!tr) return -1; const hs=a.history||[]; let i=hs.findIndex(h=>h.tref===tr.id); if(i>=0) return i;
+  return hs.findIndex(h=>h.type==="deposito"&&!h.ref&&!h.tref&&h.date===tr.date&&Math.abs((+h.amount||0)-(+tr.amount||0))<0.01); }
+async function depUndo(tr){ const a=get(tr.accountId); if(!a) return; const i=histOfDep(a,tr); const hs=(a.history||[]).slice(); if(i>=0) hs.splice(i,1);
+  await put({...a,balance:r2((+a.balance||0)-(+tr.amount||0)),history:hs}); }
+function depEditForm(tid){
+  const tr=get(tid); if(!tr) return; const a=get(tr.accountId);
+  const srcOpts=sel=>`${all("card").filter(CASH_TYPES).map(c=>`<option value="${c.id}" ${c.id===sel?"selected":""}>${esc(c.name)} (${money(cardState(c).balance)})</option>`).join("")}<option value="cash" ${sel==="cash"?"selected":""}>Efectivo en mano (${money(cashState().balance)})</option><option value="" ${!sel?"selected":""}>Otra cuenta (no restar de ninguna tarjeta)</option>`;
+  openDialog("Editar depósito a apartado",`
+    <div class="note small">Mandaste <b>${money(tr.amount)}</b> a <b>${a?esc(a.name):"tu apartado"}</b> el ${fDate(tr.date)}${get(tr.fromId)||tr.fromId==="cash"?` desde <b>${esc(accName(tr.fromId))}</b>`:""}.</div>
+    <label class="f">Salió de<select id="deFrom">${srcOpts(tr.fromId||"")}</select></label>
+    <label class="f">A qué apartado<select id="deTo">${all("account").map(x=>`<option value="${x.id}" ${x.id===tr.accountId?"selected":""}>${esc(x.name)} (${money(+x.balance||0)})</option>`).join("")}</select></label>
+    <div class="fgrid"><label class="f">Monto<input type="number" id="deAmt" step="0.01" inputmode="decimal" value="${+tr.amount||""}"></label><label class="f">Fecha<input type="date" id="deDate" value="${tr.date}"></label></div>
+    <div class="small muted">Al guardar se corrige el saldo de la tarjeta de donde salió y el del apartado.</div>
+    <div class="small" id="deErr" style="color:var(--bad)"></div>`,
+    `<div class="confirm" id="delZone"><button class="btn danger" data-act="askDelete" data-id="${tr.id}">Borrar</button></div><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="deSave">Guardar</button></div>`);
+  $("#deSave").onclick=async()=>{
+    const from=$("#deFrom").value, to=$("#deTo").value, amt=r2(+$("#deAmt").value||0), date=$("#deDate").value||tr.date;
+    if(!(amt>0)){ $("#deErr").textContent="Escribe el monto."; return; }
+    const moved=to!==tr.accountId||Math.abs(amt-(+tr.amount||0))>0.009||date!==tr.date;
+    if(moved){ await depUndo(tr); const b=get(to); if(b) await put({...b,balance:r2((+b.balance||0)+amt),history:(b.history||[]).concat([{date,amount:amt,type:"deposito",tref:tr.id}])}); }
+    else { const b=get(to); const i=histOfDep(b,tr); if(b&&i>=0&&!b.history[i].tref){ const hs=b.history.slice(); hs[i]={...hs[i],tref:tr.id}; await put({...b,history:hs}); } }
+    await put({...get(tr.id),fromId:from,accountId:to,amount:amt,date,purpose:to===tr.accountId?tr.purpose:accPurpose(get(to))});
+    closeDialog(); toast(`Listo: ${money(amt)} de ${accName(from)} a ${accName(to)}`); if(get(to)) accountDetail(to); };
+}
 // entradas de un apartado (saldo inicial o depósito) que no dicen de qué tarjeta salieron
-function looseInflow(a,h){ if(!h||h.ref||!(+h.amount>0)||(h.type!=="inicial"&&h.type!=="deposito")) return false;
+function looseInflow(a,h){ if(!h||h.ref||h.tref||!(+h.amount>0)||(h.type!=="inicial"&&h.type!=="deposito")) return false;
   if(h.type==="deposito"&&all("transfer").some(t=>t.accountId===a.id&&t.date===h.date&&Math.abs((+t.amount||0)-(+h.amount||0))<0.01)) return false;
   return true; }
 async function linkInflow(accId,i,from,date){ const a=get(accId); const h=(a.history||[])[i]; if(!h||!looseInflow(a,h)) return false;
@@ -1211,9 +1238,9 @@ function accMoves(id){
     ...all("transfer").filter(p=>p.fromId===id).map(r=>({r,sign:-1,label:`A tu apartado${get(r.accountId)?" "+get(r.accountId).name:""}`}))];
   return [...ins,...outs].sort((a,b)=>(b.r.date||"").localeCompare(a.r.date||"")||(b.r.createdAt||0)-(a.r.createdAt||0));
 }
-function moveRow(x,showAcc){ const p=x.r; const editable=p.kind==="pay"&&(x.sign>0||p.inc==="transfer"); const tr=p.inc==="transfer"&&showAcc; const pos=x.sign>0&&!tr;
-  const acc=showAcc?(p.inc==="transfer"?`${accName(p.fromId)} → ${accName(p.cardId)}`:accName(pos?p.cardId:p.fromId)):"";
-  return `<div class="item" ${editable?`data-act="editInc" data-id="${p.id}"`:`style="cursor:default"`}><span class="thumb" style="background:${pos?"var(--good-soft)":"var(--surface-2)"};color:${pos?"var(--good)":"var(--muted)"};font-size:18px">${tr?"⇄":x.sign>0?"+":"−"}</span>
+function moveRow(x,showAcc){ const p=x.r; const isDep=p.kind==="transfer"; const editable=isDep||(p.kind==="pay"&&(x.sign>0||p.inc==="transfer")); const tr=(p.inc==="transfer"||isDep)&&showAcc; const pos=x.sign>0&&!tr;
+  const acc=showAcc?(isDep?`${accName(p.fromId)} → ${accName(p.accountId)}`:p.inc==="transfer"?`${accName(p.fromId)} → ${accName(p.cardId)}`:accName(pos?p.cardId:p.fromId)):"";
+  return `<div class="item" ${editable?`data-act="${isDep?"editDep":"editInc"}" data-id="${p.id}"`:`style="cursor:default"`}><span class="thumb" style="background:${pos?"var(--good-soft)":"var(--surface-2)"};color:${pos?"var(--good)":"var(--muted)"};font-size:18px">${tr?"⇄":x.sign>0?"+":"−"}</span>
     <div class="main"><div class="title">${esc(x.label)}${p.flowId?` <span class="chip">del plan</span>`:""}</div><div class="small muted">${fDateS(p.date)}${x.sub?` · ${esc(x.sub)}`:""}${acc?` · ${esc(acc)}`:""}${p.note&&p.note!=="Recarga de vales"?` · ${esc(p.note)}`:""}</div></div>
     <div class="num" style="font-weight:700;color:${pos?"var(--good)":"inherit"}">${tr?"":x.sign>0?"+":"−"}${money(+p.amount||0)}</div></div>`; }
 function accMovesHtml(id){ const mv=accMoves(id);
@@ -1231,7 +1258,7 @@ function incomeView(){
   const hist=[]; for(let i=0;i<6;i++){ const d=new Date(today().getFullYear(),today().getMonth()-i,1); const k=ds(d).slice(0,7); if(!byMonth[k]&&!spentK(k)&&i>0) continue; hist.push(k); }
   const cur=real.filter(p=>monthKey(p.date)===nowK);
   const bySrc={}; cur.forEach(p=>{ const k=incKind(p)==="ingreso"?(p.source||"Otro"):incLabel(p); bySrc[k]=r2((bySrc[k]||0)+(+p.amount||0)); });
-  const list=recs.filter(p=>!incMonth||monthKey(p.date)===incMonth).sort((a,b)=>b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0));
+  const list=[...recs,...all("transfer").filter(t=>get(t.accountId))].filter(p=>!incMonth||monthKey(p.date)===incMonth).sort((a,b)=>b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0));
   const label=k=>{ const [y,mo]=k.split("-").map(Number); return MESES[mo-1]+(y!==today().getFullYear()?" "+y:""); };
   return `<div class="panel"><div class="mini3">
       <div><span>Te entró en ${MESES[today().getMonth()]}</span><b class="num" style="color:var(--good)">${money(byMonth[nowK]||0)}</b><small>${cur.length} ingreso(s)</small></div>
@@ -1244,7 +1271,7 @@ function incomeView(){
     ${hist.map(k=>{ const a=byMonth[k]||0, g=spentK(k), d=r2(a-g); return `<tr><td><b>${esc(label(k))}</b>${k===nowK?` <span class="chip acc">en curso</span>`:""}</td><td class="r num" style="color:var(--good)">${money(a)}</td><td class="r num">${money(g)}</td><td class="r num" style="color:${d>=0?"var(--good)":"var(--bad)"}">${money(d)}</td></tr>`; }).join("")}
   </tbody></table></div></div>`:""}
   <div class="panel"><div class="spread"><h3 style="margin:0">Movimientos</h3><select id="incMonth" style="max-width:180px"><option value="">Todos los meses</option>${months.map(m=>`<option value="${m}" ${incMonth===m?"selected":""}>${fMonth(m)}</option>`).join("")}</select></div>
-    ${list.length?`<div class="list" style="margin-top:10px">${list.map(p=>moveRow({r:p,sign:1,label:incKind(p)==="transfer"?"Transferencia":incLabel(p)},true)).join("")}</div>`:`<div class="empty" style="margin-top:10px">Aún no registras ingresos. Toca <b>＋ Ingreso o depósito</b> cuando te llegue tu sueldo, una venta o cualquier dinero, y elige en qué cuenta entró.</div>`}
+    ${list.length?`<div class="list" style="margin-top:10px">${list.map(p=>moveRow({r:p,sign:1,label:p.kind==="transfer"?"A tu apartado":incKind(p)==="transfer"?"Transferencia":incLabel(p)},true)).join("")}</div>`:`<div class="empty" style="margin-top:10px">Aún no registras ingresos. Toca <b>＋ Ingreso o depósito</b> cuando te llegue tu sueldo, una venta o cualquier dinero, y elige en qué cuenta entró.</div>`}
   </div>`;
 }
 
@@ -2360,8 +2387,9 @@ function fundDepositForm(purpose,amt,periodStart,goalId){
     } else {
       a=to==="__new"?(accs.length?await put({kind:"account",inst:"Otro",name:purpose==="ahorro"?"Fondo de ahorro":"Fondo de inversión",purpose,balance:0,rate:0,liquid:true,color:purpose==="ahorro"?"#D6D0C2":"#97C2EC",history:[],createdAt:Date.now()}):await ensureFundAccount(purpose)):get(to);
     }
-    if(a){ a=get(a.id)||a; await put({...a,balance:r2((+a.balance||0)+v),history:(a.history||[]).concat([{date,amount:r2(v),type:"deposito"}])}); }
-    await put({kind:"transfer",fromId:$("#fdFrom").value,accountId:a?a.id:"",amount:r2(v),date,purpose:purpose==="meta"?"meta:"+goalId:purpose,periodStart:periodStart||"",createdAt:Date.now()});
+    const tid=uid();
+    if(a){ a=get(a.id)||a; await put({...a,balance:r2((+a.balance||0)+v),history:(a.history||[]).concat([{date,amount:r2(v),type:"deposito",tref:tid}])}); }
+    await put({id:tid,kind:"transfer",fromId:$("#fdFrom").value,accountId:a?a.id:"",amount:r2(v),date,purpose:purpose==="meta"?"meta:"+goalId:purpose,periodStart:periodStart||"",createdAt:Date.now()});
     closeDialog(); toast(`Apartaste ${money(v)}${purpose==="meta"&&goal?" para "+goal.name:a?" a "+a.name:""}`);
   };
 }
@@ -2735,12 +2763,13 @@ function accountDetail(id){
     <div class="fgrid"><label class="f">Monto<input type="number" id="acAmt" step="0.01" inputmode="decimal"></label><label class="f">Fecha<input type="date" id="acDate" value="${todayS()}"></label></div>
     <div class="row"><button class="btn pri" id="acDep">＋ Depositar</button><button class="btn" id="acRet">− Retirar</button><button class="btn" id="acSet">Corregir saldo a este monto</button><button class="btn" data-act="newTransfer" data-from="${a.id}">⇄ Pasar a una tarjeta</button></div>
     <h3>Movimientos</h3>
-    ${(a.history||[]).length?`<div class="list">${a.history.slice().reverse().map(h=>`<div class="item" style="cursor:default"><div class="main"><div class="title">${typ[h.type]||"Movimiento"}${h.other?` ${h.type==="deposito"?"·":h.amount<0?"a":"de"} ${esc(h.other)}`:""}</div><div class="small muted">${fDate(h.date)}${h.type==="retiro"&&!h.ref&&h.amount<0?` · <a href="#" data-act="fixRetiros" data-id="${a.id}">¿a dónde fue?</a>`:""}${looseInflow(a,h)?` · <a href="#" data-act="inflowSrc" data-id="${a.id}" data-i="${a.history.indexOf(h)}">¿de qué tarjeta salió?</a>`:""}</div></div><span class="num" style="color:${h.amount<0?"var(--bad)":"var(--good)"}">${h.amount<0?"":"+"}${money(h.amount)}</span></div>`).join("")}</div>`:`<p class="muted small">Sin movimientos.</p>`}`,
+    ${(a.history||[]).length?`<div class="list">${a.history.slice().reverse().map(h=>`<div class="item" style="cursor:default"><div class="main"><div class="title">${typ[h.type]||"Movimiento"}${h.other?` ${h.type==="deposito"?"·":h.amount<0?"a":"de"} ${esc(h.other)}`:""}</div><div class="small muted">${fDate(h.date)}${h.type==="retiro"&&!h.ref&&h.amount<0?` · <a href="#" data-act="fixRetiros" data-id="${a.id}">¿a dónde fue?</a>`:""}${looseInflow(a,h)?` · <a href="#" data-act="inflowSrc" data-id="${a.id}" data-i="${a.history.indexOf(h)}">¿de qué tarjeta salió?</a>`:""}${(()=>{ const d=depOfHist(a,h); return d?` · <a href="#" data-act="editDep" data-id="${d.id}">Editar</a>`:h.ref&&get(h.ref)?` · <a href="#" data-act="editInc" data-id="${h.ref}">Editar</a>`:""; })()}</div></div><span class="num" style="color:${h.amount<0?"var(--bad)":"var(--good)"}">${h.amount<0?"":"+"}${money(h.amount)}</span></div>`).join("")}</div>`:`<p class="muted small">Sin movimientos.</p>`}`,
     `<div class="confirm" id="delZone"><button class="btn danger" data-act="askDelete" data-id="${a.id}">Borrar</button></div><button class="btn" data-act="editAccount" data-id="${a.id}">Editar</button>`);
   const mv=async(type)=>{ const v=+$("#acAmt").value; if(!(v>=0)||$("#acAmt").value==="") return; let amt=type==="retiro"?-v:type==="rendimiento"?r2(v-(+a.balance||0)):v; if(!amt) return;
     if(type==="retiro"){ const to=$("#acTo").value; await accWithdraw(a,v,$("#acDate").value||todayS(),to); accountDetail(id); toast(to?`Retiro de ${money(v)} a ${accName(to)}`:"Retiro guardado"); return; }
-    await put({...a,balance:r2((+a.balance||0)+amt),history:(a.history||[]).concat([{date:$("#acDate").value||todayS(),amount:r2(amt),type}])});
-    if(type==="deposito"&&$("#acFrom").value) await put({kind:"transfer",fromId:$("#acFrom").value,accountId:a.id,amount:r2(amt),date:$("#acDate").value||todayS(),purpose:accPurpose(a),periodStart:"",createdAt:Date.now()});
+    const tid=type==="deposito"&&$("#acFrom").value?uid():"";
+    await put({...a,balance:r2((+a.balance||0)+amt),history:(a.history||[]).concat([{date:$("#acDate").value||todayS(),amount:r2(amt),type,...(tid?{tref:tid}:{})}])});
+    if(tid) await put({id:tid,kind:"transfer",fromId:$("#acFrom").value,accountId:a.id,amount:r2(amt),date:$("#acDate").value||todayS(),purpose:accPurpose(a),periodStart:"",createdAt:Date.now()});
     accountDetail(id); toast("Guardado"); };
   $("#acDep").onclick=()=>mv("deposito"); $("#acRet").onclick=()=>mv("retiro"); $("#acSet").onclick=()=>mv("rendimiento");
 }
@@ -3254,6 +3283,7 @@ document.addEventListener("click",async ev=>{
     case "loanWant": loanWantForm(id); break;
     case "moneyMenu": moneyMenu(); break;
     case "inflowSrc": inflowForm(id,+t.dataset.i); break;
+    case "editDep": depEditForm(id); break;
     case "fixRetiros": { const inDlg=!!t.closest("dialog"); fixRetirosForm(id||"",inDlg&&id?id:""); break; }
     case "newInc": incForm(null,{type:"ingreso",to:t.dataset.to}); break;
     case "newTransfer": incForm(null,{type:"transfer",from:t.dataset.from,to:t.dataset.to}); break;
@@ -3278,6 +3308,7 @@ document.addEventListener("click",async ev=>{
       if(o&&o.kind==="card"){ for(const x of [...all("exp").filter(e=>e.cardId===id),...all("pay").filter(p=>p.cardId===id)]) await del(x.id); for(const x of all("sub").filter(x=>x.cardId===id)) await put({...x,cardId:""}); }
       if(o&&o.kind==="pay"&&o.flowId) await unlinkIncome(o);
       if(o&&o.kind==="pay") await accRevert(id);
+      if(o&&o.kind==="transfer") await depUndo(o);
       if(o&&o.kind==="exp"){ for(const p of all("pay").filter(p=>p.target===id)) await put({...p,target:"auto"});
         for(const fu of all("future").filter(f=>f.expId===id)) await put({...fu,done:false,doneDate:"",expId:"",doneAmount:0});
         for(const fu0 of all("future").filter(f=>(f.parts||[]).some(x=>x.expId===id))){ const fu=get(fu0.id); const pt=fu.parts.find(x=>x.expId===id); const rest=fu.parts.filter(x=>x.expId!==id);
