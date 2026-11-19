@@ -2726,6 +2726,7 @@ function accountForm(a){
       <label class="f">Nombre del apartado<input type="text" id="aName" value="${esc(a.name||"")}" placeholder="Ej. Reserva MP, Cajita Nu"></label>
     </div>
     <div class="fgrid">
+      ${!isNew?`<label class="f">Saldo actual<input type="number" id="aBalE" step="0.01" inputmode="decimal" value="${+a.balance||0}"></label>`:""}
       ${isNew?`<label class="f">Saldo actual<input type="number" id="aBal" step="0.01" inputmode="decimal"></label>
       <label class="f" id="aSrcL">¿De dónde sale este dinero?<select id="aSrc"><option value="">Ya estaba ahí (no sale de ninguna tarjeta)</option>${moneyAccOpts("").replace(/<optgroup label="Apartados">[\s\S]*?<\/optgroup>/,"").replace(/ selected/g,"")}</select></label>`:""}
       <label class="f">Rendimiento anual % (GAT)<input type="number" id="aRate" step="0.01" value="${a.rate||""}" placeholder="Ej. 13"></label>
@@ -2769,12 +2770,20 @@ function accountForm(a){
     const forFut=$("#aUsable").checked?$("#aFor").value:""; const forPart=!!forFut&&segVal("afor")==="parcial"; const forAmt=forPart?r2(+$("#aForAmt").value||0):0;
     if(forPart&&!(forAmt>0)){ $("#aErr").textContent="Escribe cuánto de este apartado es para esa compra."; return; }
     const o={...a,kind:"account",inst,name,purpose:pur,goalId,forFut,forAmt,usable:$("#aUsable").checked,noMore:$("#aNoMore").checked,rate:+$("#aRate").value||0,liquid:segVal("aliq")==="1",availFrom:segVal("aliq")==="1"?"":$("#aFrom").value,color:$("#asw .on")?.dataset.col||CAT_COLORS[0]};
+    if(!isNew&&$("#aBalE")&&$("#aBalE").value!==""){ const nb=r2(+$("#aBalE").value||0), cur=get(a.id)||a; const d=r2(nb-(+cur.balance||0)); if(Math.abs(d)>0.009){ o.balance=nb; o.history=(cur.history||[]).concat([{date:todayS(),amount:d,type:"rendimiento"}]); } }
     if(isNew){ const b=+$("#aBal").value||0; o.balance=r2(b); o.history=b?[{date:todayS(),amount:r2(b),type:"inicial"}]:[]; o.createdAt=Date.now(); }
     const src=isNew&&$("#aSrc")?$("#aSrc").value:"";
     const saved=await put(o);
     if(src&&saved.balance>0){ await linkInflow(saved.id,0,src,todayS()); closeDialog(); toast(`Apartado guardado: ${money(saved.balance)} salieron de ${accName(src)}`); return; }
     closeDialog(); toast("Apartado guardado");
   };
+}
+function accountMenu(id){ const a=get(id); if(!a) return;
+  openDialog(`Editar · ${esc(a.name)}`,`<div class="addmenu">
+    <button type="button" data-act="accDeposit" data-id="${a.id}"><b>Depositar a este apartado</b><span>Pasar dinero de una tarjeta o de tu efectivo a ${esc(a.name)}</span></button>
+    <button type="button" data-act="accTransfer" data-id="${a.id}"><b>Transferir de aquí</b><span>Sacar dinero de ${esc(a.name)} a una tarjeta, a tu efectivo o a otro apartado</span></button>
+    <button type="button" data-act="editAccount" data-id="${a.id}"><b>Cambiar datos del apartado</b><span>Nombre, para qué es, rendimiento y saldo</span></button>
+  </div>`,`<span></span><button class="btn" data-act="openAccount" data-id="${a.id}">Volver</button>`);
 }
 function accountDetail(id){
   const a=get(id); if(!a) return;
@@ -2783,20 +2792,10 @@ function accountDetail(id){
     <div class="spread"><span class="num" style="font-size:26px">${money(a.balance)}</span><span class="chip">${esc(a.inst)}</span></div>
     <div class="small muted">${a.rate?`Rinde ${a.rate}% anual · aprox. ${money((+a.balance||0)*a.rate/100/12)} al mes antes de impuestos · `:""}${a.liquid===false?`Disponible ${a.availFrom?"desde el "+fDate(a.availFrom):"al vencer el plazo"}`:"Disponible cuando quieras"}</div>
     ${a.forFut&&get(a.forFut)&&!get(a.forFut).done?(()=>{ const amt=earmarks().byAcc[a.id]||0; return `<div class="note acc small">Reservado para <b>${esc(get(a.forFut).name)}</b>: ${money(amt)}${+a.forAmt>0?` de este apartado`:""}. El plan usa este dinero primero para pagarla. <a href="#" data-act="editAccount" data-id="${a.id}">Cambiar</a></div>`; })():""}
-    <div class="fgrid"><label class="f">Desde (al depositar)<select id="acFrom">${fromOptions()}</select></label><label class="f">A dónde va (al retirar)<select id="acTo">${moneyAccOpts(guessDest(a),a.id)}<option value="">Ninguna (solo restar del apartado)</option></select></label></div>
     ${looseRetiros(a.id).length?`<div class="note warn small">Tienes ${looseRetiros(a.id).length} retiro(s) de este apartado que no llegaron a ninguna cuenta. <a href="#" data-act="fixRetiros" data-id="${a.id}">Decir a dónde fueron</a></div>`:""}
-    <div class="fgrid"><label class="f">Monto<input type="number" id="acAmt" step="0.01" inputmode="decimal"></label><label class="f">Fecha<input type="date" id="acDate" value="${todayS()}"></label></div>
-    <div class="row"><button class="btn pri" id="acDep">＋ Depositar</button><button class="btn" id="acRet">− Retirar</button><button class="btn" id="acSet">Corregir saldo a este monto</button><button class="btn" data-act="newTransfer" data-from="${a.id}">⇄ Pasar a una tarjeta</button></div>
     <h3>Movimientos</h3>
     ${(a.history||[]).length?`<div class="list">${a.history.slice().reverse().map(h=>`<div class="item" style="cursor:default"><div class="main"><div class="title">${typ[h.type]||"Movimiento"}${h.other?` ${h.type==="deposito"?"·":h.amount<0?"a":"de"} ${esc(h.other)}`:""}</div><div class="small muted">${fDate(h.date)}${h.type==="retiro"&&!h.ref&&h.amount<0?` · <a href="#" data-act="fixRetiros" data-id="${a.id}">¿a dónde fue?</a>`:""}${looseInflow(a,h)?` · <a href="#" data-act="inflowSrc" data-id="${a.id}" data-i="${a.history.indexOf(h)}">¿de qué tarjeta salió?</a>`:""}${(()=>{ const d=depOfHist(a,h); return d?` · <a href="#" data-act="editDep" data-id="${d.id}">Editar</a>`:h.ref&&get(h.ref)?` · <a href="#" data-act="editInc" data-id="${h.ref}">Editar</a>`:""; })()}</div></div><span class="num" style="color:${h.amount<0?"var(--bad)":"var(--good)"}">${h.amount<0?"":"+"}${money(h.amount)}</span></div>`).join("")}</div>`:`<p class="muted small">Sin movimientos.</p>`}`,
-    `<div class="confirm" id="delZone"><button class="btn danger" data-act="askDelete" data-id="${a.id}">Borrar</button></div><button class="btn" data-act="editAccount" data-id="${a.id}">Editar</button>`);
-  const mv=async(type)=>{ const v=+$("#acAmt").value; if(!(v>=0)||$("#acAmt").value==="") return; let amt=type==="retiro"?-v:type==="rendimiento"?r2(v-(+a.balance||0)):v; if(!amt) return;
-    if(type==="retiro"){ const to=$("#acTo").value; await accWithdraw(a,v,$("#acDate").value||todayS(),to); accountDetail(id); toast(to?`Retiro de ${money(v)} a ${accName(to)}`:"Retiro guardado"); return; }
-    const tid=type==="deposito"&&$("#acFrom").value?uid():"";
-    await put({...a,balance:r2((+a.balance||0)+amt),history:(a.history||[]).concat([{date:$("#acDate").value||todayS(),amount:r2(amt),type,...(tid?{tref:tid}:{})}])});
-    if(tid) await put({id:tid,kind:"transfer",fromId:$("#acFrom").value,accountId:a.id,amount:r2(amt),date:$("#acDate").value||todayS(),purpose:accPurpose(a),periodStart:"",createdAt:Date.now()});
-    accountDetail(id); toast("Guardado"); };
-  $("#acDep").onclick=()=>mv("deposito"); $("#acRet").onclick=()=>mv("retiro"); $("#acSet").onclick=()=>mv("rendimiento");
+    `<div class="confirm" id="delZone"><button class="btn danger" data-act="askDelete" data-id="${a.id}">Borrar</button></div><button class="btn pri" data-act="accMenu" data-id="${a.id}">Editar</button>`);
 }
 
 /* ---------- Ahorros ---------- */
@@ -3314,6 +3313,9 @@ document.addEventListener("click",async ev=>{
     case "moneyMenu": moneyMenu(); break;
     case "inflowSrc": inflowForm(id,+t.dataset.i); break;
     case "editDep": depEditForm(id); break;
+    case "accMenu": accountMenu(id); break;
+    case "accDeposit": { const best=(all("card").filter(c=>c.type==="debito").sort((x,y)=>cardState(y).balance-cardState(x).balance)[0]||{}).id||"cash"; incForm(null,{type:"transfer",to:id,from:best}); break; }
+    case "accTransfer": incForm(null,{type:"transfer",from:id}); break;
     case "goalSrc": goalSrcForm(id,+t.dataset.i); break;
     case "fixRetiros": { const inDlg=!!t.closest("dialog"); fixRetirosForm(id||"",inDlg&&id?id:""); break; }
     case "newInc": incForm(null,{type:"ingreso",to:t.dataset.to}); break;
