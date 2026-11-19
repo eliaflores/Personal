@@ -1087,6 +1087,29 @@ async function accWithdraw(a,amt,date,to){
     await accAdjust(a.id,-amt,date,rid,accName(to),"retiro"); if(isAcc(to)) await accAdjust(to,amt,date,rid,accName(a.id),"transferencia"); }
   else await put({...get(a.id),balance:r2((+get(a.id).balance||0)-amt),history:(get(a.id).history||[]).concat([{date,amount:r2(-amt),type:"retiro"}])});
 }
+// entradas de un apartado (saldo inicial o depósito) que no dicen de qué tarjeta salieron
+function looseInflow(a,h){ if(!h||h.ref||!(+h.amount>0)||(h.type!=="inicial"&&h.type!=="deposito")) return false;
+  if(h.type==="deposito"&&all("transfer").some(t=>t.accountId===a.id&&t.date===h.date&&Math.abs((+t.amount||0)-(+h.amount||0))<0.01)) return false;
+  return true; }
+async function linkInflow(accId,i,from,date){ const a=get(accId); const h=(a.history||[])[i]; if(!h||!looseInflow(a,h)) return false;
+  const rid=uid(); const amt=r2(+h.amount||0);
+  await put({id:rid,kind:"pay",cardId:a.id,fromId:from,amount:amt,date:date||h.date,target:"auto",inc:"transfer",note:h.type==="inicial"?"Dinero con el que abriste el apartado":"Depósito al apartado",createdAt:Date.now()});
+  const hist=a.history.slice(); hist[i]={...h,ref:rid,other:accName(from)}; await put({...get(accId),history:hist}); return true; }
+function inflowForm(accId,i){
+  const a=get(accId); const h=a&&(a.history||[])[i]; if(!h) return;
+  const def=guessDest(a);
+  openDialog("¿De dónde salió este dinero?",`
+    <div class="note small"><b>${money(h.amount)}</b> ${h.type==="inicial"?"con los que abriste":"que depositaste en"} <b>${esc(a.name)}</b> el ${fDate(h.date)}. Si salieron de una de tus tarjetas, elígela: se restan de esa tarjeta y queda registrado como transferencia. El saldo del apartado no cambia.</div>
+    <label class="f">Salió de<select id="ifFrom">${moneyAccOpts(def,a.id).replace(/<optgroup label="Apartados">[\s\S]*?<\/optgroup>/,"")}</select></label>
+    <label class="f">¿Cuándo lo pasaste?<input type="date" id="ifDate" value="${h.date}"></label>
+    <div class="small muted" id="ifNote"></div>`,
+    `<span></span><div class="row"><button class="btn" data-act="openAccount" data-id="${a.id}">Cancelar</button><button class="btn pri" id="ifSave">Guardar</button></div>`);
+  const note=()=>{ const c=get($("#ifFrom").value), d=$("#ifDate").value||h.date;
+    $("#ifNote").innerHTML=c&&c.kind==="card"&&(c.initialDate||"")>d?`Ojo: capturaste el saldo de ${esc(c.name)} el ${fDateS(c.initialDate)}, después de esta fecha, así que ese saldo ya no lo incluía y no se volverá a restar. Si lo pasaste después, cambia la fecha.`
+      :c&&c.kind==="card"?`Se restan ${money(h.amount)} de ${esc(c.name)} (quedaría en ${money(r2(cardState(c).balance-h.amount))}).`:`Se restan ${money(h.amount)} de tu efectivo.`; };
+  $("#ifFrom").onchange=note; $("#ifDate").onchange=note; note();
+  $("#ifSave").onclick=async()=>{ const from=$("#ifFrom").value; const ok=await linkInflow(a.id,i,from,$("#ifDate").value||h.date); toast(ok?`Listo: se restaron ${money(h.amount)} de ${accName(from)} y quedó registrado`:"Sin cambios"); accountDetail(a.id); };
+}
 function fixRetirosForm(accId,back){
   const list=looseRetiros(accId); if(!list.length){ toast("No hay retiros pendientes de asignar"); if(back) accountDetail(back); return; }
   openDialog("¿A dónde fue el dinero?",`
@@ -2648,7 +2671,8 @@ function accountForm(a){
       <label class="f">Nombre del apartado<input type="text" id="aName" value="${esc(a.name||"")}" placeholder="Ej. Reserva MP, Cajita Nu"></label>
     </div>
     <div class="fgrid">
-      ${isNew?`<label class="f">Saldo actual<input type="number" id="aBal" step="0.01" inputmode="decimal"></label>`:""}
+      ${isNew?`<label class="f">Saldo actual<input type="number" id="aBal" step="0.01" inputmode="decimal"></label>
+      <label class="f" id="aSrcL">¿De dónde sale este dinero?<select id="aSrc"><option value="">Ya estaba ahí (no sale de ninguna tarjeta)</option>${moneyAccOpts("").replace(/<optgroup label="Apartados">[\s\S]*?<\/optgroup>/,"").replace(/ selected/g,"")}</select></label>`:""}
       <label class="f">Rendimiento anual % (GAT)<input type="number" id="aRate" step="0.01" value="${a.rate||""}" placeholder="Ej. 13"></label>
     </div>
     <div><div class="small muted" style="font-weight:700;margin-bottom:6px">¿Para qué es?</div>${seg("apur",PURPOSES,accPurpose(a))}</div>
@@ -2691,7 +2715,10 @@ function accountForm(a){
     if(forPart&&!(forAmt>0)){ $("#aErr").textContent="Escribe cuánto de este apartado es para esa compra."; return; }
     const o={...a,kind:"account",inst,name,purpose:pur,goalId,forFut,forAmt,usable:$("#aUsable").checked,noMore:$("#aNoMore").checked,rate:+$("#aRate").value||0,liquid:segVal("aliq")==="1",availFrom:segVal("aliq")==="1"?"":$("#aFrom").value,color:$("#asw .on")?.dataset.col||CAT_COLORS[0]};
     if(isNew){ const b=+$("#aBal").value||0; o.balance=r2(b); o.history=b?[{date:todayS(),amount:r2(b),type:"inicial"}]:[]; o.createdAt=Date.now(); }
-    await put(o); closeDialog(); toast("Apartado guardado");
+    const src=isNew&&$("#aSrc")?$("#aSrc").value:"";
+    const saved=await put(o);
+    if(src&&saved.balance>0){ await linkInflow(saved.id,0,src,todayS()); closeDialog(); toast(`Apartado guardado: ${money(saved.balance)} salieron de ${accName(src)}`); return; }
+    closeDialog(); toast("Apartado guardado");
   };
 }
 function accountDetail(id){
@@ -2706,7 +2733,7 @@ function accountDetail(id){
     <div class="fgrid"><label class="f">Monto<input type="number" id="acAmt" step="0.01" inputmode="decimal"></label><label class="f">Fecha<input type="date" id="acDate" value="${todayS()}"></label></div>
     <div class="row"><button class="btn pri" id="acDep">＋ Depositar</button><button class="btn" id="acRet">− Retirar</button><button class="btn" id="acSet">Corregir saldo a este monto</button><button class="btn" data-act="newTransfer" data-from="${a.id}">⇄ Pasar a una tarjeta</button></div>
     <h3>Movimientos</h3>
-    ${(a.history||[]).length?`<div class="list">${a.history.slice().reverse().map(h=>`<div class="item" style="cursor:default"><div class="main"><div class="title">${typ[h.type]||"Movimiento"}${h.other?` ${h.type==="deposito"?"·":h.amount<0?"a":"de"} ${esc(h.other)}`:""}</div><div class="small muted">${fDate(h.date)}${h.type==="retiro"&&!h.ref&&h.amount<0?` · <a href="#" data-act="fixRetiros" data-id="${a.id}">¿a dónde fue?</a>`:""}</div></div><span class="num" style="color:${h.amount<0?"var(--bad)":"var(--good)"}">${h.amount<0?"":"+"}${money(h.amount)}</span></div>`).join("")}</div>`:`<p class="muted small">Sin movimientos.</p>`}`,
+    ${(a.history||[]).length?`<div class="list">${a.history.slice().reverse().map(h=>`<div class="item" style="cursor:default"><div class="main"><div class="title">${typ[h.type]||"Movimiento"}${h.other?` ${h.type==="deposito"?"·":h.amount<0?"a":"de"} ${esc(h.other)}`:""}</div><div class="small muted">${fDate(h.date)}${h.type==="retiro"&&!h.ref&&h.amount<0?` · <a href="#" data-act="fixRetiros" data-id="${a.id}">¿a dónde fue?</a>`:""}${looseInflow(a,h)?` · <a href="#" data-act="inflowSrc" data-id="${a.id}" data-i="${a.history.indexOf(h)}">¿de qué tarjeta salió?</a>`:""}</div></div><span class="num" style="color:${h.amount<0?"var(--bad)":"var(--good)"}">${h.amount<0?"":"+"}${money(h.amount)}</span></div>`).join("")}</div>`:`<p class="muted small">Sin movimientos.</p>`}`,
     `<div class="confirm" id="delZone"><button class="btn danger" data-act="askDelete" data-id="${a.id}">Borrar</button></div><button class="btn" data-act="editAccount" data-id="${a.id}">Editar</button>`);
   const mv=async(type)=>{ const v=+$("#acAmt").value; if(!(v>=0)||$("#acAmt").value==="") return; let amt=type==="retiro"?-v:type==="rendimiento"?r2(v-(+a.balance||0)):v; if(!amt) return;
     if(type==="retiro"){ const to=$("#acTo").value; await accWithdraw(a,v,$("#acDate").value||todayS(),to); accountDetail(id); toast(to?`Retiro de ${money(v)} a ${accName(to)}`:"Retiro guardado"); return; }
@@ -3224,6 +3251,7 @@ document.addEventListener("click",async ev=>{
     case "openLoan": loanDetail(id); break;
     case "loanWant": loanWantForm(id); break;
     case "moneyMenu": moneyMenu(); break;
+    case "inflowSrc": inflowForm(id,+t.dataset.i); break;
     case "fixRetiros": { const inDlg=!!t.closest("dialog"); fixRetirosForm(id||"",inDlg&&id?id:""); break; }
     case "newInc": incForm(null,{type:"ingreso",to:t.dataset.to}); break;
     case "newTransfer": incForm(null,{type:"transfer",from:t.dataset.from,to:t.dataset.to}); break;
