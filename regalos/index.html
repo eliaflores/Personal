@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Nuestra Lista de Regalos</title>
-<meta name="theme-color" content="#F4F1EB">
+<meta name="theme-color" content="#F7F5F1">
 <script>
-  // Tema guardado en este cel: "colorido" (normal) o "discreto" (gris perla).
+  // Tema guardado en este cel: "colorido" (el normal, se llama Natural) o "discreto" (oscuro).
   (function () { var t = "colorido"; try { t = localStorage.getItem("regalos.tema") || t; } catch (e) {} document.documentElement.setAttribute("data-tema", t);
     if (t === "discreto") document.querySelector('meta[name="theme-color"]').setAttribute("content", "#111116"); })();
 </script>
@@ -301,101 +301,102 @@ textarea.input { min-height: 84px; resize: vertical; }
 .invite p { margin: 0; color: rgba(255,255,255,.8); font-size: .92rem; }
 .invite .input { color: var(--ink); }
 
-/* ---------- Tema "Colorido" (el normal): fondo crema, bloques terracota, lavanda, salvia, vino, turquesa y mostaza ----------
-   El tema "Discreto" es el gris perla de arriba. Se elige en Ajustes y se guarda en cada cel. */
-:root[data-tema="colorido"] {
-  --bg: #F4F1EB;
-  --glass: #FFFFFF;
-  --card: #FFFFFF;
-  --soft: #EEEAE2;
-  --soft-2: #E4DED3;
-  --ink: #1C1B1A;
-  --ink-2: #33312E;
-  --muted: #8A857C;
-  --line: #E8E3DA;
-  --icon: #1C1B1A;
-  --terra: #D95B3F;
-  --lav: #8F94DB;
-  --sage: #9CC487;
-  --wine: #8E4C55;
-  --teal: #2F8FA6;
-  --mustard: #D4CF4A;
-  --late: #C62828;
-  --shadow: 0 1px 2px rgba(28,27,26,.03), 0 8px 22px rgba(28,27,26,.05);
-  --f-title: "Lexend", "DM Sans", system-ui, sans-serif;
-  --f: "Lexend", "DM Sans", system-ui, sans-serif;
-}
+/* Letra y tamaños iguales en los dos temas */
 body { font-size: 14.5px; }
-[data-tema="colorido"] body::before { background: var(--bg); }
-[data-tema="colorido"] .bgfx { display: none; }
 :is(.title, .pf-h, .page-h, .bar .brand, .sec, .empty h3, .ftile b, .wz-q, .money span, .money input, .summary .v, .band .name, .band .big, .for, .gcard h3, .dt-title h1, .panel .price, .stats3 b, .nav button, .sheet-head h2, .signin h1, .invite h2) { font-weight: 600; letter-spacing: -0.02em; }
 .title { font-size: 1.9rem; }
+
+/* ---------- Tema "Natural" (el normal; clave interna "colorido"): concha y crema, cielo, pistache, piedra y beige,
+   con viridiana y azul profundo para acentos. El tema "Discreto" (oscuro) va abajo. Se elige en Ajustes y se guarda en cada cel. */
+:root[data-tema="colorido"] {
+  --bg: #F7F5F1;          /* shell */
+  --glass: #FFFFFF;
+  --card: #FFFFFF;
+  --soft: #EEE8DF;        /* cream */
+  --soft-2: #E0DCD1;      /* stone */
+  --ink: #2C365A;         /* deep ocean: textos y botones */
+  --ink-2: #3E4868;
+  --muted: #858378;
+  --line: #E6E1D7;
+  --icon: #2C365A;
+  --sky: #D5E3E8;
+  --honeydew: #E4E3BC;
+  --stone: #E0DCD1;
+  --beige: #C4BCB0;
+  --viridian: #344945;
+  --ocean: #2C365A;
+  --late: #C62828;
+  --shadow: 0 1px 2px rgba(44,54,90,.03), 0 8px 22px rgba(44,54,90,.05);
+}
+[data-tema="colorido"] body::before { background: var(--bg); }
+[data-tema="colorido"] .bgfx { display: none; }
 [data-tema="colorido"] :is(.card, .list, .tabs, .empty, .secret-note, .gcard, .ftile, .occ-opt, .chip, .stat) { border: 1.5px solid var(--line); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
-[data-tema="colorido"] :is(.icon-btn, .circle-btn, .logo, .x, .mini-av) { box-shadow: none; border: 1.5px solid var(--ink); background: transparent; }
-[data-tema="colorido"] .nav-in { background: #fff; border: 1.5px solid var(--line); box-shadow: 0 10px 30px rgba(28,27,26,.10); }
-[data-tema="colorido"] .nav button { background: transparent; border: 1.5px solid var(--ink); }
+[data-tema="colorido"] :is(.icon-btn, .circle-btn, .logo, .x, .mini-av) { box-shadow: none; border: 1.5px solid var(--ink); background: transparent; color: var(--ink); }
+[data-tema="colorido"] .nav-in { background: #fff; border: 1.5px solid var(--line); box-shadow: 0 10px 30px rgba(44,54,90,.10); }
+[data-tema="colorido"] .nav button { background: transparent; border: 1.5px solid var(--ink); color: var(--ink); }
 [data-tema="colorido"] .nav button[aria-current="page"] { background: var(--ink); color: #fff; }
 [data-tema="colorido"] .btn-primary { box-shadow: none; }
 [data-tema="colorido"] .chip { border-color: var(--ink); background: transparent; }
 [data-tema="colorido"] .chip[aria-pressed="true"] { background: var(--ink); }
 
-/* Bloques de color. "on" = texto blanco; los claros (salvia, mostaza) llevan texto negro. */
-[data-tema="colorido"] .solid { background: var(--wine); color: #fff; }
-[data-tema="colorido"] .banner.solid { background: var(--wine); }
-[data-tema="colorido"] .invite.solid { background: var(--teal); }
-[data-tema="colorido"] .summary.solid { background: var(--lav); }
-[data-tema="colorido"] .panel.solid { background: var(--wine); }
+/* Bloques oscuros (viridiana, azul profundo) con texto blanco; los claros llevan texto azul profundo. */
+[data-tema="colorido"] .solid { background: var(--ocean); color: #fff; }
+[data-tema="colorido"] .banner.solid { background: var(--ocean); }
+[data-tema="colorido"] .invite.solid { background: var(--viridian); }
+[data-tema="colorido"] .summary.solid { background: var(--ocean); }
+[data-tema="colorido"] .panel.solid { background: var(--viridian); }
 [data-tema="colorido"] :is(.invite p, .summary .k, .panel .meta, .panel .host, .panel .short, .banner .bt span) { color: rgba(255,255,255,.78); }
 [data-tema="colorido"] .btn-ghost-light { color: #fff; border-color: rgba(255,255,255,.85); }
 
 /* Perfil */
-[data-tema="colorido"] .pf-av { box-shadow: 0 0 0 8px var(--terra), 0 0 0 16px #F3C9BD; border-color: #fff; background: var(--lav); color: #fff; }
 [data-tema="colorido"] .stats3 div { box-shadow: none; border: none; }
-[data-tema="colorido"] .stats3 div:nth-child(1) { background: var(--terra); color: #fff; }
-[data-tema="colorido"] .stats3 div:nth-child(2) { background: var(--lav); color: #fff; }
-[data-tema="colorido"] .stats3 div:nth-child(3) { background: var(--sage); }
-[data-tema="colorido"] .stats3 div:is(:nth-child(1), :nth-child(2)) span { color: rgba(255,255,255,.85); }
-[data-tema="colorido"] .menu .row .ic { width: 38px; height: 38px; border-radius: 50%; color: #fff; }
+[data-tema="colorido"] .stats3 div:nth-child(1) { background: var(--sky); }
+[data-tema="colorido"] .stats3 div:nth-child(2) { background: var(--honeydew); }
+[data-tema="colorido"] .stats3 div:nth-child(3) { background: var(--stone); }
+[data-tema="colorido"] .menu .row .ic { width: 38px; height: 38px; border-radius: 50%; color: var(--ink); }
 [data-tema="colorido"] .menu .row .ic svg { width: 19px; height: 19px; }
-[data-tema="colorido"] .menu .row:nth-child(5n+1) .ic { background: var(--terra); }
-[data-tema="colorido"] .menu .row:nth-child(5n+2) .ic { background: var(--lav); }
-[data-tema="colorido"] .menu .row:nth-child(5n+3) .ic { background: var(--sage); color: var(--ink); }
-[data-tema="colorido"] .menu .row:nth-child(5n+4) .ic { background: var(--teal); }
-[data-tema="colorido"] .menu .row:nth-child(5n+5) .ic { background: var(--wine); }
+[data-tema="colorido"] .menu .row:nth-child(5n+1) .ic { background: var(--sky); }
+[data-tema="colorido"] .menu .row:nth-child(5n+2) .ic { background: var(--honeydew); }
+[data-tema="colorido"] .menu .row:nth-child(5n+3) .ic { background: var(--stone); }
+[data-tema="colorido"] .menu .row:nth-child(5n+4) .ic { background: var(--beige); }
+[data-tema="colorido"] .menu .row:nth-child(5n+5) .ic { background: var(--viridian); color: #fff; }
 
 /* Cada ocasión con su color (tarjetas de festividad, opciones del asistente y banda de la festividad) */
-[data-tema="colorido"] [data-occ="cumple"] { --oc: var(--terra); --on: #fff; }
-[data-tema="colorido"] [data-occ="navidad"] { --oc: var(--sage); --on: var(--ink); }
-[data-tema="colorido"] [data-occ="aniversario"] { --oc: var(--lav); --on: #fff; }
-[data-tema="colorido"] [data-occ="sanvalentin"] { --oc: var(--wine); --on: #fff; }
-[data-tema="colorido"] [data-occ="otro"] { --oc: var(--teal); --on: #fff; }
+[data-tema="colorido"] [data-occ="cumple"] { --oc: var(--honeydew); --on: var(--ocean); }
+[data-tema="colorido"] [data-occ="navidad"] { --oc: var(--viridian); --on: #fff; }
+[data-tema="colorido"] [data-occ="aniversario"] { --oc: var(--sky); --on: var(--ocean); }
+[data-tema="colorido"] [data-occ="sanvalentin"] { --oc: var(--beige); --on: var(--ocean); }
+[data-tema="colorido"] [data-occ="otro"] { --oc: var(--stone); --on: var(--ocean); }
 [data-tema="colorido"] :is(.ftile, .occ-opt, .band)[data-occ] { background: var(--oc); color: var(--on); border-color: transparent; }
 [data-tema="colorido"] :is(.ftile, .occ-opt)[data-occ] :is(.fi, svg, .go) { color: var(--on); }
-[data-tema="colorido"] :is(.ftile, .band)[data-occ] :is(span.s, .lbl, .days) { color: var(--on); opacity: .82; }
-[data-tema="colorido"] .band[data-occ] .meter { background: rgba(255,255,255,.45); }
+[data-tema="colorido"] :is(.ftile, .band)[data-occ] :is(span.s, .lbl, .days) { color: var(--on); opacity: .8; }
+[data-tema="colorido"] .band[data-occ] .meter { background: rgba(255,255,255,.55); }
 [data-tema="colorido"] .band[data-occ] .meter i { background: var(--on); }
 [data-tema="colorido"] .ftile .fi { filter: none; }
-[data-tema="colorido"] .ftile.new { background: var(--mustard); color: var(--ink); border-color: transparent; }
-[data-tema="colorido"] .ftile.new :is(.fi, .go) { color: var(--ink); }
-[data-tema="colorido"] .ftile.new span.s { color: rgba(28,27,26,.7); }
+[data-tema="colorido"] .ftile.new { background: var(--ocean); color: #fff; border-color: transparent; }
+[data-tema="colorido"] .ftile.new :is(.fi, .go) { color: #fff; }
+[data-tema="colorido"] .ftile.new span.s { color: rgba(255,255,255,.75); opacity: 1; }
 [data-tema="colorido"] .occ-opt[aria-pressed="true"] { background: var(--ink) !important; color: #fff !important; box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--ink); }
 [data-tema="colorido"] .occ-opt[aria-pressed="true"] svg { color: #fff !important; }
 [data-tema="colorido"] .tabs { background: var(--soft); border-color: transparent; }
 [data-tema="colorido"] .secret-note { background: var(--soft); border-color: transparent; }
-[data-tema="colorido"] .warn { background: #F4EFC9; }
+[data-tema="colorido"] .warn { background: #F0EFD6; }
 
 /* Regalos: fondo de color en cada tarjeta */
-[data-tema="colorido"] .grid > :nth-child(4n+1) .tile { background: var(--lav); }
-[data-tema="colorido"] .grid > :nth-child(4n+2) .tile { background: var(--sage); }
-[data-tema="colorido"] .grid > :nth-child(4n+3) .tile { background: var(--terra); }
-[data-tema="colorido"] .grid > :nth-child(4n+4) .tile { background: var(--mustard); }
-[data-tema="colorido"] .tile .ph { color: #fff; opacity: .8; }
-[data-tema="colorido"] .stamp { border-color: var(--ink); background: var(--mustard); }
-[data-tema="colorido"] .hero-img { background: var(--lav); box-shadow: none; border: 1.5px solid var(--line); }
-[data-tema="colorido"] .hero-img .ph { color: #fff; opacity: .85; }
+[data-tema="colorido"] .grid > :nth-child(4n+1) .tile { background: var(--sky); }
+[data-tema="colorido"] .grid > :nth-child(4n+2) .tile { background: var(--honeydew); }
+[data-tema="colorido"] .grid > :nth-child(4n+3) .tile { background: var(--stone); }
+[data-tema="colorido"] .grid > :nth-child(4n+4) .tile { background: var(--beige); }
+[data-tema="colorido"] .tile .ph { color: var(--ocean); opacity: .55; }
+[data-tema="colorido"] .stamp { border-color: var(--ink); background: var(--honeydew); }
+[data-tema="colorido"] .hero-img { background: var(--sky); box-shadow: none; border: 1.5px solid var(--line); }
+[data-tema="colorido"] .hero-img .ph { color: var(--ocean); opacity: .55; }
 [data-tema="colorido"] .sheet { background: var(--bg); }
-[data-tema="colorido"] .photo-pick { background: #fff; border-color: #D8D1C4; }
-[data-tema="colorido"] .dots i.on { background: var(--terra); }
+[data-tema="colorido"] .photo-pick { background: #fff; border-color: var(--beige); }
+[data-tema="colorido"] .dots i.on { background: var(--viridian); }
+[data-tema="colorido"] .remind { background: var(--viridian); color: #fff; }
+[data-tema="colorido"] .pf-av2 .pic { background: var(--sky); color: var(--ocean); box-shadow: 0 0 0 4px #fff, 0 0 0 7px var(--honeydew); }
+[data-tema="colorido"] .lookup { background: var(--soft); }
 
 /* ---------- Tema "Discreto": oscuro, grafito con brillos suaves y acentos blancos ---------- */
 :root[data-tema="discreto"] {
@@ -456,7 +457,6 @@ body { font-size: 14.5px; }
 .remind .rt span { display: block; font-size: .84rem; opacity: .85; }
 .remind .ri svg { width: 26px; height: 26px; }
 .remind { background: var(--ink); color: var(--on-ink); }
-[data-tema="colorido"] .remind { background: var(--terra); }
 
 .lookup:empty { display: none; }
 .lookup { display: flex; align-items: center; gap: 8px; font-size: .86rem; font-weight: 500; margin-top: -6px; padding: 10px 12px; border-radius: 14px; background: var(--soft); }
@@ -501,7 +501,6 @@ body { font-size: 14.5px; }
 .banner { margin-top: 12px; }
 .for { display: flex; align-items: center; gap: 10px; }
 .for-av { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; }
-[data-tema="colorido"] .pf-av2 .pic { background: var(--lav); color: #fff; box-shadow: 0 0 0 4px #fff, 0 0 0 7px var(--terra); }
 
 /* Ajustes */
 .themes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -1130,14 +1129,14 @@ async function clearAvatar() {
 
 /* ---------- Ajustes ---------- */
 const TEMAS = [
-  { k: "colorido", l: "Colorido", d: "Terracota, lavanda, salvia y turquesa", sw: ["#D95B3F", "#8F94DB", "#9CC487", "#2F8FA6"] },
+  { k: "colorido", l: "Natural", d: "Crema, cielo, pistache y azul profundo", sw: ["#D5E3E8", "#E4E3BC", "#344945", "#2C365A"] },
   { k: "discreto", l: "Discreto", d: "Oscuro: grafito, gris y blanco", sw: ["#111116", "#262630", "#9797A5", "#F1F1F6"] },
 ];
 const temaActual = () => document.documentElement.getAttribute("data-tema") || "colorido";
 function setTema(k) {
   document.documentElement.setAttribute("data-tema", k);
   try { localStorage.setItem("regalos.tema", k); } catch (e) {}
-  const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", k === "discreto" ? "#111116" : "#F4F1EB");
+  const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", k === "discreto" ? "#111116" : "#F7F5F1");
 }
 function renderSettings() {
   const cur = temaActual();
@@ -1169,7 +1168,7 @@ function renderSettings() {
   $("#pushBtn").addEventListener("click", enablePush);
   $("#avIn2").addEventListener("change", e => setAvatar(e.target.files && e.target.files[0]));
   if ($("#avClear")) $("#avClear").addEventListener("click", clearAvatar);
-  app.querySelectorAll(".theme-opt").forEach(b => b.addEventListener("click", () => { setTema(b.dataset.pick); render(); toast(b.dataset.pick === "discreto" ? "Modo discreto" : "Modo colorido"); }));
+  app.querySelectorAll(".theme-opt").forEach(b => b.addEventListener("click", () => { setTema(b.dataset.pick); render(); toast(b.dataset.pick === "discreto" ? "Modo discreto" : "Modo natural"); }));
 }
 
 /* ---------- Buscar precio, foto y entrega al momento (desde el cel, con Jina Reader) ---------- */
