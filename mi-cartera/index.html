@@ -1590,10 +1590,10 @@ function buildPlan(opts={}){
   const simulate=()=>{
     const obl=obligations.slice().sort((a,b)=>a.date-b.date);
     const starts=[{date:t,amount:avail0,label:"Dinero disponible hoy",isCash:true}];
-    incomes.forEach(i=>starts.push({date:i.date,amount:i.amount,label:i.flow.name,fl:[i.flow.id]}));
+    incomes.forEach(i=>starts.push({date:i.date,amount:i.amount,label:i.flow.name,fl:[i.flow.id],parts:[{name:i.flow.name,amount:i.amount}]}));
     const merged=[];
-    for(const st of starts){ const inc=st.isCash?0:st.amount; const last=merged[merged.length-1]; if(last && +last.date===+st.date){ last.amount+=st.amount; last.inc=(last.inc||0)+inc; last.label+=" + "+st.label; last.fl=[...(last.fl||[]),...(st.fl||[])]; } else merged.push({...st,inc}); }
-    const periods=merged.map((p,i)=>({start:p.date,end:i<merged.length-1?addDays(merged[i+1].date,-1):end,income:p.amount,inc:p.inc||0,label:p.label,isCash:p.isCash,fl:p.fl||[],obl:[],lines:[]}));
+    for(const st of starts){ const inc=st.isCash?0:st.amount; const last=merged[merged.length-1]; if(last && +last.date===+st.date){ last.amount+=st.amount; last.inc=(last.inc||0)+inc; last.label+=" + "+st.label; last.fl=[...(last.fl||[]),...(st.fl||[])]; last.parts=[...(last.parts||[]),...(st.parts||[])]; } else merged.push({...st,inc}); }
+    const periods=merged.map((p,i)=>({start:p.date,end:i<merged.length-1?addDays(merged[i+1].date,-1):end,income:p.amount,inc:p.inc||0,label:p.label,isCash:p.isCash,fl:p.fl||[],parts:p.parts||[],obl:[],lines:[]}));
     const done={}; all("transfer").forEach(x=>{ if(x.periodStart){ const k=x.periodStart+"|"+x.purpose; done[k]=r2((done[k]||0)+(+x.amount||0)); } });
     obl.forEach(o=>{ const per=periods.slice().reverse().find(p=>o.date>=p.start) || periods[0]; per.obl.push(o); });
     let carry=0; let totalShort=0, totalInt=0; let pending=[];
@@ -1679,10 +1679,14 @@ function buildPlan(opts={}){
       per.saveWhy=why; per.fund=fundSim;
       per.goals=goalsAlloc; per.goalTot=r2(goalsAlloc.reduce((a,x)=>a+x.amt,0));
       avail=r2(avail-save-inv-per.goalTot);
-      per.lines=lines.sort((a,b)=>(a.o.carried?0:1)-(b.o.carried?0:1)||a.o.date-b.o.date); per.save=save; per.inv=inv; per.left=avail; carry=avail;
+      // lo que normalmente gastas en estos días (súper, comida, transporte…) se usa durante el periodo; solo lo que sobra pasa al siguiente
+      const daysP=daysBetween(per.start,per.end)+1; const diaP=sv.spendMonthly!=null?r2(sv.spendMonthly*daysP/30):r2((per.inc||0)*0.35);
+      const spendP=r2(Math.max(0,Math.min(avail,diaP)));
+      per.lines=lines.sort((a,b)=>(a.o.carried?0:1)-(b.o.carried?0:1)||a.o.date-b.o.date); per.save=save; per.inv=inv; per.left=avail; per.dia=diaP; per.spend=spendP; per.days=daysP; carry=r2(avail-spendP);
     });
     const ev=[];
-    periods.forEach(per=>{ ev.push({d:per.start,v:per.income}); if(per.save||per.inv||per.goalTot) ev.push({d:per.start,v:-(per.save+per.inv+(per.goalTot||0))}); per.lines.forEach(l=>ev.push({d:l.o.date,v:-l.pay})); });
+    periods.forEach(per=>{ ev.push({d:per.start,v:per.income}); if(per.save||per.inv||per.goalTot) ev.push({d:per.start,v:-(per.save+per.inv+(per.goalTot||0))}); per.lines.forEach(l=>ev.push({d:l.o.date,v:-l.pay}));
+      if(per.spend>0.009&&per.days>0){ const each=per.spend/per.days; for(let k=0;k<per.days;k++) ev.push({d:addDays(per.start,k),v:-each}); } });
     ev.sort((a,b)=>a.d-b.d);
     const daily=[]; let bal=0, j=0;
     for(let d=new Date(t); d<=end; d=addDays(d,1)){ while(j<ev.length && ev[j].d<=d){ bal=r2(bal+ev[j].v); j++; } daily.push({d:new Date(d),bal}); }
@@ -2310,6 +2314,39 @@ function planLineTitle(o){
   if(o.kind==="sub") return esc(o.name)+` <span class="chip">suscripción · ${o.subCard?esc(o.subCard.name):"efectivo"}</span>`;
   return esc(o.name);
 }
+// dos ingresos que parecen el mismo (mismo nombre o monto, mismos días)
+function dupIncomes(){ const inc=all("flow").filter(f=>f.type==="ingreso"&&f.active!==false); const out=[]; const t=today();
+  for(let i=0;i<inc.length;i++) for(let j=i+1;j<inc.length;j++){ const a=inc[i], b=inc[j];
+    const same=(a.name||"").trim().toLowerCase()===(b.name||"").trim().toLowerCase()||Math.abs((+a.amount||0)-(+b.amount||0))<1;
+    const oa=new Set(occurrences(a,t,addDays(t,45)).map(o=>ds(o.date))); const ov=occurrences(b,t,addDays(t,45)).some(o=>oa.has(ds(o.date)));
+    if(same&&ov) out.push([a,b]); }
+  return out; }
+async function keepIncome(keepId,dropId){ const k=get(keepId), d=get(dropId); if(!k||!d) return;
+  await put({...k,paid:[...new Set([...(k.paid||[]),...(d.paid||[])])].sort().slice(-60)});
+  for(const x of all("pay").filter(x=>x.flowId===dropId)) await put({...x,flowId:keepId});
+  await del(dropId); }
+function moneyNowForm(){
+  const cs=all("card").filter(CASH_TYPES); const accs=all("account").filter(a=>accUsable(a)&&accAvailable(a,today())); const em=earmarks().byAcc;
+  const row=(key,name,sub,val)=>`<div class="spread" style="gap:10px"><div style="min-width:0"><b>${esc(name)}</b><div class="small muted">${sub}</div></div><input type="number" step="0.01" inputmode="decimal" class="mnIn" data-k="${key}" value="${r2(val)}" style="max-width:150px"></div>`;
+  openDialog("Tu dinero de hoy",`
+    <div class="note small">El plan parte de lo que tienes hoy. Si algo no coincide con lo que ves en tu banco, escribe el saldo real y guarda: desde ahí se siguen sumando y restando tus ingresos, gastos y pagos.</div>
+    <div class="view" style="gap:12px">
+      ${cs.map(c=>row("card:"+c.id,c.name,`${c.type==="efectivo"?"efectivo":"débito"} · según la app ${money(cardState(c).balance)}`,cardState(c).balance)).join("")}
+      ${row("cash","Efectivo en mano",`según la app ${money(cashState().balance)}`,cashState().balance)}
+      ${accs.map(a=>row("acc:"+a.id,a.name,`apartado que cuenta para pagos${em[a.id]?` · ${money(em[a.id])} reservados`:""}`,+a.balance||0)).join("")}
+    </div>
+    <div class="note acc small" id="mnTot"></div>
+    <div class="small muted">Para cambiar tus ingresos, pagos fijos, ahorro o hasta cuándo planear: <a href="#" data-act="planSettings">Ajustes del plan</a>.</div>`,
+    `<span></span><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="mnSave">Guardar</button></div>`);
+  const tot=()=>{ let x=0; $$(".mnIn").forEach(i=>{ const k=i.dataset.k; let v=+i.value||0; if(k.startsWith("acc:")) v=Math.max(0,v-(em[k.slice(4)]||0)); x+=v; }); $("#mnTot").innerHTML=`Disponible para tus pagos: <b>${money(r2(x))}</b>`; };
+  $$(".mnIn").forEach(i=>i.oninput=tot); tot();
+  $("#mnSave").onclick=async()=>{ let n=0;
+    for(const i of $$(".mnIn")){ if(i.value==="") continue; const v=r2(+i.value||0); const k=i.dataset.k;
+      if(k==="cash"){ if(Math.abs(v-cashState().balance)>0.009){ await put({...settings(),id:"settings",kind:"settings",cash:v,cashDate:todayS(),cashSetAt:Date.now()}); n++; } }
+      else if(k.startsWith("card:")){ const c=get(k.slice(5)); if(c&&Math.abs(v-cardState(c).balance)>0.009){ await put({...c,initialBalance:v,initialDate:todayS(),balanceSetAt:Date.now()}); n++; } }
+      else if(k.startsWith("acc:")){ const a=get(k.slice(4)); if(a&&Math.abs(v-(+a.balance||0))>0.009){ await put({...a,balance:v,history:(a.history||[]).concat([{date:todayS(),amount:r2(v-(+a.balance||0)),type:"rendimiento"}])}); n++; } } }
+    closeDialog(); toast(n?`Listo: actualicé ${n} saldo${n===1?"":"s"}; el plan ya parte de ahí`:"Sin cambios"); };
+}
 function vPlan(){
   const s=settings();
   const plan=buildPlan(); const ca=cashAvailable();
@@ -2318,19 +2355,21 @@ function vPlan(){
   const chip=(label,val,act)=>`<button type="button" class="pchip" data-act="${act}"><span>${label}</span><b>${val}</b></button>`;
   return `<div class="spread"><h2>Plan de pagos</h2><button class="btn pri plusbtn" data-act="planAdd" aria-label="Agregar">＋</button></div>
   <div class="pchips">
-    ${chip("Disponible hoy",money(ca.total),"planSettings")}
+    ${chip("Disponible hoy",money(ca.total),"moneyNow")}
     ${chip(inc.length?"Próximo ingreso":"Ingresos",inc.length&&ni?`${money(ni.amount)} · ${fDateS(ds(ni.date))}`:"Agregar","planSettings")}
     ${(()=>{ const fp=fixedPayments(); return chip("Pagos fijos al mes",fp.items.length?`${money(fp.monthly)} · ${fp.items.length}`:"Agregar","planSettings"); })()}
     ${chip("Ahorro, metas e inversión",`${money(r2(plan.saveTotal+plan.invTotal+(plan.goalTotal||0)))}`,"planSettings")}
     ${chip("Planeando",`hasta ${fDateS(ds(plan.end))}`,"planSettings")}
   </div>
   ${!plan.hasIncome?`<div class="note warn">Agrega tu sueldo con el botón ＋ para que el plan cuente con él.</div>`:""}
+  ${dupIncomes().map(([a,b])=>`<div class="note warn"><b>Tu ingreso "${esc(a.name)}" parece estar dos veces</b> (${money(+a.amount||0)} y ${money(+b.amount||0)}, los mismos días). Por eso el plan suma los dos y parece que te sobra más. ¿Con cuál te quedas?
+    <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn sm" data-act="keepInc" data-id="${a.id}" data-drop="${b.id}">Quedarme con el de ${money(+a.amount||0)}${(+a.amount||0)===(+b.amount||0)?" (el primero)":""}</button><button type="button" class="btn sm" data-act="keepInc" data-id="${b.id}" data-drop="${a.id}">Quedarme con el de ${money(+b.amount||0)}${(+a.amount||0)===(+b.amount||0)?" (el segundo)":""}</button><button type="button" class="btn sm" data-act="planSettings">Ver mis ingresos</button></div></div>`).join("")}
   ${plan.totalShort>0?`<div class="note bad"><b>Al final del plan aún faltarían ${money(plan.totalShort)}.</b> Lo que no alcanzas a pagar completo se pasa a tu siguiente ingreso.${plan.totalInt>0?` Intereses estimados por pagar tarde las tarjetas: <b class="num">${money(plan.totalInt)}</b> (con IVA).`:""}</div>`
     : plan.periods.some(p=>p.lines.some(l=>l.short>0.009))?`<div class="note warn">Algunos pagos no se completan en su fecha; el resto se pasa a tu siguiente ingreso y queda cubierto.${plan.totalInt>0?` Intereses estimados: <b class="num">${money(plan.totalInt)}</b> (con IVA).`:""}</div>`
     : plan.periods.some(p=>p.lines.length)?`<div class="note good">Con tu dinero e ingresos alcanzas a pagar todo a tiempo hasta el ${fDate(ds(plan.end))}.</div>`:""}
   <div class="view" style="gap:12px">
   ${plan.periods.filter(p=>p.lines.length||p.save||p.inv||!p.isCash).map(p=>`<div class="period">
-    <div class="period-h"><div><b>${p.isCash?"Desde hoy":"Al recibir "+esc(p.label)}</b><div class="small muted">${fDateS(ds(p.start))} – ${fDateS(ds(p.end))}</div>${!p.isCash&&(p.fl||[]).length&&daysBetween(today(),p.start)<=3?`<button type="button" class="linkbtn" data-act="incLink" data-key="${p.fl[0]}:${ds(p.start)}">Ya me llegó</button>`:""}</div>
+    <div class="period-h"><div><b>${p.isCash?"Desde hoy":"Al recibir "+((p.parts||[]).length>1?p.parts.map(x=>`${esc(x.name)} (${money(x.amount)})`).join(" + "):esc(p.label))}</b><div class="small muted">${fDateS(ds(p.start))} – ${fDateS(ds(p.end))}</div>${!p.isCash&&(p.fl||[]).length&&daysBetween(today(),p.start)<=3?`<button type="button" class="linkbtn" data-act="incLink" data-key="${p.fl[0]}:${ds(p.start)}">Ya me llegó</button>`:""}</div>
       <div class="num">${p.isCash?"":`<span style="color:var(--good)">+${money(p.income)}</span> · `}disponible ${money(p.availStart)}</div></div>
     <div class="period-b">
       ${p.lines.length?p.lines.map(l=>{ const o=l.o;
@@ -2351,7 +2390,7 @@ function vPlan(){
       ${fundLine(p,"ahorro",plan.sv)}
       ${fundLine(p,"inversion",plan.sv)}
       ${!p.isCash&&!p.save&&!p.inv&&p.lines.some(l=>l.short>0.009)?`<div class="small muted">Este periodo no alcanza para ahorrar: primero tus pagos.</div>`:""}
-      <div class="pline" style="border-top:1px solid var(--line);padding-top:8px"><span class="muted small">Te queda para gastos del día a día</span><b class="num">${money(p.left)}</b></div>
+      <div class="pline" style="border-top:1px solid var(--line);padding-top:8px"><span class="muted small">Te queda para gastos del día a día${p.dia>0.009?`<br><span style="font-size:11.5px">${p.left<p.dia-0.009?`<b style="color:var(--warn)">Ojo:</b> sueles gastar unos ${money(p.dia)} en estos ${p.days} días`:`sueles gastar unos ${money(p.dia)} en estos ${p.days} días`}${p.left-p.spend>0.009?`; lo que no gastes (${money(r2(p.left-p.spend))}) pasa al siguiente periodo`:"; no pasa nada al siguiente periodo"}</span>`:""}</span><b class="num">${money(p.left)}</b></div>
     </div></div>`).join("")}
   </div>
   <div class="panel"><div class="panel-h"><h3>Saldo proyectado</h3><span class="small muted">siguiendo el plan</span></div>
@@ -2446,7 +2485,7 @@ function planSettingsForm(){
       <label class="f">Planear al menos<select id="sHor">${[30,60,90,120].map(d=>`<option value="${d}" ${(+s.horizon||60)===d?"selected":""}>${d} días</option>`).join("")}</select></label>
     </div>
     ${(()=>{ const sv=saveConfig(); return `<div class="note small" id="sAutoInfo">En automático, después de tus pagos y de dejarte para tus gastos del día a día${sv.spendMonthly!=null?` (unos ${money(sv.spendMonthly)} al mes, según lo que has gastado)`:""}, se aparta el 60% de lo que sobre (mínimo 5% del ingreso; si sobra poco, 3%). Si tienes metas, ellas van primero: 40% a metas, 45% al fondo y 15% a invertir (con el fondo completo: 60% metas, 10% fondo, 30% inversión). Sin metas: 70% fondo y 30% inversión mientras el fondo no llegue a <b>${money(sv.fundTarget)}</b>; ya completo, 30% y 70%. Hoy tu fondo tiene <b>${money(sv.fundNow)}</b>.</div>`; })()}
-    <div class="spread"><h3>Ingresos</h3><button class="btn sm" data-act="newSalary">＋ Ingreso</button></div>
+    <div class="spread"><h3>Ingresos</h3><button class="btn sm" data-act="newIncome">＋ Otro ingreso</button></div>
     ${inc.length?`<div class="list">${inc.map(row).join("")}</div>`:`<p class="muted small">Aún no tienes ingresos.</p>`}
     ${(()=>{ const fp=fixedPayments();
       return `<div class="spread"><h3>Pagos fijos <span class="muted small" style="font-weight:600">${money(fp.monthly)} al mes</span></h3><div class="row" style="gap:6px"><button class="btn sm" data-act="newFlow" data-type="fijo">＋ Pago fijo</button><button class="btn sm" data-act="newSub">＋ Suscripción</button><button class="btn sm" data-act="newLoan">＋ Crédito</button></div></div>
@@ -3266,7 +3305,14 @@ document.addEventListener("click",async ev=>{
     case "newPay": payForm(t.dataset.card,t.dataset.plan); break;
     case "delPay": { if(t.dataset.sure){ await unlinkIncome(get(id)); await accRevert(id); await del(id); toast("Pago borrado"); closeDialog(); } else { t.dataset.sure="1"; t.textContent="¿Borrar?"; t.classList.add("danger"); } break; }
     case "newFlow": flowForm(null,t.dataset.type); break;
-    case "newSalary": flowForm({type:"ingreso",name:"Sueldo",freq:"catorcenal",date:todayS(),active:true},"ingreso"); break;
+    case "newSalary": { const inc=all("flow").filter(f=>f.type==="ingreso");
+      if(!inc.length){ flowForm({type:"ingreso",name:"Sueldo",freq:"catorcenal",date:todayS(),active:true},"ingreso"); break; }
+      openDialog("Tus ingresos",`<div class="note small">Tu sueldo se pone una sola vez y la app calcula los siguientes. Si cambió el monto o la fecha, edítalo; no agregues otro.</div><div class="addmenu">
+        ${inc.map(f=>`<button type="button" data-act="editFlow" data-id="${f.id}"><b>Editar ${esc(f.name)}</b><span>${money(+f.amount||0)} · ${esc(FREQ[f.freq]||"")}${f.active===false?" · pausado":""}</span></button>`).join("")}
+        <button type="button" data-act="newIncome"><b>＋ Agregar otro ingreso diferente</b><span>Por ejemplo, un segundo trabajo o una renta que cobras</span></button></div>`); break; }
+    case "newIncome": flowForm({type:"ingreso",name:"",freq:"mensual",date:todayS(),active:true},"ingreso"); break;
+    case "keepInc": { if(!t.dataset.sure){ t.dataset.sure="1"; t.textContent="¿Seguro? Toca otra vez"; break; } await keepIncome(id,t.dataset.drop); toast("Listo: quité el ingreso repetido"); break; }
+    case "moneyNow": moneyNowForm(); break;
     case "editFlow": flowForm(get(id)); break;
     case "newGoal": goalForm(); break;
     case "newLoan": loanForm(); break;
