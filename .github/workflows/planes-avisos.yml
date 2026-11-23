@@ -1,9 +1,14 @@
-name: Planes - avisos del calendario
+name: Planes - avisos y Notion
 
 on:
   schedule:
     - cron: "*/15 * * * *"   # cada 15 minutos (cuenta regresiva y avisos de horas antes)
   workflow_dispatch:
+    inputs:
+      notion_completo:
+        description: "Revisar todo el calendario contra Notion ahora (borra en Notion lo que ya no está en la app)"
+        type: boolean
+        default: false
 
 concurrency:
   group: planes-avisos
@@ -22,3 +27,10 @@ jobs:
       - run: node planes-avisos/avisos.js
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      - name: Copiar el calendario a Notion
+        if: always()
+        run: node planes-avisos/notion.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          FULL: ${{ github.event.inputs.notion_completo }}
