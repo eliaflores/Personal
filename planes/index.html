@@ -710,6 +710,7 @@ function route() {
   if (h[0] === "evento" && h[1]) return { v: "evento", id: h[1] };
   if (h[0] === "nosotros") return { v: "nosotros" };
   if (h[0] === "perfil") return { v: "perfil" };
+  if (h[0] === "nueva-idea" || h[0] === "agendar") return { v: h[0] };
   return { v: "inicio" };
 }
 const go = h => { if (location.hash !== h) location.hash = h; else render(); };
@@ -736,6 +737,12 @@ function render() {
   if (S.error) { app.innerHTML = `<div class="wrap no-nav screen"><div class="empty" style="margin-top:18vh"><div class="e">${I("sparkle")}</div><h3>No se pudo abrir</h3><p>${esc(S.error)}</p><button class="btn btn-primary" style="margin-top:16px" onclick="location.reload()">Volver a intentar</button></div></div>`; return; }
   if (!S.loaded) { app.innerHTML = `<div class="wrap no-nav"><p class="hint center" style="margin-top:40vh">${S.stale ? "Todavía no se puede conectar. Revisa tu internet; se carga sola en cuanto responda." : "Cargando sus planes…"}</p></div>`; return; }
   if (!S.couple) return renderCreate();
+  // Atajos de la pantalla de inicio: abren directo el formulario.
+  if (r.v === "nueva-idea" || r.v === "agendar") {
+    history.replaceState(null, "", location.pathname + location.search + (r.v === "agendar" ? "#cal" : "#ideas"));
+    render();
+    return r.v === "agendar" ? openEventForm(null, {}) : ideaForm(null);
+  }
   const key = r.v + (r.id || "") + (r.view || "");
   const keepScroll = key === lastView;
   const y = window.scrollY;
@@ -1204,6 +1211,7 @@ function renderNosotros() {
       <button class="row" data-act="push"><span class="ico">${I("bell")}</span><span class="tx"><b>Avisos en este cel</b><span id="pushS">${esc(pushStateText())}</span></span><span class="ch">${I("chev")}</span></button>
       <div class="row"><span class="ico">${I("moon")}</span><span class="tx"><b>Tema</b><span>Se guarda en este cel</span></span></div>
       <div style="padding:0 16px 14px"><div class="seg">${[["auto", "Auto"], ["claro", "Claro"], ["oscuro", "Oscuro"]].map(([k, l]) => `<button data-theme-set="${k}" aria-current="${theme === k}">${l}</button>`).join("")}</div></div>
+      <button class="row" data-act="shortcuts"><span class="ico">${I("plus")}</span><span class="tx"><b>Atajos para tu pantalla de inicio</b><span>Íconos que abren directo “Nueva idea” o “Agendar”</span></span><span class="ch">${I("chev")}</span></button>
       <button class="row" data-act="types"><span class="ico">${I("palette")}</span><span class="tx"><b>Tipos de plan y colores</b><span>Agrega tipos nuevos o cámbiales el color</span></span><span class="ch">${I("chev")}</span></button>
       ${p ? `<button class="row" data-act="share"><span class="ico">${I("share")}</span><span class="tx"><b>Link de invitación</b><span>Por si tu pareja necesita volver a entrar</span></span><span class="ch">${I("chev")}</span></button>` : ""}
       <button class="row" data-act="signout"><span class="ico">${I("out")}</span><span class="tx"><b>Salir</b><span>${esc(S.user.email || "")}</span></span></button>
@@ -1374,6 +1382,25 @@ function wireNewType(root, onCreated) {
     btn.disabled = false;
   });
   return { toggle: () => { box.hidden = !box.hidden; if (!box.hidden) name.focus(); } };
+}
+function shortcutsSheet() {
+  const base = location.origin + location.pathname.replace(/[^/]*$/, "");
+  const item = (file, title, desc, icon) => `<div class="card block" style="margin:0">
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px"><img src="${icon}" alt="" style="width:56px;height:56px;border-radius:16px"><div><b>${title}</b><p class="hint">${desc}</p></div></div>
+      <input class="input" readonly value="${esc(base + file)}" aria-label="Link del atajo ${title}" style="font-size:.85rem;margin-bottom:10px">
+      <button type="button" class="btn btn-primary btn-block" data-copy="${esc(base + file)}">${I("link")}Copiar link</button>
+    </div>`;
+  openSheet(`<div class="sheet-head"><h2>Atajos</h2><button type="button" class="x" data-close aria-label="Cerrar">×</button></div>
+    <p class="hint">Copia el link y ábrelo en <b>Safari</b>. Ahí toca <b>Compartir → Agregar a pantalla de inicio</b>. Después puedes arrastrar el ícono a la barra de abajo.</p>
+    ${item("nueva-idea.html", "Nueva idea", "Abre directo el formulario para proponer un plan.", "icon-idea-180.png?v=1")}
+    ${item("agendar.html", "Agendar", "Abre directo el formulario del calendario.", "icon-agendar-180.png?v=1")}
+    <p class="hint center">La primera vez que abras cada atajo, entra con tu Google.</p>`, root => {
+    root.addEventListener("click", async e => {
+      const b = e.target.closest("[data-copy]"); if (!b) return;
+      try { await navigator.clipboard.writeText(b.dataset.copy); toast("Link copiado. Ábrelo en Safari"); }
+      catch (err) { const i = b.closest(".block").querySelector("input"); i.focus(); i.select(); toast("Copia el link de arriba"); }
+    });
+  });
 }
 function typesSheet() {
   const row = (kind, t) => `<button type="button" class="row" data-tedit="${kind}" data-k="${esc(t.k)}"><span class="ico" style="${paint(t.c)}">${I(t.i)}</span><span class="tx"><b>${esc(t.l)}</b>${colorOver(kind, t.k) ? "<span>Color cambiado</span>" : ""}</span><span class="ch">${I("chev")}</span></button>`;
@@ -1608,6 +1635,7 @@ document.addEventListener("click", async ev => {
   if (act === "editEvent") return openEventForm(a.dataset.id);
   if (act === "push") return enablePush();
   if (act === "types") return typesSheet();
+  if (act === "shortcuts") return shortcutsSheet();
   if (act === "refresh") { a.classList.add("spin"); a.disabled = true; location.replace(location.pathname + "?r=" + Date.now() + location.hash); return; }
   if (act === "signout") return signOut(auth);
   const i = r.v === "idea" && ideaById(r.id);
