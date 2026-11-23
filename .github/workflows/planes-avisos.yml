@@ -1,0 +1,24 @@
+name: Planes - avisos del calendario
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # cada 15 minutos (cuenta regresiva y avisos de horas antes)
+  workflow_dispatch:
+
+concurrency:
+  group: planes-avisos
+  cancel-in-progress: false
+
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --prefix planes-avisos --no-audit --no-fund
+      - run: node planes-avisos/avisos.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

@@ -59,5 +59,50 @@ service cloud.firestore {
         allow read, write: if inList() && request.auth.uid == uid;
       }
     }
+
+    // Nuestros Planes: un espacio compartido por dos personas (no toca nada de Mi Cartera ni de Regalos).
+    match /planes/{coupleId} {
+      function pSignedIn() { return request.auth != null; }
+      function pIsMember() { return pSignedIn() && request.auth.uid in resource.data.members; }
+      function inCouple() {
+        return request.auth != null
+          && request.auth.uid in get(/databases/$(db)/documents/planes/$(coupleId)).data.members;
+      }
+
+      // Crear un espacio nuevo donde tú eres la única persona.
+      allow create: if pSignedIn() && request.resource.data.members == [request.auth.uid];
+      // Abrir por link de invitación (el id es aleatorio) y buscar tu propio espacio.
+      allow get: if pSignedIn();
+      allow list: if pIsMember();
+      // Los miembros solo cambian nombres y fotos; una segunda persona solo puede agregarse a sí misma.
+      allow update: if pSignedIn() && (
+        (pIsMember() && request.resource.data.members == resource.data.members
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['names', 'photos']))
+        || (resource.data.members.size() == 1
+          && request.resource.data.members == resource.data.members.concat([request.auth.uid])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'names']))
+      );
+      allow delete: if false;
+
+      // Ideas de planes: los dos las ven y las editan; quien la propuso no cambia y solo esa persona la borra.
+      match /ideas/{ideaId} {
+        allow read: if inCouple();
+        allow create: if inCouple() && request.resource.data.owner == request.auth.uid;
+        allow update: if inCouple() && request.resource.data.owner == resource.data.owner;
+        allow delete: if inCouple() && resource.data.owner == request.auth.uid;
+      }
+
+      // Calendario compartido: los dos agregan, editan y borran.
+      match /eventos/{eventoId} {
+        allow read, delete: if inCouple();
+        allow create: if inCouple() && request.resource.data.createdBy == request.auth.uid;
+        allow update: if inCouple() && request.resource.data.createdBy == resource.data.createdBy;
+      }
+
+      // Cels donde cada quien activó los avisos (solo los ve y cambia su dueño).
+      match /privado/{uid}/avisos/{tokenId} {
+        allow read, write: if inCouple() && request.auth.uid == uid;
+      }
+    }
   }
 }
