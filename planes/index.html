@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Nuestros Planes</title>
-<meta name="theme-color" content="#F8EEEF">
+<meta name="theme-color" content="#F6F5FA">
 <script>
   // Tema guardado en este cel: "auto" (sigue al cel), "claro" u "oscuro".
   (function () { var t = "auto"; try { t = localStorage.getItem("planes.tema") || t; } catch (e) {} document.documentElement.setAttribute("data-theme", t); })();
@@ -461,37 +461,6 @@ input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-dat
 .pill.late { background: #F4C7C0; color: #7A2318; }
 @media (max-width: 400px) { .nav button { font-size: .6rem; letter-spacing: -.01em; } .nav-in { padding: 5px; } }
 .nav button { min-width: 0; overflow: hidden; }
-
-/* ---------- Paleta rosa palo y vino (con grano) ---------- */
-:root {
-  --bg: #F8EEEF; --card: #FFFFFF; --soft: #F3E4E6; --soft-2: #E7D3D6; --line: #F0E0E3; --chip-line: #DCC3C7;
-  --ink: #5A1A22; --ink-2: #6E3A41; --muted: #9D7E83; --on-ink: #FFFFFF; --dark: #3A1519;
-  --alice: #E8CDD1; --honeydew: #F2DFDD; --vanilla: #EBC3C8; --azure: #C98F98; --beige: #E3D3CE; --linen: #EADDDC; --pebble: #BFA3A6; --haze: #D7B4BA;
-  --p1: #D9A2AB; --p2: #8E3A45;
-  --hero: #5E1A20; --nav-shadow: 0 10px 30px rgba(90,26,34,.12);
-  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.1  0 0 0 0 0.13  0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="claro"]) { --bg: #1C0D10; --card: #2A1418; --soft: #361C21; --soft-2: #4D2A30; --line: #3B2025; --chip-line: #5A363C; --ink: #F8E6E9; --ink-2: #E7CDD1; --muted: #B8989D; --on-ink: #3A1519; --hero: #6E2530; --nav-shadow: 0 10px 30px rgba(0,0,0,.45); }
-}
-:root[data-theme="oscuro"] { --bg: #1C0D10; --card: #2A1418; --soft: #361C21; --soft-2: #4D2A30; --line: #3B2025; --chip-line: #5A363C; --ink: #F8E6E9; --ink-2: #E7CDD1; --muted: #B8989D; --on-ink: #3A1519; --hero: #6E2530; --nav-shadow: 0 10px 30px rgba(0,0,0,.45); }
-body { background-color: var(--bg); background-image: var(--grain); background-size: 160px; background-attachment: fixed; }
-.av.p2 { color: #FFFFFF; }
-/* Cuenta regresiva en vino con grano, como el fondo de la imagen */
-.hero { background-color: var(--hero); background-image: var(--grain), radial-gradient(120% 90% at 100% 0%, rgba(255,255,255,.10), transparent 60%); background-size: 160px, auto; color: #FBEEF0; }
-.hero .k, .hero .big span { color: rgba(251,238,240,.75); }
-.hero .when { background: #EBC3C8; color: #3A1519; }
-.hero .em { background: rgba(255,255,255,.14); color: #FBEEF0; }
-.block.alice h3, .block.alice .hint { color: #7A4C53; }
-.total-box .hint { color: #7A4C53; }
-.invite p { color: #5E3036; }
-.pill.ok { background: #E3D3CE; color: #5A1A22; }
-.pill.late { background: #5A1A22; color: #FFFFFF; }
-.catbar .t i { background: var(--azure); }
-.duel .bar i + i, .vs .mid i + i { border-color: var(--card); }
-.month .day.today .n, .tgrid-head .h.today b { background: var(--ink); color: var(--on-ink); }
-.tgrid .col.today { background-color: color-mix(in srgb, var(--alice) 40%, transparent); }
-.signin .logo { box-shadow: 0 12px 30px rgba(90,26,34,.18); }
 </style>
 </head>
 <body>
@@ -587,14 +556,14 @@ const GOOGLE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4"
 
 /* ---------- Catálogos ---------- */
 const CATS = [
-  { k: "comida", l: "Comida", i: "fork", c: "#EBC3C8" }, { k: "salida", l: "Salida", i: "film", c: "#E8CDD1" }, { k: "aventura", l: "Aventura", i: "mountain", c: "#F2DFDD" },
-  { k: "viaje", l: "Viaje", i: "plane", c: "#D7B4BA" }, { k: "casa", l: "En casa", i: "home", c: "#E3D3CE" }, { k: "cultura", l: "Cultura", i: "palette", c: "#E8CDD1" },
-  { k: "deporte", l: "Deporte", i: "bike", c: "#F2DFDD" }, { k: "detalle", l: "Detalle", i: "gift", c: "#EBC3C8" }, { k: "otro", l: "Otro", i: "sparkle", c: "#EADDDC" },
+  { k: "comida", l: "Comida", i: "fork", c: "#EFF0A3" }, { k: "salida", l: "Salida", i: "film", c: "#D8DFE9" }, { k: "aventura", l: "Aventura", i: "mountain", c: "#CFDECA" },
+  { k: "viaje", l: "Viaje", i: "plane", c: "#97C2EC" }, { k: "casa", l: "En casa", i: "home", c: "#D6D0C2" }, { k: "cultura", l: "Cultura", i: "palette", c: "#D8DFE9" },
+  { k: "deporte", l: "Deporte", i: "bike", c: "#CFDECA" }, { k: "detalle", l: "Detalle", i: "gift", c: "#EFF0A3" }, { k: "otro", l: "Otro", i: "sparkle", c: "#DFDED9" },
 ];
 // Tipos que agregó la pareja (sirven para ideas y calendario) y colores cambiados de los tipos de siempre.
-const SWATCHES = ["#E8CDD1", "#F2DFDD", "#EBC3C8", "#D7B4BA", "#C98F98", "#E3D3CE", "#BFA3A6", "#EADDDC", "#F3D9C9", "#D9CCF0", "#CFDECA", "#D8DFE9", "#9E4A55", "#5E1A20"];
+const SWATCHES = ["#D8DFE9", "#CFDECA", "#EFF0A3", "#97C2EC", "#D6D0C2", "#B0BFCC", "#B5B1AE", "#DFDED9", "#F2C6CF", "#D9CCF0", "#F6D2B8", "#BFE3D6", "#F4B6A6", "#212121"];
 const okHex = c => typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c);
-const customs = () => (Array.isArray(S.couple?.tipos) ? S.couple.tipos : []).filter(t => t && t.k && t.l).map(t => ({ k: t.k, l: String(t.l), i: P[t.i] ? t.i : "sparkle", c: okHex(t.c) ? t.c : "#EADDDC", custom: true }));
+const customs = () => (Array.isArray(S.couple?.tipos) ? S.couple.tipos : []).filter(t => t && t.k && t.l).map(t => ({ k: t.k, l: String(t.l), i: P[t.i] ? t.i : "sparkle", c: okHex(t.c) ? t.c : "#DFDED9", custom: true }));
 const colorOver = (kind, k) => { const c = (S.couple?.colores || {})[kind + "_" + k]; return okHex(c) ? c : null; };
 const allCats = () => [...CATS.map(c => ({ ...c, c: colorOver("cat", c.k) || c.c })), ...customs()];
 const cat = k => allCats().find(c => c.k === k) || allCats().find(c => c.k === "otro");
@@ -603,9 +572,9 @@ const paint = c => `background:${c};color:${inkOn(c)}`;
 const catStyle = k => paint(cat(k).c);
 const ICONS = ["heart","fork","wine","coffee","film","ticket","music","game","mountain","sun","leaf","plane","car","home","sofa","palette","book","camera","bike","gift","cake","rings","star","sparkle"];
 const TYPES = [
-  { k: "plan", l: "Plan", i: "heart", c: "#EBC3C8" }, { k: "cita", l: "Cita", i: "wine", c: "#F2DFDD" }, { k: "viaje", l: "Viaje", i: "plane", c: "#D7B4BA" },
-  { k: "cumple", l: "Cumpleaños", i: "cake", c: "#E3D3CE" }, { k: "aniversario", l: "Aniversario", i: "rings", c: "#C98F98" },
-  { k: "pendiente", l: "Pendiente", i: "list", c: "#BFA3A6" }, { k: "otro", l: "Otro", i: "sparkle", c: "#EADDDC" },
+  { k: "plan", l: "Plan", i: "heart", c: "#EFF0A3" }, { k: "cita", l: "Cita", i: "wine", c: "#CFDECA" }, { k: "viaje", l: "Viaje", i: "plane", c: "#97C2EC" },
+  { k: "cumple", l: "Cumpleaños", i: "cake", c: "#D6D0C2" }, { k: "aniversario", l: "Aniversario", i: "rings", c: "#B0BFCC" },
+  { k: "pendiente", l: "Pendiente", i: "list", c: "#B5B1AE" }, { k: "otro", l: "Otro", i: "sparkle", c: "#DFDED9" },
 ];
 const allTypes = () => [...TYPES.map(t => ({ ...t, c: colorOver("ev", t.k) || t.c })), ...customs()];
 const typ = k => allTypes().find(t => t.k === k) || allTypes().find(t => t.k === "otro");
@@ -1495,7 +1464,7 @@ function typeFormHtml(pre, v, withName) {
     ${withName ? `<div class="field">Ícono<div class="emo-grid" id="${pre}I">${ICONS.map(e => `<button type="button" data-e="${e}" aria-label="${e}">${I(e)}</button>`).join("")}</div></div>` : ""}`;
 }
 function wireTypeForm(root, pre, v) {
-  const st = { c: okHex(v.c) ? v.c : SWATCHES[4], i: P[v.i] ? v.i : "sparkle" };
+  const st = { c: okHex(v.c) ? v.c : SWATCHES[9], i: P[v.i] ? v.i : "sparkle" };
   const sw = root.querySelector(`#${pre}Sw`), ig = root.querySelector(`#${pre}I`);
   const paintSw = () => {
     sw.querySelectorAll("[data-sw]").forEach(b => b.setAttribute("aria-pressed", b.dataset.sw.toLowerCase() === st.c.toLowerCase()));
@@ -1540,8 +1509,8 @@ function shortcutsSheet() {
     </div>`;
   openSheet(`<div class="sheet-head"><h2>Atajos</h2><button type="button" class="x" data-close aria-label="Cerrar">×</button></div>
     <p class="hint">Copia el link y ábrelo en <b>Safari</b>. Ahí toca <b>Compartir → Agregar a pantalla de inicio</b>. Después puedes arrastrar el ícono a la barra de abajo.</p>
-    ${item("nueva-idea.html", "Nueva idea", "Abre directo el formulario para proponer un plan.", "icon-idea-180.png?v=2")}
-    ${item("agendar.html", "Agendar", "Abre directo el formulario del calendario.", "icon-agendar-180.png?v=2")}
+    ${item("nueva-idea.html", "Nueva idea", "Abre directo el formulario para proponer un plan.", "icon-idea-180.png?v=3")}
+    ${item("agendar.html", "Agendar", "Abre directo el formulario del calendario.", "icon-agendar-180.png?v=3")}
     <p class="hint center">La primera vez que abras cada atajo, entra con tu Google.</p>
     <div class="card block" style="margin:0"><h3>Para el Centro de control</h3>
       <p class="hint" style="margin-bottom:10px">En la app Atajos crea un atajo con la acción <b>Abrir URL</b> y pega uno de estos links. Luego agrégalo al Centro de control con <b>+ → Agregar un control → Atajo</b>.</p>
