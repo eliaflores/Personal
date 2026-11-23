@@ -405,6 +405,21 @@ input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-dat
 .spin svg { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 380px) { .title { font-size: 1.75rem; } .icon-btn { width: 42px; height: 42px; } }
+
+/* Tipos y colores */
+.chip.add { border-style: dashed; color: var(--ink); }
+.chip .dot { flex: none; }
+.ntbox { padding: 14px; display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.sheet .ntbox .input { background: var(--bg); }
+.sw { display: flex; flex-wrap: wrap; gap: 10px; }
+.sw button, .sw .sw-more { width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--card); box-shadow: 0 0 0 1.2px var(--chip-line); padding: 0; position: relative; }
+.sw button[aria-pressed="true"], .sw .sw-more[aria-pressed="true"] { box-shadow: 0 0 0 2.5px var(--ink); }
+.sw .sw-more { display: grid; place-items: center; background: var(--soft); color: var(--ink); cursor: pointer; overflow: hidden; }
+.sw .sw-more svg { width: 18px; height: 18px; }
+.sw .sw-more input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; border: none; padding: 0; }
+.te-prev { display: flex; align-items: center; gap: 12px; background: var(--card); border-radius: 22px; padding: 12px 14px; font-weight: 700; font-size: 1.05rem; }
+.idea .emo svg, .d-emo svg { color: inherit; }
+.x svg { width: 20px; height: 20px; }
 </style>
 </head>
 <body>
@@ -424,7 +439,7 @@ input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-dat
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getMessaging, getToken, isSupported as messagingSupported } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, onSnapshot, query, where, limit, getDocs, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, onSnapshot, query, where, limit, getDocs, arrayUnion, deleteField } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // Mismo proyecto de Firebase que Mi Cartera y Regalos, pero datos aparte en la colección "planes".
 const firebaseConfig = {
@@ -499,19 +514,30 @@ const GOOGLE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4"
 
 /* ---------- Catálogos ---------- */
 const CATS = [
-  { k: "comida", l: "Comida", i: "fork", c: "var(--vanilla)" }, { k: "salida", l: "Salida", i: "film", c: "var(--alice)" }, { k: "aventura", l: "Aventura", i: "mountain", c: "var(--honeydew)" },
-  { k: "viaje", l: "Viaje", i: "plane", c: "var(--azure)" }, { k: "casa", l: "En casa", i: "home", c: "var(--beige)" }, { k: "cultura", l: "Cultura", i: "palette", c: "var(--alice)" },
-  { k: "deporte", l: "Deporte", i: "bike", c: "var(--honeydew)" }, { k: "detalle", l: "Detalle", i: "gift", c: "var(--vanilla)" }, { k: "otro", l: "Otro", i: "sparkle", c: "var(--linen)" },
+  { k: "comida", l: "Comida", i: "fork", c: "#EFF0A3" }, { k: "salida", l: "Salida", i: "film", c: "#D8DFE9" }, { k: "aventura", l: "Aventura", i: "mountain", c: "#CFDECA" },
+  { k: "viaje", l: "Viaje", i: "plane", c: "#97C2EC" }, { k: "casa", l: "En casa", i: "home", c: "#D6D0C2" }, { k: "cultura", l: "Cultura", i: "palette", c: "#D8DFE9" },
+  { k: "deporte", l: "Deporte", i: "bike", c: "#CFDECA" }, { k: "detalle", l: "Detalle", i: "gift", c: "#EFF0A3" }, { k: "otro", l: "Otro", i: "sparkle", c: "#DFDED9" },
 ];
-const cat = k => CATS.find(c => c.k === k) || CATS[CATS.length - 1];
+// Tipos que agregó la pareja (sirven para ideas y calendario) y colores cambiados de los tipos de siempre.
+const SWATCHES = ["#D8DFE9", "#CFDECA", "#EFF0A3", "#97C2EC", "#D6D0C2", "#B0BFCC", "#B5B1AE", "#DFDED9", "#F2C6CF", "#D9CCF0", "#F6D2B8", "#BFE3D6", "#F4B6A6", "#212121"];
+const okHex = c => typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c);
+const customs = () => (Array.isArray(S.couple?.tipos) ? S.couple.tipos : []).filter(t => t && t.k && t.l).map(t => ({ k: t.k, l: String(t.l), i: P[t.i] ? t.i : "sparkle", c: okHex(t.c) ? t.c : "#DFDED9", custom: true }));
+const colorOver = (kind, k) => { const c = (S.couple?.colores || {})[kind + "_" + k]; return okHex(c) ? c : null; };
+const allCats = () => [...CATS.map(c => ({ ...c, c: colorOver("cat", c.k) || c.c })), ...customs()];
+const cat = k => allCats().find(c => c.k === k) || allCats().find(c => c.k === "otro");
+const inkOn = hex => { if (!okHex(hex)) return "var(--dark)"; const n = parseInt(hex.slice(1), 16); const l = (0.299 * (n >> 16) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255; return l < 0.55 ? "#FFFFFF" : "#212121"; };
+const paint = c => `background:${c};color:${inkOn(c)}`;
+const catStyle = k => paint(cat(k).c);
 const ICONS = ["heart","fork","wine","coffee","film","ticket","music","game","mountain","sun","leaf","plane","car","home","sofa","palette","book","camera","bike","gift","cake","rings","star","sparkle"];
 const TYPES = [
-  { k: "plan", l: "Plan", i: "heart" }, { k: "cita", l: "Cita", i: "wine" }, { k: "viaje", l: "Viaje", i: "plane" },
-  { k: "cumple", l: "Cumpleaños", i: "cake" }, { k: "aniversario", l: "Aniversario", i: "rings" },
-  { k: "pendiente", l: "Pendiente", i: "list" }, { k: "otro", l: "Otro", i: "sparkle" },
+  { k: "plan", l: "Plan", i: "heart", c: "#EFF0A3" }, { k: "cita", l: "Cita", i: "wine", c: "#CFDECA" }, { k: "viaje", l: "Viaje", i: "plane", c: "#97C2EC" },
+  { k: "cumple", l: "Cumpleaños", i: "cake", c: "#D6D0C2" }, { k: "aniversario", l: "Aniversario", i: "rings", c: "#B0BFCC" },
+  { k: "pendiente", l: "Pendiente", i: "list", c: "#B5B1AE" }, { k: "otro", l: "Otro", i: "sparkle", c: "#DFDED9" },
 ];
-const typ = k => TYPES.find(t => t.k === k) || TYPES[0];
-const tcolor = k => `var(--t-${typ(k).k})`;
+const allTypes = () => [...TYPES.map(t => ({ ...t, c: colorOver("ev", t.k) || t.c })), ...customs()];
+const typ = k => allTypes().find(t => t.k === k) || allTypes().find(t => t.k === "otro");
+const tcolor = k => typ(k).c;
+const tstyle = k => paint(tcolor(k));
 const REMINDERS = [
   { k: "30d", l: "1 mes antes" }, { k: "14d", l: "2 semanas" }, { k: "7d", l: "1 semana" }, { k: "3d", l: "3 días" },
   { k: "1d", l: "1 día antes" }, { k: "0d", l: "El mismo día" }, { k: "3h", l: "3 horas antes" }, { k: "1h", l: "1 hora antes" }, { k: "30m", l: "30 min antes" },
@@ -791,7 +817,7 @@ function heroCard() {
 function evRow(e, occ, showCount = true) {
   const d = parse(occ), c = countdown(e, occ);
   return `<button class="row" data-go="#evento/${esc(e.id)}">
-    <span class="date-badge" style="background:${tcolor(e.type)}"><small>${MES3[d.getMonth()]}</small><b>${d.getDate()}</b></span>
+    <span class="date-badge" style="${tstyle(e.type)}"><small>${MES3[d.getMonth()]}</small><b>${d.getDate()}</b></span>
     <span class="tx"><b>${esc(e.title)}</b><span>${esc(e.allDay || !e.time ? (evEnd(e) > e.date ? "Hasta el " + fMed(evEnd(e)) : "Todo el día") : fTime(e.time) + (e.endTime ? " – " + fTime(e.endTime) : ""))}${e.place ? " · " + esc(e.place) : ""}</span></span>
     ${showCount ? `<span class="pill ${c.now ? "now" : ""}">${esc(c.pill)}</span>` : ""}
   </button>`;
@@ -846,7 +872,7 @@ function ideaStatus(i) {
 function ideaCard(i) {
   const st = ideaStatus(i), tot = ideaTotal(i), acts = (i.activities || []).length, likes = Object.keys(i.likes || {}).length;
   return `<button class="idea ${i.done ? "done" : ""}" data-go="#idea/${esc(i.id)}">
-    <span class="emo" style="background:${cat(i.cat).c}">${ideaEmoji(i)}</span>
+    <span class="emo" style="${catStyle(i.cat)}">${ideaEmoji(i)}</span>
     <span class="tx">
       <h3>${esc(i.title)}</h3>
       <span class="meta"><span class="who"><i style="background:${pColor(i.owner)}"></i>${esc(nameOf(i.owner))}</span>${tot ? `<span>~${mxn(tot)}</span>` : ""}${acts ? `<span>${plural(acts, "actividad", "actividades")}</span>` : ""}</span>
@@ -865,7 +891,7 @@ function renderIdeas() {
   else if (S.ideaSt === "agendadas") list = bySt("agendada");
   else if (S.ideaSt === "hechas") list = bySt("hecha");
   list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  const cats = CATS.filter(c => S.ideas.some(i => i.cat === c.k));
+  const cats = allCats().filter(c => S.ideas.some(i => i.cat === c.k));
   app.innerHTML = `<div class="wrap screen">
     ${topBar(`<h1 class="title">Ideas de <em>planes</em></h1>`, `${refreshBtn()}<button class="icon-btn" data-act="roulette" aria-label="Elegir un plan al azar">${I("dice")}</button><button class="icon-btn accent" data-act="newIdea" aria-label="Nueva idea">${I("plus")}</button>`)}
     <div class="chips scroll" style="margin-top:10px">
@@ -920,7 +946,7 @@ function renderIdea(id) {
   app.innerHTML = `<div class="wrap screen">
     ${topBar(backBtn("#ideas"), `<button class="icon-btn" data-act="editIdea" data-id="${esc(id)}" aria-label="Editar">${I("edit")}</button>`)}
     <div class="d-head">
-      <div class="d-emo" style="background:${cat(i.cat).c}">${ideaEmoji(i)}</div>
+      <div class="d-emo" style="${catStyle(i.cat)}">${ideaEmoji(i)}</div>
       <h1>${esc(i.title)}</h1>
       <div class="sub"><span class="byline">${avatar(i.owner, "sm")}Lo propuso ${esc(i.owner === me() ? "tú" : nameOf(i.owner))}</span><span class="pill gray">${esc(cat(i.cat).l)}</span>${i.done ? `<span class="pill ok">Hecho</span>` : ""}</div>
       <div style="margin-top:14px;display:flex;justify-content:center;gap:10px;align-items:center">
@@ -1031,7 +1057,7 @@ function monthView(d) {
     const evs = evsOn(iso);
     cells += `<button class="day ${dd.getMonth() !== mo ? "out" : ""} ${iso === t ? "today" : ""} ${iso === d && d !== t ? "sel" : ""}" data-go="#cal/dia/${iso}" aria-label="${esc(fLong(iso))}${evs.length ? ", " + plural(evs.length, "evento", "eventos") : ""}">
       <span class="n">${dd.getDate()}</span>
-      ${evs.slice(0, 3).map(e => `<span class="ev" style="background:${tcolor(e.type)}">${esc(e.title)}</span>`).join("")}
+      ${evs.slice(0, 3).map(e => `<span class="ev" style="${tstyle(e.type)}">${esc(e.title)}</span>`).join("")}
       ${evs.length > 3 ? `<span class="more">+${evs.length - 3}</span>` : ""}
     </button>`;
   }
@@ -1063,14 +1089,14 @@ function timeGrid(days, wide) {
   const H = 48;
   const head = days.length > 1 ? `<div class="tgrid-head" style="grid-template-columns:${cols}"><span></span>${days.map(d => { const x = parse(d); return `<button class="h ${d === t ? "today" : ""}" data-go="#cal/dia/${d}"><small>${DIAS3[x.getDay()]}</small><b>${x.getDate()}</b></button>`; }).join("")}</div>` : "";
   const alls = days.map(d => evsOn(d).filter(e => !isTimed(e)));
-  const allRow = alls.some(a => a.length) ? `<div class="allday" style="grid-template-columns:${cols}"><span class="lab">todo<br>el día</span>${alls.map((a, k) => `<div class="cell">${a.map(e => `<button class="adev" style="background:${tcolor(e.type)}" data-go="#evento/${esc(e.id)}">${esc(e.title)}</button>`).join("")}</div>`).join("")}</div>` : "";
+  const allRow = alls.some(a => a.length) ? `<div class="allday" style="grid-template-columns:${cols}"><span class="lab">todo<br>el día</span>${alls.map((a, k) => `<div class="cell">${a.map(e => `<button class="adev" style="${tstyle(e.type)}" data-go="#evento/${esc(e.id)}">${esc(e.title)}</button>`).join("")}</div>`).join("")}</div>` : "";
   let hours = ""; for (let h = 1; h < 24; h++) hours += `<span style="top:${h * H}px">${h % 12 || 12}${h < 12 ? "am" : "pm"}</span>`;
   const now = new Date(), nowTop = (now.getHours() * 60 + now.getMinutes()) / 60 * H;
   const colHtml = days.map(d => {
     const blocks = layoutDay(evsOn(d).filter(isTimed)).map(it => {
       const top = it.s / 60 * H, hgt = Math.max(22, (it.en - it.s) / 60 * H - 2);
       const w = 100 / it.cols;
-      return `<button class="blk ${wide ? "wide" : ""}" data-go="#evento/${esc(it.e.id)}" style="top:${top}px;height:${hgt}px;left:calc(${it.col * w}% + 2px);width:calc(${w}% - 4px);background:${tcolor(it.e.type)}"><b>${esc(it.e.title)}</b>${hgt > 30 ? `<span>${esc(fTime(it.e.time))}${wide && it.e.endTime ? " – " + esc(fTime(it.e.endTime)) : ""}${wide && it.e.place ? " · " + esc(it.e.place) : ""}</span>` : ""}</button>`;
+      return `<button class="blk ${wide ? "wide" : ""}" data-go="#evento/${esc(it.e.id)}" style="top:${top}px;height:${hgt}px;left:calc(${it.col * w}% + 2px);width:calc(${w}% - 4px);${tstyle(it.e.type)}"><b>${esc(it.e.title)}</b>${hgt > 30 ? `<span>${esc(fTime(it.e.time))}${wide && it.e.endTime ? " – " + esc(fTime(it.e.endTime)) : ""}${wide && it.e.place ? " · " + esc(it.e.place) : ""}</span>` : ""}</button>`;
     }).join("");
     return `<div class="col ${d === t ? "today" : ""}" data-d="${d}" style="height:${24 * H}px">${blocks}${d === t ? `<div class="nowline" style="top:${nowTop}px"></div>` : ""}</div>`;
   }).join("");
@@ -1102,9 +1128,9 @@ function renderEvento(id) {
   app.innerHTML = `<div class="wrap screen">
     ${topBar(backBtn(`#cal/${localStore("planes.vista") || "mes"}/${occ}`), `<button class="icon-btn" data-act="editEvent" data-id="${esc(id)}" aria-label="Editar">${I("edit")}</button>`)}
     <div class="d-head">
-      <div class="d-emo" style="background:${tcolor(e.type)}">${evEmoji(e)}</div>
+      <div class="d-emo" style="${tstyle(e.type)}">${evEmoji(e)}</div>
       <h1>${esc(e.title)}</h1>
-      <div class="sub"><span class="pill" style="background:${tcolor(e.type)};color:var(--dark)">${esc(typ(e.type).l)}</span>${(e.repeat || "no") !== "no" ? `<span class="pill gray">${esc(REPEATS.find(r => r.k === e.repeat).l)}</span>` : ""}</div>
+      <div class="sub"><span class="pill" style="${tstyle(e.type)}">${esc(typ(e.type).l)}</span>${(e.repeat || "no") !== "no" ? `<span class="pill gray">${esc(REPEATS.find(r => r.k === e.repeat).l)}</span>` : ""}</div>
     </div>
     ${c ? `<div class="hero" style="margin-top:16px;padding:18px 22px"><div class="k">${c.now ? "Ya casi" : "Faltan"}</div><div class="big"><b style="font-size:3.2rem">${esc(c.big)}</b><span>${esc(c.unit)}</span></div><div class="when">${esc(evWhen(e, occ))}</div></div>`
       : `<div class="card block"><h3>Cuándo</h3><p>${esc(evWhen(e, occ))}</p><p class="hint" style="margin-top:4px">Ya pasó</p></div>`}
@@ -1132,7 +1158,7 @@ function renderNosotros() {
   const yr = new Date().getFullYear();
   const doneYear = done.filter(i => new Date(i.doneAt || 0).getFullYear() === yr);
   const pend = S.ideas.filter(i => !i.done);
-  const catCounts = CATS.map(c => ({ c, n: S.ideas.filter(i => i.cat === c.k).length })).filter(x => x.n).sort((a, b) => b.n - a.n);
+  const catCounts = allCats().map(c => ({ c, n: S.ideas.filter(i => i.cat === c.k).length })).filter(x => x.n).sort((a, b) => b.n - a.n);
   const maxCat = Math.max(1, ...catCounts.map(x => x.n));
   const since = S.couple.createdAt ? fLong(isoOf(new Date(S.couple.createdAt))) : "";
   const theme = document.documentElement.getAttribute("data-theme") || "auto";
@@ -1165,6 +1191,7 @@ function renderNosotros() {
       <button class="row" data-act="push"><span class="ico">${I("bell")}</span><span class="tx"><b>Avisos en este cel</b><span id="pushS">${esc(pushStateText())}</span></span><span class="ch">${I("chev")}</span></button>
       <div class="row"><span class="ico">${I("moon")}</span><span class="tx"><b>Tema</b><span>Se guarda en este cel</span></span></div>
       <div style="padding:0 16px 14px"><div class="seg">${[["auto", "Auto"], ["claro", "Claro"], ["oscuro", "Oscuro"]].map(([k, l]) => `<button data-theme-set="${k}" aria-current="${theme === k}">${l}</button>`).join("")}</div></div>
+      <button class="row" data-act="types"><span class="ico">${I("palette")}</span><span class="tx"><b>Tipos de plan y colores</b><span>Agrega tipos nuevos o cámbiales el color</span></span><span class="ch">${I("chev")}</span></button>
       ${p ? `<button class="row" data-act="share"><span class="ico">${I("share")}</span><span class="tx"><b>Link de invitación</b><span>Por si tu pareja necesita volver a entrar</span></span><span class="ch">${I("chev")}</span></button>` : ""}
       <button class="row" data-act="signout"><span class="ico">${I("out")}</span><span class="tx"><b>Salir</b><span>${esc(S.user.email || "")}</span></span></button>
     </div>
@@ -1215,6 +1242,108 @@ function openSheet(inner, mount) {
 function closeSheet() { $("#sheetRoot").innerHTML = ""; document.body.style.overflow = ""; }
 document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#sheetBg")) closeSheet(); });
 
+/* ---------- Tipos de plan y colores ---------- */
+const newChip = `<button type="button" class="chip add" data-newtype>${I("plus")}Nuevo tipo</button>`;
+const catChipsHtml = () => allCats().map(c => `<button type="button" class="chip" data-c="${esc(c.k)}"><span class="dot" style="background:${c.c}"></span>${I(c.i)}${esc(c.l)}</button>`).join("") + newChip;
+const typeChipsHtml = () => allTypes().map(t => `<button type="button" class="chip" data-t="${esc(t.k)}"><span class="dot" style="background:${t.c}"></span>${I(t.i)}${esc(t.l)}</button>`).join("") + newChip;
+function typeFormHtml(pre, v, withName) {
+  const cur = okHex(v.c) ? v.c : "";
+  return `${withName ? `<label class="field">Nombre<input class="input" id="${pre}N" maxlength="30" placeholder="Ej. Concierto, Cena con amigos" value="${esc(v.l || "")}"></label>` : ""}
+    <div class="field">Color<div class="sw" id="${pre}Sw">${SWATCHES.map(c => `<button type="button" data-sw="${c}" style="background:${c}" aria-label="Color ${c}"></button>`).join("")}<label class="sw-more" title="Otro color" aria-label="Elegir otro color">${I("plus")}<input type="color" id="${pre}C" value="${cur || "#D9CCF0"}"></label></div></div>
+    ${withName ? `<div class="field">Ícono<div class="emo-grid" id="${pre}I">${ICONS.map(e => `<button type="button" data-e="${e}" aria-label="${e}">${I(e)}</button>`).join("")}</div></div>` : ""}`;
+}
+function wireTypeForm(root, pre, v) {
+  const st = { c: okHex(v.c) ? v.c : SWATCHES[9], i: P[v.i] ? v.i : "sparkle" };
+  const sw = root.querySelector(`#${pre}Sw`), ig = root.querySelector(`#${pre}I`);
+  const paintSw = () => {
+    sw.querySelectorAll("[data-sw]").forEach(b => b.setAttribute("aria-pressed", b.dataset.sw.toLowerCase() === st.c.toLowerCase()));
+    const more = sw.querySelector(".sw-more"), own = !SWATCHES.some(x => x.toLowerCase() === st.c.toLowerCase());
+    more.style.cssText = own ? paint(st.c) : ""; more.setAttribute("aria-pressed", own);
+  };
+  const paintIc = () => ig && ig.querySelectorAll("[data-e]").forEach(b => b.setAttribute("aria-pressed", b.dataset.e === st.i));
+  sw.addEventListener("click", e => { const b = e.target.closest("[data-sw]"); if (b) { st.c = b.dataset.sw; paintSw(); } });
+  root.querySelector(`#${pre}C`).addEventListener("input", e => { st.c = e.target.value; paintSw(); });
+  ig && ig.addEventListener("click", e => { const b = e.target.closest("[data-e]"); if (b) { st.i = b.dataset.e; paintIc(); } });
+  paintSw(); paintIc();
+  return () => ({ l: (root.querySelector(`#${pre}N`)?.value || "").trim().slice(0, 30), c: st.c, i: st.i });
+}
+async function saveCouple(data, local) {
+  Object.assign(S.couple, local);                       // se ve al momento, aunque Firebase tarde
+  await updateDoc(doc(fdb, "planes", S.cid), data);
+}
+const saveCustoms = list => saveCouple({ tipos: list }, { tipos: list });
+// "+ Nuevo tipo" dentro de un formulario (no cierra el formulario).
+function wireNewType(root, onCreated) {
+  const box = root.querySelector(".ntbox"), get = wireTypeForm(box, "nt", {});
+  const name = box.querySelector("#ntN");
+  name.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); box.querySelector("[data-ntsave]").click(); } });
+  box.querySelector("[data-ntcancel]").addEventListener("click", () => { box.hidden = true; });
+  box.querySelector("[data-ntsave]").addEventListener("click", async e => {
+    const btn = e.currentTarget, v = get();
+    if (!v.l) { name.focus(); return; }
+    const t = { k: "t" + Date.now().toString(36), l: v.l, i: v.i, c: v.c };
+    btn.disabled = true;
+    try { await saveCustoms([...customs().map(({ custom, ...x }) => x), t]); box.hidden = true; name.value = ""; onCreated(t); toast("Tipo agregado"); }
+    catch (err) { writeErr(err); }
+    btn.disabled = false;
+  });
+  return { toggle: () => { box.hidden = !box.hidden; if (!box.hidden) name.focus(); } };
+}
+function typesSheet() {
+  const row = (kind, t) => `<button type="button" class="row" data-tedit="${kind}" data-k="${esc(t.k)}"><span class="ico" style="${paint(t.c)}">${I(t.i)}</span><span class="tx"><b>${esc(t.l)}</b>${colorOver(kind, t.k) ? "<span>Color cambiado</span>" : ""}</span><span class="ch">${I("chev")}</span></button>`;
+  const cs = customs();
+  openSheet(`<div class="sheet-head"><h2>Tipos y colores</h2><button type="button" class="x" data-close aria-label="Cerrar">×</button></div>
+    <p class="hint">Los tipos que agreguen sirven para las ideas y para el calendario, y los ven los dos.</p>
+    <button type="button" class="btn btn-primary btn-block" data-tedit="new">${I("plus")}Nuevo tipo</button>
+    ${cs.length ? `<div class="sec" style="margin:8px 2px 0"><h2>Los que agregaron</h2></div><div class="list">${cs.map(t => row("c", t)).join("")}</div>` : ""}
+    <div class="sec" style="margin:8px 2px 0"><h2>En el calendario</h2></div><div class="list">${allTypes().filter(t => !t.custom).map(t => row("ev", t)).join("")}</div>
+    <div class="sec" style="margin:8px 2px 0"><h2>En las ideas</h2></div><div class="list">${allCats().filter(t => !t.custom).map(t => row("cat", t)).join("")}</div>`, root => {
+    root.addEventListener("click", e => { const b = e.target.closest("[data-tedit]"); if (b) typeEditor(b.dataset.tedit, b.dataset.k); });
+  });
+}
+function typeEditor(kind, k) {
+  const isNew = kind === "new", isCustom = kind === "c" || isNew;
+  const v = isNew ? {} : kind === "c" ? customs().find(t => t.k === k) : (kind === "ev" ? allTypes() : allCats()).find(t => t.k === k);
+  if (!v) return typesSheet();
+  const base = kind === "ev" ? TYPES.find(t => t.k === k) : kind === "cat" ? CATS.find(t => t.k === k) : null;
+  openSheet(`<div class="sheet-head"><button type="button" class="x" id="teBack" aria-label="Regresar">${I("back")}</button><h2 style="flex:1">${isNew ? "Nuevo tipo" : esc(v.l)}</h2><button type="button" class="x" data-close aria-label="Cerrar">×</button></div>
+    <div class="te-prev"><span class="ico" id="tePrev">${I(v.i || "sparkle")}</span><span id="tePrevL">${esc(v.l || "Así se verá")}</span></div>
+    ${typeFormHtml("te", v, isCustom)}
+    <button type="button" class="btn btn-primary btn-block" id="teSave">${isNew ? "Agregar tipo" : "Guardar"}</button>
+    ${base && colorOver(kind, k) ? `<button type="button" class="btn btn-block" id="teReset">Usar el color original</button>` : ""}
+    ${kind === "c" ? `<button type="button" class="link-danger" id="teDel" data-label="Borrar este tipo">Borrar este tipo</button><p class="hint center">Las ideas y eventos de este tipo pasan a “Otro”.</p>` : ""}`, root => {
+    const get = wireTypeForm(root, "te", v);
+    const prev = () => { const x = get(); const el = root.querySelector("#tePrev"); el.style.cssText = paint(x.c); el.innerHTML = I(x.i); root.querySelector("#tePrevL").textContent = x.l || v.l || "Así se verá"; };
+    root.addEventListener("click", () => setTimeout(prev)); root.addEventListener("input", prev); prev();
+    root.querySelector("#teBack").addEventListener("click", typesSheet);
+    root.querySelector("#teSave").addEventListener("click", async e => {
+      const x = get(), btn = e.currentTarget;
+      if (isCustom && !x.l) { root.querySelector("#teN").focus(); return; }
+      btn.disabled = true;
+      try {
+        if (isCustom) {
+          const list = customs().map(({ custom, ...t }) => t);
+          if (isNew) list.push({ k: "t" + Date.now().toString(36), l: x.l, i: x.i, c: x.c });
+          else { const t = list.find(t => t.k === k); Object.assign(t, { l: x.l, i: x.i, c: x.c }); }
+          await saveCustoms(list);
+        } else {
+          const key = kind + "_" + k, colores = { ...(S.couple.colores || {}), [key]: x.c };
+          await saveCouple({ ["colores." + key]: x.c }, { colores });
+        }
+        toast(isNew ? "Tipo agregado" : "Guardado"); typesSheet(); render();
+      } catch (err) { btn.disabled = false; writeErr(err); }
+    });
+    root.querySelector("#teReset")?.addEventListener("click", async () => {
+      const key = kind + "_" + k, colores = { ...(S.couple.colores || {}) }; delete colores[key];
+      try { await saveCouple({ ["colores." + key]: deleteField() }, { colores }); toast("Color original"); typesSheet(); render(); } catch (err) { writeErr(err); }
+    });
+    root.querySelector("#teDel")?.addEventListener("click", async e => {
+      if (!arm("delt-" + k, e.currentTarget, "Toca otra vez para borrar")) return;
+      try { await saveCustoms(customs().filter(t => t.k !== k).map(({ custom, ...t }) => t)); toast("Tipo borrado"); typesSheet(); render(); } catch (err) { writeErr(err); }
+    });
+  });
+}
+
 function ideaForm(id) {
   const it = id ? ideaById(id) : null;
   let emoji = (it?.icon && P[it.icon]) ? it.icon : "", catK = it?.cat || "";
@@ -1226,7 +1355,7 @@ function ideaForm(id) {
     <div class="sheet-head"><h2>${it ? "Editar plan" : "Nueva idea de plan"}</h2><button type="button" class="x" data-close aria-label="Cerrar">×</button></div>
     <div class="emo-pick"><button type="button" class="cur" id="emoCur" aria-label="Elegir ícono"></button><label class="field" style="flex:1">¿Qué plan?<input class="input" id="fT" maxlength="90" required placeholder="Ej. Noche de tacos y karaoke" value="${esc(it?.title)}"></label></div>
     <div class="emo-grid" id="emoGrid" hidden>${ICONS.map(e => `<button type="button" data-e="${e}" aria-label="${e}">${I(e)}</button>`).join("")}</div>
-    <div class="field">Tipo de plan<div class="chips" id="catChips">${CATS.map(c => `<button type="button" class="chip" data-c="${c.k}">${I(c.i)}${c.l}</button>`).join("")}</div></div>
+    <div class="field">Tipo de plan<div class="chips" id="catChips">${catChipsHtml()}</div><div class="ntbox card" hidden>${typeFormHtml("nt", {}, true)}<div class="btn-row"><button type="button" class="btn" data-ntcancel>Cancelar</button><button type="button" class="btn btn-primary" data-ntsave>Agregar tipo</button></div></div></div>
     <label class="field">Descripción <span class="opt">¿De qué se trata? ¿Por qué se te antojó?</span><textarea class="input" id="fN" maxlength="800" placeholder="Ej. Ir al centro, cenar tacos y luego karaoke con amigos">${esc(it?.note)}</textarea></label>
     <div class="field">Actividades <span class="opt">Con hora y costo si quieres (ej. 7:00 pm · Cena · $600)</span>
       <div id="actRows" style="display:grid;gap:6px"></div>
@@ -1266,7 +1395,8 @@ function ideaForm(id) {
     paintEmo(); paintCat(); paintRows();
     root.querySelector("#emoCur").addEventListener("click", () => { root.querySelector("#emoGrid").hidden = !root.querySelector("#emoGrid").hidden; });
     root.querySelector("#emoGrid").addEventListener("click", e => { const b = e.target.closest("[data-e]"); if (!b) return; emoji = b.dataset.e; paintEmo(); root.querySelector("#emoGrid").hidden = true; });
-    root.querySelector("#catChips").addEventListener("click", e => { const b = e.target.closest("[data-c]"); if (!b) return; catK = b.dataset.c; paintCat(); paintEmo(); });
+    const nt = wireNewType(root, t => { root.querySelector("#catChips").innerHTML = catChipsHtml(); catK = t.k; paintCat(); paintEmo(); });
+    root.querySelector("#catChips").addEventListener("click", e => { if (e.target.closest("[data-newtype]")) return nt.toggle(); const b = e.target.closest("[data-c]"); if (!b) return; catK = b.dataset.c; paintCat(); paintEmo(); });
     root.querySelector("#addAct").addEventListener("click", () => { readRows(); acts.push({ time: "", t: "", cost: 0 }); paintRows(); root.querySelector("#actRows .erow:last-child [data-f=t]").focus(); });
     root.querySelector("#costSug").addEventListener("click", e => { const b = e.target.closest("[data-s]"); if (!b) return; readRows(); costs.push({ t: b.dataset.s, amount: 0 }); paintRows(); root.querySelector("#costRows .erow:last-child [data-f=amount]").focus(); });
     f.addEventListener("input", () => { readRows(); total(); });
@@ -1313,7 +1443,7 @@ function openEventForm(id, pre = {}) {
     <div class="sheet-head"><h2>${it ? "Editar evento" : "Agendar"}</h2><button type="button" class="x" data-close aria-label="Cerrar">×</button></div>
     <label class="field">Conectar con un plan <span class="opt">De su lista de ideas</span><select class="input" id="eP"><option value="">Ninguno</option>${ideas.map(i => `<option value="${esc(i.id)}" ${v.planId === i.id ? "selected" : ""}>${esc(i.title)}${i.done ? " (hecho)" : ""}</option>`).join("")}</select></label>
     <label class="field">¿Qué es?<input class="input" id="eT" maxlength="90" required placeholder="Ej. Cena de aniversario" value="${esc(v.title)}"></label>
-    <div class="field">Tipo<div class="chips" id="tChips">${TYPES.map(t => `<button type="button" class="chip" data-t="${t.k}"><span class="dot" style="background:${tcolor(t.k)}"></span>${t.l}</button>`).join("")}</div></div>
+    <div class="field">Tipo<div class="chips" id="tChips">${typeChipsHtml()}</div><div class="ntbox card" hidden>${typeFormHtml("nt", {}, true)}<div class="btn-row"><button type="button" class="btn" data-ntcancel>Cancelar</button><button type="button" class="btn btn-primary" data-ntsave>Agregar tipo</button></div></div></div>
     <label class="field">Fecha<input class="input" type="date" id="eD" required value="${esc(v.date)}"></label>
     <label class="switch">Dura varios días<input type="checkbox" id="eMulti" ${multi ? "checked" : ""}></label>
     <label class="field" id="eEndW" ${multi ? "" : "hidden"}>Hasta<input class="input" type="date" id="eE" value="${esc(v.endDate || "")}"></label>
@@ -1334,7 +1464,8 @@ function openEventForm(id, pre = {}) {
       root.querySelector("#eRepW").hidden = root.querySelector("#eMulti").checked;
     };
     paintT(); paintR();
-    root.querySelector("#tChips").addEventListener("click", e => { const b = e.target.closest("[data-t]"); if (!b) return; type = b.dataset.t; paintT();
+    const nt = wireNewType(root, t => { root.querySelector("#tChips").innerHTML = typeChipsHtml(); type = t.k; paintT(); });
+    root.querySelector("#tChips").addEventListener("click", e => { if (e.target.closest("[data-newtype]")) return nt.toggle(); const b = e.target.closest("[data-t]"); if (!b) return; type = b.dataset.t; paintT();
       if ((type === "cumple" || type === "aniversario") && root.querySelector("#eR").value === "no" && !it) { root.querySelector("#eR").value = "anual"; root.querySelector("#eAll").checked = true; root.querySelector("#eTimes").hidden = true; paintR(); } });
     root.querySelector("#rChips").addEventListener("click", e => { const b = e.target.closest("[data-rm]"); if (!b) return; const k = b.dataset.rm; remind.has(k) ? remind.delete(k) : remind.add(k); b.setAttribute("aria-pressed", remind.has(k)); });
     root.querySelector("#eAll").addEventListener("change", e => { root.querySelector("#eTimes").hidden = e.target.checked; paintR(); });
@@ -1390,6 +1521,7 @@ document.addEventListener("click", async ev => {
   if (act === "newEvent") return openEventForm(null, a.dataset.date ? { date: a.dataset.date } : {});
   if (act === "editEvent") return openEventForm(a.dataset.id);
   if (act === "push") return enablePush();
+  if (act === "types") return typesSheet();
   if (act === "refresh") { a.classList.add("spin"); a.disabled = true; location.replace(location.pathname + "?r=" + Date.now() + location.hash); return; }
   if (act === "signout") return signOut(auth);
   const i = r.v === "idea" && ideaById(r.id);

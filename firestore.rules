@@ -74,10 +74,11 @@ service cloud.firestore {
       // Abrir por link de invitación (el id es aleatorio) y buscar tu propio espacio.
       allow get: if pSignedIn();
       allow list: if pIsMember();
-      // Los miembros solo cambian nombres y fotos; una segunda persona solo puede agregarse a sí misma.
+      // Los miembros solo cambian nombres, fotos, sus tipos de plan y colores; una segunda persona solo puede agregarse a sí misma.
       allow update: if pSignedIn() && (
         (pIsMember() && request.resource.data.members == resource.data.members
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['names', 'photos']))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['names', 'photos', 'tipos', 'colores'])
+          && request.resource.data.get('tipos', []).size() <= 40)
         || (resource.data.members.size() == 1
           && request.resource.data.members == resource.data.members.concat([request.auth.uid])
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'names']))
