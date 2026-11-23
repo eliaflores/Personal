@@ -299,7 +299,7 @@ h1, h2, h3 { text-wrap: balance; }
 
 /* Navegación inferior */
 .nav { position: fixed; z-index: 8; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; padding: 0 12px calc(12px + env(safe-area-inset-bottom, 0px)); pointer-events: none; }
-.nav-in { pointer-events: auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; width: 100%; max-width: 420px; background: color-mix(in srgb, var(--card) 92%, transparent); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border-radius: 999px; padding: 6px; box-shadow: var(--nav-shadow); }
+.nav-in { pointer-events: auto; display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; width: 100%; max-width: 460px; background: color-mix(in srgb, var(--card) 92%, transparent); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border-radius: 999px; padding: 6px; box-shadow: var(--nav-shadow); }
 .nav button { border: none; background: none; color: var(--muted); border-radius: 999px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 7px 4px 6px; font-size: .72rem; font-weight: 600; }
 .nav button svg { width: 23px; height: 23px; }
 .nav button[aria-current="page"] { color: var(--on-ink); background: var(--ink); }
@@ -444,6 +444,23 @@ input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-dat
 .tgrid.tiny .blk { font-size: .64rem; line-height: 1.1; padding: 1px 4px; border-radius: 6px; }
 .who-chip { padding-left: 5px; }
 .who-chip .av { border-width: 0; margin-right: 2px; }
+
+/* Pendientes */
+.nav button { font-size: .64rem; padding: 7px 2px 6px; }
+.nav button span { white-space: nowrap; }
+.quick-add { display: flex; gap: 8px; margin-top: 8px; }
+.quick-add .input { border-radius: 999px; padding-inline: 18px; }
+.quick-add .icon-btn { width: 52px; height: 52px; }
+.todo-row { gap: 10px; padding: 12px 14px; }
+.todo-row .tbox { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--chip-line); background: none; display: grid; place-items: center; color: transparent; padding: 0; }
+.todo-row .tbox svg { width: 16px; height: 16px; }
+.todo-row .tbox[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
+.todo-row .ttx { background: none; border: none; text-align: left; padding: 0; color: inherit; cursor: pointer; }
+.todo-row.is-done .ttx b { text-decoration: line-through; color: var(--muted); }
+.todo-row .duo .av + .av { margin-left: -8px; }
+.pill.late { background: #F4C7C0; color: #7A2318; }
+@media (max-width: 400px) { .nav button { font-size: .6rem; letter-spacing: -.01em; } .nav-in { padding: 5px; } }
+.nav button { min-width: 0; overflow: hidden; }
 </style>
 </head>
 <body>
@@ -453,6 +470,7 @@ input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-dat
     <button data-go="#inicio" data-nav="inicio"></button>
     <button data-go="#ideas" data-nav="ideas"></button>
     <button data-go="#cal" data-nav="cal"></button>
+    <button data-go="#pendientes" data-nav="pendientes"></button>
     <button data-go="#nosotros" data-nav="nosotros"></button>
   </div>
 </nav>
@@ -595,7 +613,7 @@ const fTime = t => { const m = toMin(t); if (m == null) return ""; const h = Mat
 const plural = (n, a, b) => `${n} ${n === 1 ? a : b}`;
 
 /* ---------- Estado ---------- */
-const S = { user: null, authReady: false, cid: null, couple: null, ideas: [], events: [], loaded: false, stale: false, error: "", armed: null, ideaWho: "todas", ideaSt: "pendientes", cat: "" };
+const S = { user: null, authReady: false, cid: null, couple: null, ideas: [], events: [], todos: [], todosErr: false, todoWho: "todos", showDone: false, loaded: false, stale: false, error: "", armed: null, ideaWho: "todas", ideaSt: "pendientes", cat: "" };
 const joinId = new URLSearchParams(location.search).get("unir");
 let justRefreshed = new URLSearchParams(location.search).has("r");
 if (justRefreshed && !joinId) history.replaceState(null, "", location.pathname + location.hash);
@@ -726,6 +744,7 @@ function route() {
   if (h[0] === "evento" && h[1]) return { v: "evento", id: h[1] };
   if (h[0] === "nosotros") return { v: "nosotros" };
   if (h[0] === "perfil") return { v: "perfil" };
+  if (h[0] === "pendientes") return { v: "pendientes" };
   if (h[0] === "nueva-idea" || h[0] === "agendar") return { v: h[0] };
   return { v: "inicio" };
 }
@@ -733,7 +752,7 @@ const go = h => { if (location.hash !== h) location.hash = h; else render(); };
 function localStore(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
 
 /* ---------- Render ---------- */
-const NAVS = { inicio: ["home", "Inicio"], ideas: ["bulb", "Ideas"], cal: ["cal", "Calendario"], nosotros: ["heart", "Nosotros"] };
+const NAVS = { inicio: ["home", "Inicio"], ideas: ["bulb", "Ideas"], cal: ["cal", "Calendario"], pendientes: ["list", "Pendientes"], nosotros: ["heart", "Nosotros"] };
 function setNav(r) {
   const show = !!(S.user && S.couple && S.loaded);
   $("#nav").hidden = !show;
@@ -768,6 +787,7 @@ function render() {
   else if (r.v === "evento") renderEvento(r.id);
   else if (r.v === "nosotros") renderNosotros();
   else if (r.v === "perfil") renderPerfil();
+  else if (r.v === "pendientes") renderTodos();
   else renderHome();
   if (keepScroll) window.scrollTo(0, y); else window.scrollTo(0, 0);
   lastView = key;
@@ -888,6 +908,7 @@ function renderHome() {
     ${heroCard()}
     ${!partner() ? inviteBlock() : ""}
     ${up.length ? `<div class="sec"><h2>Lo que sigue</h2><a href="#cal">Calendario</a></div><div class="list">${up.map(x => evRow(x.e, x.occ)).join("")}</div>` : ""}
+    ${(() => { const open = openTodos(); return open.length ? `<div class="sec"><h2>Pendientes</h2><a href="#pendientes">Ver todos</a></div><div class="list">${open.slice(0, 3).map(todoRow).join("")}</div>` : ""; })()}
     <div class="sec"><h2>Ideas por hacer</h2><a href="#ideas">Ver todas</a></div>
     ${fresh.length ? `<div class="hscroll">${fresh.map(miniIdea).join("")}<button class="mini-idea new" data-act="newIdea" style="justify-content:center;align-items:center"><span class="emo">${I("plus")}</span><b>Nueva idea</b></button></div>`
       : `<div class="card empty"><div class="e">${I("bulb")}</div><h3>Aún no hay ideas</h3><p>Apunten aquí todo lo que se les antoje hacer juntos.</p><button class="btn btn-accent" style="margin-top:14px" data-act="newIdea">${I("plus")}Proponer un plan</button></div>`}
@@ -1232,6 +1253,91 @@ function renderNosotros() {
   app.querySelectorAll("[data-theme-set]").forEach(b => b.addEventListener("click", () => {
     document.documentElement.setAttribute("data-theme", b.dataset.themeSet); localStore("planes.tema", b.dataset.themeSet); render();
   }));
+}
+
+/* ---------- Pendientes ---------- */
+const todoFor = t => (t.para && t.para !== "ambos" && members().includes(t.para)) ? t.para : "ambos";
+const todoSort = (a, b) => ((a.due || "9999") < (b.due || "9999") ? -1 : (a.due || "9999") > (b.due || "9999") ? 1 : (a.createdAt || 0) - (b.createdAt || 0));
+const openTodos = () => S.todos.filter(t => !t.done).sort(todoSort);
+function dueTxt(iso) {
+  if (!iso) return null;
+  const n = diffDays(todayISO(), iso);
+  if (n < 0) return { l: n === -1 ? "Era ayer" : `Atrasado ${-n} días`, c: "late" };
+  if (n === 0) return { l: "Hoy", c: "now" };
+  if (n === 1) return { l: "Mañana", c: "" };
+  return { l: n < 7 ? DIAS[parse(iso).getDay()] : fMed(iso), c: "" };
+}
+function todoRow(t) {
+  const who = todoFor(t), d = dueTxt(t.due);
+  return `<div class="row todo-row ${t.done ? "is-done" : ""}">
+    <button class="tbox" data-act="toggleTodo" data-id="${esc(t.id)}" aria-pressed="${!!t.done}" aria-label="${t.done ? "Marcar como pendiente" : "Marcar como hecho"}">${I("check")}</button>
+    <button class="tx ttx" data-act="editTodo" data-id="${esc(t.id)}"><b>${esc(t.t)}</b><span>${who === "ambos" ? "Para los dos" : "Para " + (who === me() ? "ti" : esc(nameOf(who)))}${t.note ? " · " + esc(t.note.slice(0, 60)) : ""}${t.done && t.doneBy ? " · lo hizo " + esc(t.doneBy === me() ? "tú" : nameOf(t.doneBy)) : ""}</span></button>
+    ${who === "ambos" ? `<span class="duo">${members().map(u => avatar(u, "sm")).join("")}</span>` : avatar(who, "sm")}
+    ${d && !t.done ? `<span class="pill ${d.c}">${esc(d.l)}</span>` : ""}
+  </div>`;
+}
+function renderTodos() {
+  const ms = members();
+  const mine = t => S.todoWho === "todos" || todoFor(t) === "ambos" || todoFor(t) === S.todoWho;
+  const open = openTodos().filter(mine), done = S.todos.filter(t => t.done && mine(t)).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
+  const late = open.filter(t => t.due && t.due < todayISO()).length, today = open.filter(t => t.due === todayISO()).length;
+  app.innerHTML = `<div class="wrap screen">
+    ${topBar(`<h1 class="title">Pendientes</h1>`, `${refreshBtn()}<button class="icon-btn accent" data-act="newTodo" aria-label="Nuevo pendiente">${I("plus")}</button>`)}
+    ${S.todosErr ? `<div class="card block" style="background:var(--vanilla);color:var(--dark)"><h3 style="color:#5E5F2E">Falta un paso</h3><p>Para usar Pendientes hay que pegar las reglas nuevas en Firebase (Firestore Database → Reglas → Publicar).</p></div>` : ""}
+    <form id="tdAdd" class="quick-add"><input class="input" id="tdText" maxlength="140" placeholder="Agregar un pendiente…" autocomplete="off" aria-label="Nuevo pendiente"><button class="icon-btn accent" type="submit" aria-label="Agregar">${I("plus")}</button></form>
+    <div class="chips scroll" style="margin-top:12px">
+      <button class="chip" data-tw="todos" aria-pressed="${S.todoWho === "todos"}">Todos</button>
+      ${ms.map(u => `<button class="chip" data-tw="${esc(u)}" aria-pressed="${S.todoWho === u}"><span class="dot" style="background:${pColor(u)}"></span>${u === me() ? "Míos" : "De " + esc(nameOf(u))}</button>`).join("")}
+    </div>
+    ${open.length ? `<p class="hint" style="margin:14px 4px 8px">${plural(open.length, "pendiente", "pendientes")}${today ? ` · ${today} para hoy` : ""}${late ? ` · ${late} atrasado${late > 1 ? "s" : ""}` : ""}</p><div class="list">${open.map(todoRow).join("")}</div>`
+      : `<div class="card empty" style="margin-top:14px"><div class="e">${I("check")}</div><h3>${S.todos.length ? "¡Todo listo!" : "Sin pendientes"}</h3><p>${S.todos.length ? "No hay nada pendiente por ahora." : "Anoten aquí lo que tienen que hacer: reservar, comprar boletos, llamar…"}</p></div>`}
+    ${done.length ? `<div class="sec"><h2>Hechos</h2><button class="lnk" data-act="showDone">${S.showDone ? "Ocultar" : "Ver " + done.length}</button></div>${S.showDone ? `<div class="list">${done.slice(0, 40).map(todoRow).join("")}</div>` : ""}` : ""}
+  </div>`;
+  app.querySelectorAll("[data-tw]").forEach(b => b.addEventListener("click", () => { S.todoWho = b.dataset.tw; render(); }));
+  $("#tdAdd").addEventListener("submit", async e => {
+    e.preventDefault(); const inp = $("#tdText"), t = inp.value.trim(); if (!t) return;
+    inp.value = "";
+    try { await addDoc(collection(fdb, "planes", S.cid, "pendientes"), { t, para: S.todoWho !== "todos" ? S.todoWho : "ambos", due: "", note: "", done: false, createdBy: me(), createdAt: Date.now(), updatedAt: Date.now() }); setTimeout(() => $("#tdText")?.focus(), 50); }
+    catch (err) { inp.value = t; writeErr(err); }
+  });
+}
+function todoForm(id) {
+  const it = id ? S.todos.find(t => t.id === id) : null;
+  let para = it ? todoFor(it) : "ambos";
+  openSheet(`<form id="tdF" style="display:contents">
+    <div class="sheet-head"><h2>${it ? "Editar pendiente" : "Nuevo pendiente"}</h2><button type="button" class="x" data-close aria-label="Cerrar">×</button></div>
+    <label class="field">¿Qué hay que hacer?<input class="input" id="tdT" maxlength="140" required placeholder="Ej. Reservar la cena del aniversario" value="${esc(it?.t)}"></label>
+    <div class="field">¿Para quién?<div class="chips" id="tdP">
+      <button type="button" class="chip" data-p="ambos">Los dos</button>
+      ${members().map(u => `<button type="button" class="chip who-chip" data-p="${esc(u)}">${avatar(u, "sm")}${u === me() ? "Para mí" : "Para " + esc(nameOf(u))}</button>`).join("")}
+    </div></div>
+    <label class="field">Fecha límite <span class="opt">Opcional. Ese día les llega un aviso.</span><input class="input" type="date" id="tdD" value="${esc(it?.due || "")}"></label>
+    <div class="chips" id="tdQuick">${[["Hoy", 0], ["Mañana", 1], ["En una semana", 7], ["Sin fecha", null]].map(([l, n]) => `<button type="button" class="chip" data-d="${n == null ? "" : addDays(todayISO(), n)}">${l}</button>`).join("")}</div>
+    <label class="field">Notas <span class="opt">Opcional</span><textarea class="input" id="tdN" maxlength="400" placeholder="Ej. Pedir mesa en la terraza">${esc(it?.note)}</textarea></label>
+    <button class="btn btn-primary btn-block" type="submit" id="tdSave">${it ? "Guardar" : "Agregar pendiente"}</button>
+    ${it ? `<button type="button" class="link-danger" id="tdDel" data-label="Borrar pendiente">Borrar pendiente</button>` : ""}
+  </form>`, root => {
+    const paintP = () => root.querySelectorAll("#tdP [data-p]").forEach(b => b.setAttribute("aria-pressed", b.dataset.p === para));
+    paintP();
+    root.querySelector("#tdP").addEventListener("click", e => { const b = e.target.closest("[data-p]"); if (b) { para = b.dataset.p; paintP(); } });
+    root.querySelector("#tdQuick").addEventListener("click", e => { const b = e.target.closest("[data-d]"); if (b) root.querySelector("#tdD").value = b.dataset.d; });
+    root.querySelector("#tdDel")?.addEventListener("click", async e => {
+      if (!arm("delt-" + id, e.currentTarget, "Toca otra vez para borrar")) return;
+      try { await deleteDoc(doc(fdb, "planes", S.cid, "pendientes", id)); closeSheet(); toast("Pendiente borrado"); render(); } catch (err) { writeErr(err); }
+    });
+    root.querySelector("#tdF").addEventListener("submit", async e => {
+      e.preventDefault();
+      const t = root.querySelector("#tdT").value.trim(); if (!t) { root.querySelector("#tdT").focus(); return; }
+      const data = { t, para, due: root.querySelector("#tdD").value || "", note: root.querySelector("#tdN").value.trim(), updatedAt: Date.now() };
+      const b = root.querySelector("#tdSave"); b.disabled = true;
+      try {
+        if (it) await updateDoc(doc(fdb, "planes", S.cid, "pendientes", id), data);
+        else await addDoc(collection(fdb, "planes", S.cid, "pendientes"), { ...data, done: false, createdBy: me(), createdAt: Date.now() });
+        closeSheet(); toast(it ? "Guardado" : "Pendiente agregado"); render();
+      } catch (err) { b.disabled = false; writeErr(err); }
+    });
+    if (!it) setTimeout(() => root.querySelector("#tdT").focus(), 250);
+  });
 }
 
 /* ---------- Mi perfil ---------- */
@@ -1656,6 +1762,15 @@ document.addEventListener("click", async ev => {
   if (act === "push") return enablePush();
   if (act === "types") return typesSheet();
   if (act === "shortcuts") return shortcutsSheet();
+  if (act === "newTodo") return todoForm(null);
+  if (act === "editTodo") return todoForm(a.dataset.id);
+  if (act === "showDone") { S.showDone = !S.showDone; return render(); }
+  if (act === "toggleTodo") {
+    const t = S.todos.find(x => x.id === a.dataset.id); if (!t) return;
+    const done = !t.done;
+    try { await updateDoc(doc(fdb, "planes", S.cid, "pendientes", t.id), { done, doneAt: done ? Date.now() : null, doneBy: done ? me() : null }); if (done) toast("¡Hecho!"); } catch (e) { writeErr(e); }
+    return;
+  }
   if (act === "refresh") { a.classList.add("spin"); a.disabled = true; location.replace(location.pathname + "?r=" + Date.now() + location.hash); return; }
   if (act === "signout") return signOut(auth);
   const i = r.v === "idea" && ideaById(r.id);
@@ -1682,9 +1797,9 @@ function openCouple(id) {
   stopAll();
   S.cid = id; S.loaded = false; S.stale = false;
   if (joinId) history.replaceState(null, "", location.pathname + location.hash);
-  const got = { couple: false, ideas: false, events: false };
+  const got = { couple: false, ideas: false, events: false, todos: false };
   const timer = setTimeout(() => { if (!S.loaded) { S.stale = true; render(); } }, 10000);
-  const done = k => { got[k] = true; if (got.couple && got.ideas && got.events && !S.loaded) { S.loaded = true; clearTimeout(timer); syncProfile(); if (justRefreshed) { justRefreshed = false; setTimeout(() => toast("Listo, todo actualizado"), 300); } } dataRender(); };
+  const done = k => { got[k] = true; if (got.couple && got.ideas && got.events && got.todos && !S.loaded) { S.loaded = true; clearTimeout(timer); syncProfile(); if (justRefreshed) { justRefreshed = false; setTimeout(() => toast("Listo, todo actualizado"), 300); } } dataRender(); };
   const denied = part => err => {
     clearTimeout(timer);
     S.error = err && err.code === "permission-denied"
@@ -1695,6 +1810,8 @@ function openCouple(id) {
   unsubs.push(onSnapshot(doc(fdb, "planes", id), snap => { S.couple = snap.exists() ? snap.data() : null; done("couple"); }, denied("su espacio")));
   unsubs.push(onSnapshot(collection(fdb, "planes", id, "ideas"), snap => { S.ideas = snap.docs.map(d => ({ id: d.id, ...d.data() })); done("ideas"); }, denied("las ideas")));
   unsubs.push(onSnapshot(collection(fdb, "planes", id, "eventos"), snap => { S.events = snap.docs.map(d => ({ id: d.id, ...d.data() })); done("events"); }, denied("el calendario")));
+  unsubs.push(onSnapshot(collection(fdb, "planes", id, "pendientes"), snap => { S.todos = snap.docs.map(d => ({ id: d.id, ...d.data() })); S.todosErr = false; done("todos"); },
+    err => { console.warn(err); S.todosErr = true; S.todos = []; done("todos"); }));   // sin las reglas nuevas, el resto de la app sigue funcionando
 }
 // Guarda tu nombre y foto de Google para que tu pareja los vea.
 async function syncProfile() {
@@ -1735,7 +1852,7 @@ window.addEventListener("hashchange", () => { closeSheet(); render(); });
 setInterval(() => { if (!$("#sheetBg") && ["inicio", "evento"].includes(route().v)) render(); }, 60000);
 onAuthStateChanged(auth, user => {
   stopAll();
-  Object.assign(S, { authReady: true, user, couple: null, ideas: [], events: [], loaded: false, cid: null, error: "" });
+  Object.assign(S, { authReady: true, user, couple: null, ideas: [], events: [], todos: [], todosErr: false, loaded: false, cid: null, error: "" });
   render();
   if (user) findCouple();
 });
