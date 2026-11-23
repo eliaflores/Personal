@@ -387,6 +387,16 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .idea .likes svg { width: 16px; height: 16px; vertical-align: -3px; fill: currentColor; }
 .catbar .ci svg { width: 20px; height: 20px; color: var(--ink-2); }
 .like-btn[aria-pressed="true"] svg { fill: currentColor; }
+
+/* iPhone: los campos de fecha y hora no deben salirse del formulario */
+.sheet { overflow-x: hidden; }
+.sheet .field, .two > *, .erow > * { min-width: 0; }
+.input { min-width: 0; max-width: 100%; }
+input[type="date"].input, input[type="time"].input { -webkit-appearance: none; appearance: none; display: block; width: 100%; text-align: left; line-height: 1.3; }
+input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+.erow input[type="time"].input { padding-inline: 8px; font-size: .9rem; }
+.two { align-items: end; }
+.field .opt-in { font-weight: 500; color: var(--muted); font-size: .84rem; }
 </style>
 </head>
 <body>
@@ -1277,7 +1287,7 @@ function openEventForm(id, pre = {}) {
     <label class="switch">Dura varios días<input type="checkbox" id="eMulti" ${multi ? "checked" : ""}></label>
     <label class="field" id="eEndW" ${multi ? "" : "hidden"}>Hasta<input class="input" type="date" id="eE" value="${esc(v.endDate || "")}"></label>
     <label class="switch">Todo el día<input type="checkbox" id="eAll" ${v.allDay ? "checked" : ""}></label>
-    <div class="two" id="eTimes" ${v.allDay ? "hidden" : ""}><label class="field">Empieza<input class="input" type="time" id="eS" value="${esc(v.time)}"></label><label class="field">Termina <span class="opt">opcional</span><input class="input" type="time" id="eF" value="${esc(v.endTime)}"></label></div>
+    <div class="two" id="eTimes" ${v.allDay ? "hidden" : ""}><label class="field">Empieza<input class="input" type="time" id="eS" value="${esc(v.time)}"></label><label class="field"><span>Termina <span class="opt-in">(opcional)</span></span><input class="input" type="time" id="eF" value="${esc(v.endTime)}"></label></div>
     <label class="field" id="eRepW">Se repite<select class="input" id="eR">${REPEATS.map(r => `<option value="${r.k}" ${(v.repeat || "no") === r.k ? "selected" : ""}>${r.l}</option>`).join("")}</select></label>
     <label class="field">Lugar <span class="opt">Opcional</span><input class="input" id="eL" maxlength="140" placeholder="Ej. Restaurante Pujol" value="${esc(v.place)}"></label>
     <label class="field">Notas <span class="opt">Opcional</span><textarea class="input" id="eN" maxlength="600" placeholder="Ej. Reservación a nombre de Diego">${esc(v.note)}</textarea></label>
