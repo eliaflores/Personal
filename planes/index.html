@@ -255,7 +255,7 @@ h1, h2, h3 { text-wrap: balance; }
 .like-btn svg { width: 18px; height: 18px; }
 
 /* Calendario */
-.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 16px 0 12px; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 12px 0 10px; }
 .cal-head h2 { font-weight: 700; font-size: 1.4rem; letter-spacing: -.02em; text-transform: capitalize; flex: 1; min-width: 0; }
 .cal-head .nav2 { display: flex; gap: 6px; align-items: center; }
 .today-btn { border: 1.2px solid var(--chip-line); background: transparent; border-radius: 999px; padding: 9px 14px; font-weight: 600; font-size: .88rem; }
@@ -397,6 +397,14 @@ input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-dat
 .erow input[type="time"].input { padding-inline: 8px; font-size: .9rem; }
 .two { align-items: end; }
 .field .opt-in { font-weight: 500; color: var(--muted); font-size: .84rem; }
+
+/* Calendario de día y semana: ocupa la pantalla; botón de actualizar */
+.tscroll { max-height: none; min-height: 280px; -webkit-overflow-scrolling: touch; }
+.tgrid-head, .allday { position: relative; z-index: 2; background: var(--card); }
+.top .l:last-child { gap: 8px; }
+.spin svg { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 380px) { .title { font-size: 1.75rem; } .icon-btn { width: 42px; height: 42px; } }
 </style>
 </head>
 <body>
@@ -477,6 +485,7 @@ const P = {
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/>',
   out: '<path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9"/>',
+  refresh: '<path d="M20 11.5a8 8 0 1 1-2.4-5.7"/><path d="M20 4v5h-5"/>',
   dice: '<rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="9" cy="9" r="1.2" fill="currentColor"/><circle cx="15" cy="15" r="1.2" fill="currentColor"/><circle cx="15" cy="9" r="1.2" fill="currentColor"/><circle cx="9" cy="15" r="1.2" fill="currentColor"/>',
   moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
   share: '<path d="M12 3v13M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/>',
@@ -538,6 +547,8 @@ const plural = (n, a, b) => `${n} ${n === 1 ? a : b}`;
 /* ---------- Estado ---------- */
 const S = { user: null, authReady: false, cid: null, couple: null, ideas: [], events: [], loaded: false, stale: false, error: "", armed: null, ideaWho: "todas", ideaSt: "pendientes", cat: "" };
 const joinId = new URLSearchParams(location.search).get("unir");
+let justRefreshed = new URLSearchParams(location.search).has("r");
+if (justRefreshed && !joinId) history.replaceState(null, "", location.pathname + location.hash);
 let unsubs = [];
 const stopAll = () => { unsubs.forEach(u => { try { u(); } catch (e) {} }); unsubs = []; };
 
@@ -700,6 +711,7 @@ function render() {
   if (keepScroll) window.scrollTo(0, y); else window.scrollTo(0, 0);
   lastView = key;
 }
+const refreshBtn = () => `<button class="icon-btn" data-act="refresh" aria-label="Actualizar">${I("refresh")}</button>`;
 const topBar = (left, right) => `<div class="top"><div class="l">${left}</div><div class="l">${right || ""}</div></div>`;
 const backBtn = h => `<button class="icon-btn" data-go="${h}" aria-label="Regresar">${I("back")}</button>`;
 
@@ -810,7 +822,7 @@ function renderHome() {
   const up = upcoming(6).slice(1);
   const fresh = [...S.ideas].filter(i => !i.done).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 8);
   app.innerHTML = `<div class="wrap screen">
-    ${topBar(`<div><p class="hint">${hi},</p><h1 class="title">${esc(nameOf(me()))} <em>&amp;</em> ${esc(partner() ? nameOf(partner()) : "…")}</h1></div>`, `<button class="icon-btn" data-go="#nosotros" aria-label="Nosotros" style="width:auto;padding:0 4px;border-radius:99px">${duo("sm")}</button>`)}
+    ${topBar(`<div><p class="hint">${hi},</p><h1 class="title">${esc(nameOf(me()))} <em>&amp;</em> ${esc(partner() ? nameOf(partner()) : "…")}</h1></div>`, `${refreshBtn()}<button class="icon-btn" data-go="#nosotros" aria-label="Nosotros" style="width:auto;padding:0 4px;border-radius:99px">${duo("sm")}</button>`)}
     <div style="height:10px"></div>
     ${heroCard()}
     ${!partner() ? inviteBlock() : ""}
@@ -855,7 +867,7 @@ function renderIdeas() {
   list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   const cats = CATS.filter(c => S.ideas.some(i => i.cat === c.k));
   app.innerHTML = `<div class="wrap screen">
-    ${topBar(`<h1 class="title">Ideas de <em>planes</em></h1>`, `<button class="icon-btn" data-act="roulette" aria-label="Elegir un plan al azar">${I("dice")}</button><button class="icon-btn accent" data-act="newIdea" aria-label="Nueva idea">${I("plus")}</button>`)}
+    ${topBar(`<h1 class="title">Ideas de <em>planes</em></h1>`, `${refreshBtn()}<button class="icon-btn" data-act="roulette" aria-label="Elegir un plan al azar">${I("dice")}</button><button class="icon-btn accent" data-act="newIdea" aria-label="Nueva idea">${I("plus")}</button>`)}
     <div class="chips scroll" style="margin-top:10px">
       <button class="chip" data-who="todas" aria-pressed="${S.ideaWho === "todas"}">Los dos</button>
       ${ms.map(u => `<button class="chip" data-who="${esc(u)}" aria-pressed="${S.ideaWho === u}"><span class="dot" style="background:${pColor(u)}"></span>${esc(nameOf(u))} · ${S.ideas.filter(i => i.owner === u).length}</button>`).join("")}
@@ -959,7 +971,7 @@ function renderCal(r) {
   if (r.view === "mes") body = monthView(r.d);
   else body = timeGrid(r.view === "semana" ? [...Array(7)].map((_, k) => addDays(weekStart(r.d), k)) : [r.d], r.view === "dia");
   app.innerHTML = `<div class="wrap screen">
-    ${topBar(`<h1 class="title">Nuestro <em>calendario</em></h1>`, `<button class="icon-btn accent" data-act="newEvent" data-date="${r.d}" aria-label="Nuevo evento">${I("plus")}</button>`)}
+    ${topBar(`<h1 class="title">Calendario</h1>`, `${refreshBtn()}<button class="icon-btn accent" data-act="newEvent" data-date="${r.d}" aria-label="Nuevo evento">${I("plus")}</button>`)}
     <div class="seg" style="margin-top:10px">${[["dia", "Día"], ["semana", "Semana"], ["mes", "Mes"]].map(([k, l]) => `<button data-go="#cal/${k}/${r.d}" aria-current="${r.view === k}">${l}</button>`).join("")}</div>
     <div class="cal-head">
       <h2>${esc(calTitle(r.view, r.d))}</h2>
@@ -976,8 +988,18 @@ function renderCal(r) {
   const sc = app.querySelector(".tscroll");
   if (sc) {
     const H = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hour"));
-    const first = Math.min(...[...app.querySelectorAll(".blk")].map(b => parseFloat(b.style.top)).filter(Number.isFinite), 8 * H);
-    sc.scrollTop = r.d === todayISO() || (r.view === "semana" && weekStart(r.d) === weekStart(todayISO())) ? Math.max(0, (new Date().getHours() - 1.5) * H) : Math.max(0, first - H / 2);
+    const key = r.view + r.d;
+    let want;
+    if (gridScroll.key === key) want = gridScroll.top;                    // se volvió a pintar (datos nuevos): no mover
+    else {
+      const first = Math.min(...[...app.querySelectorAll(".blk")].map(b => parseFloat(b.style.top)).filter(Number.isFinite), 8 * H);
+      const isNow = r.d === todayISO() || (r.view === "semana" && weekStart(r.d) === weekStart(todayISO()));
+      const now = new Date(), nowY = (now.getHours() + now.getMinutes() / 60) * H;
+      want = isNow ? nowY - H * 2 : first - H / 2;
+    }
+    const apply = () => { fitGrid(); sc.scrollTop = Math.max(0, want); gridScroll = { key, top: sc.scrollTop }; };
+    apply(); requestAnimationFrame(apply); setTimeout(apply, 120);       // Safari a veces aplica el scroll hasta que termina de acomodar
+    sc.addEventListener("scroll", () => { gridScroll = { key, top: sc.scrollTop }; }, { passive: true });
   }
   // Swipe a los lados para cambiar de periodo.
   let sx = null, sy = null;
@@ -990,6 +1012,15 @@ function renderCal(r) {
     });
   }
 }
+// La cuadrícula de horas ocupa justo lo que queda de pantalla (sin que la página tenga que moverse).
+let gridScroll = { key: "", top: 0 };
+function fitGrid() {
+  const sc = app.querySelector(".tscroll"); if (!sc) return;
+  const nav = $("#nav"), navTop = nav && !nav.hidden ? nav.querySelector(".nav-in").getBoundingClientRect().top : window.innerHeight;
+  const top = sc.getBoundingClientRect().top + window.scrollY;
+  sc.style.height = Math.max(280, Math.floor(navTop - top - 14)) + "px";
+}
+window.addEventListener("resize", fitGrid);
 function monthView(d) {
   const x = parse(d), first = isoOf(new Date(x.getFullYear(), x.getMonth(), 1)), start = weekStart(first), t = todayISO();
   const mo = x.getMonth();
@@ -1359,6 +1390,7 @@ document.addEventListener("click", async ev => {
   if (act === "newEvent") return openEventForm(null, a.dataset.date ? { date: a.dataset.date } : {});
   if (act === "editEvent") return openEventForm(a.dataset.id);
   if (act === "push") return enablePush();
+  if (act === "refresh") { a.classList.add("spin"); a.disabled = true; location.replace(location.pathname + "?r=" + Date.now() + location.hash); return; }
   if (act === "signout") return signOut(auth);
   const i = r.v === "idea" && ideaById(r.id);
   if (!i) return;
@@ -1386,7 +1418,7 @@ function openCouple(id) {
   if (joinId) history.replaceState(null, "", location.pathname + location.hash);
   const got = { couple: false, ideas: false, events: false };
   const timer = setTimeout(() => { if (!S.loaded) { S.stale = true; render(); } }, 10000);
-  const done = k => { got[k] = true; if (got.couple && got.ideas && got.events && !S.loaded) { S.loaded = true; clearTimeout(timer); syncProfile(); } dataRender(); };
+  const done = k => { got[k] = true; if (got.couple && got.ideas && got.events && !S.loaded) { S.loaded = true; clearTimeout(timer); syncProfile(); if (justRefreshed) { justRefreshed = false; setTimeout(() => toast("Listo, todo actualizado"), 300); } } dataRender(); };
   const denied = part => err => {
     clearTimeout(timer);
     S.error = err && err.code === "permission-denied"
