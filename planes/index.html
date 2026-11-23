@@ -366,6 +366,27 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .roulette { font-size: 3.4rem; text-align: center; padding: 10px 0; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 @media (min-width: 700px) { .month .day { min-height: 92px; } .month .ev { font-size: .72rem; } }
+
+/* Íconos en lugar de emojis */
+.chip svg { width: 16px; height: 16px; flex: none; }
+.idea .emo svg { width: 26px; height: 26px; color: var(--dark); }
+.mini-idea .emo svg { width: 22px; height: 22px; }
+.d-emo svg { width: 40px; height: 40px; color: var(--dark); }
+.hero .em svg { width: 24px; height: 24px; }
+.ico svg { width: 21px; height: 21px; }
+.emo-pick .cur svg { width: 28px; height: 28px; color: var(--dark); }
+.emo-grid button { display: grid; place-items: center; padding: 9px 0; color: var(--ink); }
+.emo-grid button svg { width: 22px; height: 22px; }
+.emo-grid button[aria-pressed="true"] { color: var(--dark); }
+.roulette { display: grid; place-items: center; }
+.roulette svg { width: 72px; height: 72px; padding: 18px; border-radius: 50%; background: var(--alice); color: var(--dark); box-sizing: content-box; }
+.empty .e { display: grid; place-items: center; }
+.empty .e svg { width: 28px; height: 28px; padding: 14px; border-radius: 50%; background: var(--alice); color: var(--dark); box-sizing: content-box; }
+.signin .feat span svg { width: 22px; height: 22px; }
+.crown svg { width: 15px; height: 15px; vertical-align: -2px; }
+.idea .likes svg { width: 16px; height: 16px; vertical-align: -3px; fill: currentColor; }
+.catbar .ci svg { width: 20px; height: 20px; color: var(--ink-2); }
+.like-btn[aria-pressed="true"] svg { fill: currentColor; }
 </style>
 </head>
 <body>
@@ -405,6 +426,33 @@ const VAPID_KEY = "BBAeJ9V9CTbcTl3AYxrgkdhqwP3SM7l55cJ-TdnDuH2WG11sF5ROXub4S5ZGS
 
 /* ---------- Iconos ---------- */
 const P = {
+  fork: '<path d="M6 3v6a2 2 0 0 0 4 0V3M8 3v18M16 21V3c2 0 3 2.5 3 6s-1.3 4-3 4"/>',
+  film: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 5v14M17 5v14M3 9.5h4M3 14.5h4M17 9.5h4M17 14.5h4"/>',
+  ticket: '<path d="M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z"/><path d="M14 7v10"/>',
+  mountain: '<path d="M3 20l6.5-11 4 6.5L16 12l5 8z"/>',
+  plane: '<path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>',
+  palette: '<path d="M12 3a9 9 0 0 0 0 18c1.4 0 2-1 2-2 0-1.5-1.5-1.5-1.5-3 0-1 .8-1.5 2-1.5H17a4 4 0 0 0 4-4c0-4.4-4-7.5-9-7.5z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7.5" r="1"/>',
+  bike: '<circle cx="6" cy="16" r="3.5"/><circle cx="18" cy="16" r="3.5"/><path d="M6 16l4-7h5l3 7M10 9l3 7H6M13 5h2.5l1 4"/>',
+  gift: '<rect x="3" y="9" width="18" height="12" rx="2"/><path d="M3 13h18M12 9v12M12 9c-2-4-6-4-6-1.5S9 9 12 9zm0 0c2-4 6-4 6-1.5S15 9 12 9z"/>',
+  sparkle: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/>',
+  wine: '<path d="M8 3h8l-.5 5a3.5 3.5 0 0 1-7 0z"/><path d="M12 12v8M8.5 21h7"/>',
+  cake: '<rect x="4" y="11" width="16" height="9" rx="2"/><path d="M4 15c2 1.5 4 1.5 6 0s4-1.5 6 0 3 1 4 0M12 11V7M12 4.5v.01"/>',
+  rings: '<circle cx="9" cy="14" r="5"/><circle cx="15" cy="14" r="5"/><path d="M10 5l2-2 2 2"/>',
+  list: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM9 12l2 2 4-4M9 17h6"/>',
+  coffee: '<path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 11h1.5a2.5 2.5 0 0 1 0 5H17M8 3v3M12 3v3"/>',
+  music: '<path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>',
+  game: '<rect x="2.5" y="7" width="19" height="11" rx="5"/><path d="M7 11v3M5.5 12.5h3"/><circle cx="16" cy="11.5" r=".9" fill="currentColor"/><circle cx="18" cy="13.5" r=".9" fill="currentColor"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  car: '<path d="M4 16v-3l2-5h12l2 5v3z"/><path d="M4 13h16"/><circle cx="8" cy="17.5" r="1.8"/><circle cx="16" cy="17.5" r="1.8"/>',
+  book: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M8 7h7"/>',
+  star: '<path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9 6.8 19.7l1-5.9-4.3-4.1 5.9-.8z"/>',
+  camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  leaf: '<path d="M5 19c0-8 5-14 15-15 0 10-6 15-14 15z"/><path d="M5 19l8-8"/>',
+  sofa: '<path d="M5 11V8a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v3"/><path d="M3 13a2 2 0 0 1 4 0v2h10v-2a2 2 0 0 1 4 0v5H3zM6 18v2M18 18v2"/>',
+  crown: '<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/>',
+  search: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.3-4.3"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M4 7l8 6 8-6"/>',
   home: '<path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>',
   bulb: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
   cal: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
@@ -432,16 +480,16 @@ const GOOGLE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4"
 
 /* ---------- Catálogos ---------- */
 const CATS = [
-  { k: "comida", l: "Comida", e: "🍝", c: "var(--vanilla)" }, { k: "salida", l: "Salida", e: "🎬", c: "var(--alice)" }, { k: "aventura", l: "Aventura", e: "🏕️", c: "var(--honeydew)" },
-  { k: "viaje", l: "Viaje", e: "✈️", c: "var(--azure)" }, { k: "casa", l: "En casa", e: "🏠", c: "var(--beige)" }, { k: "cultura", l: "Cultura", e: "🎨", c: "var(--alice)" },
-  { k: "deporte", l: "Deporte", e: "🚴", c: "var(--honeydew)" }, { k: "detalle", l: "Detalle", e: "🎁", c: "var(--vanilla)" }, { k: "otro", l: "Otro", e: "✨", c: "var(--linen)" },
+  { k: "comida", l: "Comida", i: "fork", c: "var(--vanilla)" }, { k: "salida", l: "Salida", i: "film", c: "var(--alice)" }, { k: "aventura", l: "Aventura", i: "mountain", c: "var(--honeydew)" },
+  { k: "viaje", l: "Viaje", i: "plane", c: "var(--azure)" }, { k: "casa", l: "En casa", i: "home", c: "var(--beige)" }, { k: "cultura", l: "Cultura", i: "palette", c: "var(--alice)" },
+  { k: "deporte", l: "Deporte", i: "bike", c: "var(--honeydew)" }, { k: "detalle", l: "Detalle", i: "gift", c: "var(--vanilla)" }, { k: "otro", l: "Otro", i: "sparkle", c: "var(--linen)" },
 ];
 const cat = k => CATS.find(c => c.k === k) || CATS[CATS.length - 1];
-const EMOJIS = ["💞","🍝","🍣","🌮","🍕","🍷","☕","🍦","🎬","🎤","🎳","🎡","🏕️","🏖️","⛰️","✈️","🚗","🏠","🛋️","🎮","🧁","🎨","📚","🎭","🎶","🚴","🧘","🏊","🌅","🌸","🎁","✨"];
+const ICONS = ["heart","fork","wine","coffee","film","ticket","music","game","mountain","sun","leaf","plane","car","home","sofa","palette","book","camera","bike","gift","cake","rings","star","sparkle"];
 const TYPES = [
-  { k: "plan", l: "Plan", e: "💞" }, { k: "cita", l: "Cita", e: "🥂" }, { k: "viaje", l: "Viaje", e: "✈️" },
-  { k: "cumple", l: "Cumpleaños", e: "🎂" }, { k: "aniversario", l: "Aniversario", e: "💍" },
-  { k: "pendiente", l: "Pendiente", e: "📌" }, { k: "otro", l: "Otro", e: "✨" },
+  { k: "plan", l: "Plan", i: "heart" }, { k: "cita", l: "Cita", i: "wine" }, { k: "viaje", l: "Viaje", i: "plane" },
+  { k: "cumple", l: "Cumpleaños", i: "cake" }, { k: "aniversario", l: "Aniversario", i: "rings" },
+  { k: "pendiente", l: "Pendiente", i: "list" }, { k: "otro", l: "Otro", i: "sparkle" },
 ];
 const typ = k => TYPES.find(t => t.k === k) || TYPES[0];
 const tcolor = k => `var(--t-${typ(k).k})`;
@@ -521,7 +569,8 @@ const ideaTotal = i => {
   const c = (i.costs || []).reduce((s, x) => s + (Number(x.amount) || 0), 0);
   return a + c > 0 ? a + c : (Number(i.budget) || 0);
 };
-const ideaEmoji = i => i.emoji || cat(i.cat).e;
+const ideaIconKey = i => (i.icon && P[i.icon]) ? i.icon : cat(i.cat).i;
+const ideaEmoji = i => I(ideaIconKey(i));
 const ideaById = id => S.ideas.find(i => i.id === id);
 const eventsOfIdea = id => S.events.filter(e => e.planId === id);
 
@@ -589,7 +638,7 @@ const evWhen = (e, occ) => {
   if (!e.allDay && e.time) s += ` · ${fTime(e.time)}${e.endTime ? " – " + fTime(e.endTime) : ""}`;
   return s;
 };
-const evEmoji = e => { const pl = e.planId && ideaById(e.planId); return pl ? ideaEmoji(pl) : typ(e.type).e; };
+const evEmoji = e => { const pl = e.planId && ideaById(e.planId); return pl ? ideaEmoji(pl) : I(typ(e.type).i); };
 
 /* ---------- Rutas ---------- */
 function route() {
@@ -626,7 +675,7 @@ function render() {
   setNav(r);
   if (!S.authReady) { app.innerHTML = `<div class="wrap no-nav"><p class="hint center" style="margin-top:40vh">Cargando…</p></div>`; return; }
   if (!S.user) return renderSignIn();
-  if (S.error) { app.innerHTML = `<div class="wrap no-nav screen"><div class="empty" style="margin-top:18vh"><div class="e">🥲</div><h3>No se pudo abrir</h3><p>${esc(S.error)}</p><button class="btn btn-primary" style="margin-top:16px" onclick="location.reload()">Volver a intentar</button></div></div>`; return; }
+  if (S.error) { app.innerHTML = `<div class="wrap no-nav screen"><div class="empty" style="margin-top:18vh"><div class="e">${I("sparkle")}</div><h3>No se pudo abrir</h3><p>${esc(S.error)}</p><button class="btn btn-primary" style="margin-top:16px" onclick="location.reload()">Volver a intentar</button></div></div>`; return; }
   if (!S.loaded) { app.innerHTML = `<div class="wrap no-nav"><p class="hint center" style="margin-top:40vh">${S.stale ? "Todavía no se puede conectar. Revisa tu internet; se carga sola en cuanto responda." : "Cargando sus planes…"}</p></div>`; return; }
   if (!S.couple) return renderCreate();
   const key = r.v + (r.id || "") + (r.view || "");
@@ -652,12 +701,12 @@ function renderSignIn() {
       <h1>Nuestros <em>planes</em></h1>
       <p>Un lugar solo para ustedes dos: guarden ideas de planes, cuánto cuestan y qué van a hacer, y agéndenlos en su calendario compartido.</p>
       <div class="feat">
-        <div><span>💡</span>Ideas con costo aproximado y actividades</div>
-        <div><span>📅</span>Calendario de los dos: día, semana y mes</div>
-        <div><span>⏳</span>Avisos de cuántos días faltan</div>
-        <div><span>👑</span>Quién propone más planes</div>
+        <div><span>${I("bulb")}</span>Ideas con costo aproximado y actividades</div>
+        <div><span>${I("cal")}</span>Calendario de los dos: día, semana y mes</div>
+        <div><span>${I("bell")}</span>Avisos de cuántos días faltan</div>
+        <div><span>${I("crown")}</span>Quién propone más planes</div>
       </div>
-      ${joinId ? `<p style="font-weight:700;background:var(--vanilla);color:var(--dark);padding:8px 16px;border-radius:99px">Te invitaron 💌 Entra para conectarte con tu pareja.</p>` : ""}
+      ${joinId ? `<p style="font-weight:700;background:var(--vanilla);color:var(--dark);padding:8px 16px;border-radius:99px">Te invitaron. Entra para conectarte con tu pareja.</p>` : ""}
       <button class="btn btn-primary btn-block g-btn" id="signIn" style="max-width:340px">${GOOGLE}Entrar con Google</button>
     </div></div>`;
   $("#signIn").addEventListener("click", async () => {
@@ -691,7 +740,7 @@ function renderCreate() {
 }
 function inviteBlock() {
   return `<div class="invite">
-    <h2>Conecta a tu pareja 💌</h2>
+    <h2>Conecta a tu pareja</h2>
     <p>Mándale este link. Cuando entre con su Google quedan conectados, y solo ustedes dos pueden ver sus planes.</p>
     <input class="input" id="inviteLink" readonly value="${esc(inviteLink())}" aria-label="Link de invitación">
     <button class="btn btn-light btn-block" data-act="share">${I("share")}Compartir link</button>
@@ -707,7 +756,7 @@ async function shareInvite() {
 /* ---------- Inicio ---------- */
 function heroCard() {
   const up = upcoming(1)[0];
-  if (!up) return `<button class="hero empty-hero" data-act="newEvent"><div class="k">Su próximo plan</div><div class="what">Todavía no hay nada en el calendario. ¡Agenden algo bonito! ✨</div><div class="when">${I("plus")} Agendar un plan</div></button>`;
+  if (!up) return `<button class="hero empty-hero" data-act="newEvent"><div class="k">Su próximo plan</div><div class="what">Todavía no hay nada en el calendario. ¡Agenden algo bonito!</div><div class="when">${I("plus")} Agendar un plan</div></button>`;
   const { e, occ } = up, c = countdown(e, occ);
   return `<button class="hero" data-go="#evento/${esc(e.id)}">
     <div class="k">${c.now ? "Ya casi" : "Faltan"}</div>
@@ -721,7 +770,7 @@ function evRow(e, occ, showCount = true) {
   const d = parse(occ), c = countdown(e, occ);
   return `<button class="row" data-go="#evento/${esc(e.id)}">
     <span class="date-badge" style="background:${tcolor(e.type)}"><small>${MES3[d.getMonth()]}</small><b>${d.getDate()}</b></span>
-    <span class="tx"><b>${evEmoji(e)} ${esc(e.title)}</b><span>${esc(e.allDay || !e.time ? (evEnd(e) > e.date ? "Hasta el " + fMed(evEnd(e)) : "Todo el día") : fTime(e.time) + (e.endTime ? " – " + fTime(e.endTime) : ""))}${e.place ? " · " + esc(e.place) : ""}</span></span>
+    <span class="tx"><b>${esc(e.title)}</b><span>${esc(e.allDay || !e.time ? (evEnd(e) > e.date ? "Hasta el " + fMed(evEnd(e)) : "Todo el día") : fTime(e.time) + (e.endTime ? " – " + fTime(e.endTime) : ""))}${e.place ? " · " + esc(e.place) : ""}</span></span>
     ${showCount ? `<span class="pill ${c.now ? "now" : ""}">${esc(c.pill)}</span>` : ""}
   </button>`;
 }
@@ -729,13 +778,13 @@ function duelCard(link = true) {
   const ms = members();
   const counts = ms.map(u => S.ideas.filter(i => i.owner === u).length);
   const total = counts.reduce((a, b) => a + b, 0);
-  let lead = "Propongan su primer plan 💡";
+  let lead = "Propongan su primer plan";
   if (ms.length === 2 && total) {
     const d = counts[0] - counts[1];
-    lead = d === 0 ? "¡Van empatados! 🤝" : `${esc(nameOf(ms[d > 0 ? 0 : 1]))} va ganando por ${plural(Math.abs(d), "idea", "ideas")} 👑`;
+    lead = d === 0 ? "¡Van empatados!" : `${esc(nameOf(ms[d > 0 ? 0 : 1]))} va ganando por ${plural(Math.abs(d), "idea", "ideas")}`;
   }
   const bar = ms.map((u, k) => `<i style="width:${total ? (counts[k] / total * 100) : 50}%;background:${pColor(u)}"></i>`).join("");
-  const person = (u, k) => `<div class="person ${k ? "r" : ""}">${avatar(u)}<div><b>${counts[k]}</b><span>${esc(nameOf(u))}${ms.length === 2 && total && counts[k] > counts[1 - k] ? ' <span class="crown">👑</span>' : ""}</span></div></div>`;
+  const person = (u, k) => `<div class="person ${k ? "r" : ""}">${avatar(u)}<div><b>${counts[k]}</b><span>${esc(nameOf(u))}${ms.length === 2 && total && counts[k] > counts[1 - k] ? ' <span class="crown">' + I("crown") + '</span>' : ""}</span></div></div>`;
   return `<${link ? 'button data-go="#nosotros"' : "div"} class="card duel" style="width:100%;text-align:left;color:inherit;display:block;border:none">
     <h3>¿Quién propone más planes?</h3><p class="lead">${lead}</p>
     <div class="bar">${bar}</div>
@@ -758,7 +807,7 @@ function renderHome() {
     ${up.length ? `<div class="sec"><h2>Lo que sigue</h2><a href="#cal">Calendario</a></div><div class="list">${up.map(x => evRow(x.e, x.occ)).join("")}</div>` : ""}
     <div class="sec"><h2>Ideas por hacer</h2><a href="#ideas">Ver todas</a></div>
     ${fresh.length ? `<div class="hscroll">${fresh.map(miniIdea).join("")}<button class="mini-idea new" data-act="newIdea" style="justify-content:center;align-items:center"><span class="emo">${I("plus")}</span><b>Nueva idea</b></button></div>`
-      : `<div class="card empty"><div class="e">💡</div><h3>Aún no hay ideas</h3><p>Apunten aquí todo lo que se les antoje hacer juntos.</p><button class="btn btn-accent" style="margin-top:14px" data-act="newIdea">${I("plus")}Proponer un plan</button></div>`}
+      : `<div class="card empty"><div class="e">${I("bulb")}</div><h3>Aún no hay ideas</h3><p>Apunten aquí todo lo que se les antoje hacer juntos.</p><button class="btn btn-accent" style="margin-top:14px" data-act="newIdea">${I("plus")}Proponer un plan</button></div>`}
     <div style="height:14px"></div>
     ${duelCard()}
   </div>`;
@@ -766,10 +815,10 @@ function renderHome() {
 
 /* ---------- Ideas ---------- */
 function ideaStatus(i) {
-  if (i.done) return { k: "hecha", l: "Hecho ✓", c: "ok" };
+  if (i.done) return { k: "hecha", l: "Hecho", c: "ok" };
   const t = todayISO();
   const ev = eventsOfIdea(i.id).map(e => nextOcc(e, t)).filter(Boolean).sort()[0];
-  if (ev) return { k: "agendada", l: "📅 " + fMed(ev), c: "" };
+  if (ev) return { k: "agendada", l: "Agendado · " + fMed(ev), c: "" };
   return { k: "pendiente", l: "", c: "" };
 }
 function ideaCard(i) {
@@ -779,9 +828,9 @@ function ideaCard(i) {
     <span class="tx">
       <h3>${esc(i.title)}</h3>
       <span class="meta"><span class="who"><i style="background:${pColor(i.owner)}"></i>${esc(nameOf(i.owner))}</span>${tot ? `<span>~${mxn(tot)}</span>` : ""}${acts ? `<span>${plural(acts, "actividad", "actividades")}</span>` : ""}</span>
-      <span class="tags"><span class="pill gray">${esc(cat(i.cat).e + " " + cat(i.cat).l)}</span>${st.l ? `<span class="pill ${st.c}">${esc(st.l)}</span>` : ""}</span>
+      <span class="tags"><span class="pill gray">${esc(cat(i.cat).l)}</span>${st.l ? `<span class="pill ${st.c}">${esc(st.l)}</span>` : ""}</span>
     </span>
-    ${likes ? `<span class="likes" title="${likes > 1 ? "A los dos les late" : "Le late a uno"}">${likes > 1 ? "💞" : "♥"}</span>` : ""}
+    ${likes ? `<span class="likes" title="${likes > 1 ? "A los dos les late" : "Le late a uno"}">${I("heart")}${likes > 1 ? "2" : ""}</span>` : ""}
   </button>`;
 }
 function renderIdeas() {
@@ -804,9 +853,9 @@ function renderIdeas() {
     <div class="seg" style="margin-top:12px">
       ${[["pendientes", "Por hacer"], ["agendadas", "Agendadas"], ["hechas", "Hechas"], ["todas", "Todas"]].map(([k, l]) => `<button data-st="${k}" aria-current="${S.ideaSt === k}">${l}</button>`).join("")}
     </div>
-    ${cats.length > 1 ? `<div class="chips scroll" style="margin-top:12px"><button class="chip" data-cat="" aria-pressed="${!S.cat}">Todo</button>${cats.map(c => `<button class="chip" data-cat="${c.k}" aria-pressed="${S.cat === c.k}">${c.e} ${c.l}</button>`).join("")}</div>` : ""}
+    ${cats.length > 1 ? `<div class="chips scroll" style="margin-top:12px"><button class="chip" data-cat="" aria-pressed="${!S.cat}">Todo</button>${cats.map(c => `<button class="chip" data-cat="${c.k}" aria-pressed="${S.cat === c.k}">${I(c.i)}${c.l}</button>`).join("")}</div>` : ""}
     <div style="height:14px"></div>
-    ${list.length ? `<div class="ideas">${list.map(ideaCard).join("")}</div>` : `<div class="card empty"><div class="e">${S.ideas.length ? "🔍" : "💡"}</div><h3>${S.ideas.length ? "Nada por aquí" : "Su lista está vacía"}</h3><p>${S.ideas.length ? "Prueben con otro filtro." : "Propongan planes: una cena, un viaje, una tarde de pelis… y vean quién propone más."}</p>${S.ideas.length ? "" : `<button class="btn btn-accent" style="margin-top:14px" data-act="newIdea">${I("plus")}Proponer un plan</button>`}</div>`}
+    ${list.length ? `<div class="ideas">${list.map(ideaCard).join("")}</div>` : `<div class="card empty"><div class="e">${I(S.ideas.length ? "search" : "bulb")}</div><h3>${S.ideas.length ? "Nada por aquí" : "Su lista está vacía"}</h3><p>${S.ideas.length ? "Prueben con otro filtro." : "Propongan planes: una cena, un viaje, una tarde de pelis… y vean quién propone más."}</p>${S.ideas.length ? "" : `<button class="btn btn-accent" style="margin-top:14px" data-act="newIdea">${I("plus")}Proponer un plan</button>`}</div>`}
   </div>`;
   app.querySelectorAll("[data-who]").forEach(b => b.addEventListener("click", () => { S.ideaWho = b.dataset.who; render(); }));
   app.querySelectorAll("[data-st]").forEach(b => b.addEventListener("click", () => { S.ideaSt = b.dataset.st; render(); }));
@@ -816,7 +865,7 @@ function roulette() {
   const pool = S.ideas.filter(i => !i.done);
   if (!pool.length) { toast("Primero agreguen ideas por hacer"); return; }
   openSheet(`<div class="sheet-head"><h2>¿Qué hacemos hoy?</h2><button type="button" class="x" data-close aria-label="Cerrar">×</button></div>
-    <div class="roulette" id="rl">🎲</div><p class="center" style="font-family:var(--f-title);font-size:1.4rem;font-weight:600;min-height:2em" id="rlT">Eligiendo…</p>
+    <div class="roulette" id="rl">${I("dice")}</div><p class="center" style="font-family:var(--f-title);font-size:1.4rem;font-weight:600;min-height:2em" id="rlT">Eligiendo…</p>
     <p class="hint center" id="rlM"></p>
     <div class="btn-row"><button class="btn" id="rlAgain">${I("dice")}Otra vez</button><button class="btn btn-primary" id="rlGo">Ver plan</button></div>`, root => {
     let pick = null;
@@ -824,7 +873,7 @@ function roulette() {
       let n = 0; root.querySelector("#rlGo").disabled = true;
       const t = setInterval(() => {
         pick = pool[Math.floor(Math.random() * pool.length)];
-        root.querySelector("#rl").textContent = ideaEmoji(pick); root.querySelector("#rlT").textContent = pick.title;
+        root.querySelector("#rl").innerHTML = ideaEmoji(pick); root.querySelector("#rlT").textContent = pick.title;
         if (++n > 12) { clearInterval(t); root.querySelector("#rlGo").disabled = false; root.querySelector("#rlM").textContent = `Lo propuso ${nameOf(pick.owner)}${ideaTotal(pick) ? " · ~" + mxn(ideaTotal(pick)) : ""}`; }
       }, 90);
     };
@@ -836,7 +885,7 @@ function roulette() {
 
 function renderIdea(id) {
   const i = ideaById(id);
-  if (!i) { app.innerHTML = `<div class="wrap screen">${topBar(backBtn("#ideas"))}<div class="card empty"><div class="e">🫥</div><h3>Esta idea ya no existe</h3></div></div>`; return; }
+  if (!i) { app.innerHTML = `<div class="wrap screen">${topBar(backBtn("#ideas"))}<div class="card empty"><div class="e">${I("search")}</div><h3>Esta idea ya no existe</h3></div></div>`; return; }
   const tot = ideaTotal(i), acts = [...(i.activities || [])].map((a, k) => ({ ...a, k })).sort((a, b) => (toMin(a.time) ?? 9999) - (toMin(b.time) ?? 9999));
   const costs = i.costs || [], liked = !!(i.likes || {})[me()], likers = Object.keys(i.likes || {});
   const t = todayISO();
@@ -851,10 +900,10 @@ function renderIdea(id) {
     <div class="d-head">
       <div class="d-emo" style="background:${cat(i.cat).c}">${ideaEmoji(i)}</div>
       <h1>${esc(i.title)}</h1>
-      <div class="sub"><span class="byline">${avatar(i.owner, "sm")}Lo propuso ${esc(i.owner === me() ? "tú" : nameOf(i.owner))}</span><span class="pill gray">${esc(cat(i.cat).e + " " + cat(i.cat).l)}</span>${i.done ? `<span class="pill ok">Hecho ✓</span>` : ""}</div>
+      <div class="sub"><span class="byline">${avatar(i.owner, "sm")}Lo propuso ${esc(i.owner === me() ? "tú" : nameOf(i.owner))}</span><span class="pill gray">${esc(cat(i.cat).l)}</span>${i.done ? `<span class="pill ok">Hecho</span>` : ""}</div>
       <div style="margin-top:14px;display:flex;justify-content:center;gap:10px;align-items:center">
         <button class="like-btn" data-act="like" aria-pressed="${liked}">${I("heart")}${liked ? "Me late" : "¿Te late?"}</button>
-        ${likers.length ? `<span class="hint">${likers.length === 2 ? "¡A los dos les late! 💞" : "A " + esc(likers[0] === me() ? "ti" : nameOf(likers[0])) + " le late"}</span>` : ""}
+        ${likers.length ? `<span class="hint">${likers.length === 2 ? "¡A los dos les late!" : "A " + esc(likers[0] === me() ? "ti" : nameOf(likers[0])) + " le late"}</span>` : ""}
       </div>
     </div>
     ${i.note ? `<div class="card block"><h3>De qué se trata</h3><p>${esc(i.note)}</p></div>` : ""}
@@ -973,18 +1022,18 @@ function timeGrid(days, wide) {
   const H = 48;
   const head = days.length > 1 ? `<div class="tgrid-head" style="grid-template-columns:${cols}"><span></span>${days.map(d => { const x = parse(d); return `<button class="h ${d === t ? "today" : ""}" data-go="#cal/dia/${d}"><small>${DIAS3[x.getDay()]}</small><b>${x.getDate()}</b></button>`; }).join("")}</div>` : "";
   const alls = days.map(d => evsOn(d).filter(e => !isTimed(e)));
-  const allRow = alls.some(a => a.length) ? `<div class="allday" style="grid-template-columns:${cols}"><span class="lab">todo<br>el día</span>${alls.map((a, k) => `<div class="cell">${a.map(e => `<button class="adev" style="background:${tcolor(e.type)}" data-go="#evento/${esc(e.id)}">${evEmoji(e)} ${esc(e.title)}</button>`).join("")}</div>`).join("")}</div>` : "";
+  const allRow = alls.some(a => a.length) ? `<div class="allday" style="grid-template-columns:${cols}"><span class="lab">todo<br>el día</span>${alls.map((a, k) => `<div class="cell">${a.map(e => `<button class="adev" style="background:${tcolor(e.type)}" data-go="#evento/${esc(e.id)}">${esc(e.title)}</button>`).join("")}</div>`).join("")}</div>` : "";
   let hours = ""; for (let h = 1; h < 24; h++) hours += `<span style="top:${h * H}px">${h % 12 || 12}${h < 12 ? "am" : "pm"}</span>`;
   const now = new Date(), nowTop = (now.getHours() * 60 + now.getMinutes()) / 60 * H;
   const colHtml = days.map(d => {
     const blocks = layoutDay(evsOn(d).filter(isTimed)).map(it => {
       const top = it.s / 60 * H, hgt = Math.max(22, (it.en - it.s) / 60 * H - 2);
       const w = 100 / it.cols;
-      return `<button class="blk ${wide ? "wide" : ""}" data-go="#evento/${esc(it.e.id)}" style="top:${top}px;height:${hgt}px;left:calc(${it.col * w}% + 2px);width:calc(${w}% - 4px);background:${tcolor(it.e.type)}"><b>${wide ? evEmoji(it.e) + " " : ""}${esc(it.e.title)}</b>${hgt > 30 ? `<span>${esc(fTime(it.e.time))}${wide && it.e.endTime ? " – " + esc(fTime(it.e.endTime)) : ""}${wide && it.e.place ? " · " + esc(it.e.place) : ""}</span>` : ""}</button>`;
+      return `<button class="blk ${wide ? "wide" : ""}" data-go="#evento/${esc(it.e.id)}" style="top:${top}px;height:${hgt}px;left:calc(${it.col * w}% + 2px);width:calc(${w}% - 4px);background:${tcolor(it.e.type)}"><b>${esc(it.e.title)}</b>${hgt > 30 ? `<span>${esc(fTime(it.e.time))}${wide && it.e.endTime ? " – " + esc(fTime(it.e.endTime)) : ""}${wide && it.e.place ? " · " + esc(it.e.place) : ""}</span>` : ""}</button>`;
     }).join("");
     return `<div class="col ${d === t ? "today" : ""}" data-d="${d}" style="height:${24 * H}px">${blocks}${d === t ? `<div class="nowline" style="top:${nowTop}px"></div>` : ""}</div>`;
   }).join("");
-  const dayList = wide ? (() => { const evs = evsOn(days[0]); return evs.length ? `<div class="sec"><h2>${days[0] === t ? "Hoy" : "Este día"}</h2></div><div class="list">${evs.map(e => evRow(e, days[0], days[0] >= t)).join("")}</div>` : `<p class="hint center" style="margin-top:16px">Día libre 🌿 Toca una hora para agendar algo.</p>`; })() : "";
+  const dayList = wide ? (() => { const evs = evsOn(days[0]); return evs.length ? `<div class="sec"><h2>${days[0] === t ? "Hoy" : "Este día"}</h2></div><div class="list">${evs.map(e => evRow(e, days[0], days[0] >= t)).join("")}</div>` : `<p class="hint center" style="margin-top:16px">Día libre Toca una hora para agendar algo.</p>`; })() : "";
   return `<div class="card tgrid-wrap">${head}${allRow}<div class="tscroll"><div class="tgrid" style="grid-template-columns:${cols}"><div class="hours" style="height:${24 * H}px">${hours}</div>${colHtml}</div></div></div>${dayList}`;
 }
 
@@ -995,14 +1044,14 @@ function gcalUrl(e) {
   let dates;
   if (!isTimed(e)) dates = `${compact(occ)}/${compact(addDays(occ, 1 + diffDays(e.date, evEnd(e))))}`;
   else { const s = toMin(e.time), en = toMin(e.endTime) > s ? toMin(e.endTime) : s + 60; const f = m => `${pad2(Math.floor(m / 60) % 24)}${pad2(m % 60)}00`; dates = `${compact(occ)}T${f(s)}/${compact(en >= 1440 ? addDays(occ, 1) : occ)}T${f(en % 1440)}`; }
-  const p = new URLSearchParams({ action: "TEMPLATE", text: e.title, dates, details: e.note || "Agendado en Nuestros Planes 💞", location: e.place || "", ctz: "America/Mexico_City" });
+  const p = new URLSearchParams({ action: "TEMPLATE", text: e.title, dates, details: e.note || "Agendado en Nuestros Planes", location: e.place || "", ctz: "America/Mexico_City" });
   const rr = { semanal: "WEEKLY", mensual: "MONTHLY", anual: "YEARLY" }[e.repeat];
   if (rr) p.set("recur", "RRULE:FREQ=" + rr);
   return "https://calendar.google.com/calendar/render?" + p.toString();
 }
 function renderEvento(id) {
   const e = S.events.find(x => x.id === id);
-  if (!e) { app.innerHTML = `<div class="wrap screen">${topBar(backBtn("#cal"))}<div class="card empty"><div class="e">🫥</div><h3>Este evento ya no existe</h3></div></div>`; return; }
+  if (!e) { app.innerHTML = `<div class="wrap screen">${topBar(backBtn("#cal"))}<div class="card empty"><div class="e">${I("search")}</div><h3>Este evento ya no existe</h3></div></div>`; return; }
   const t = todayISO(), up = upcoming(999).find(x => x.e.id === id);
   const occ = up ? up.occ : (nextOcc(e, t) || e.date);
   const c = up ? countdown(e, occ) : null;
@@ -1017,7 +1066,7 @@ function renderEvento(id) {
       <div class="sub"><span class="pill" style="background:${tcolor(e.type)};color:var(--dark)">${esc(typ(e.type).l)}</span>${(e.repeat || "no") !== "no" ? `<span class="pill gray">${esc(REPEATS.find(r => r.k === e.repeat).l)}</span>` : ""}</div>
     </div>
     ${c ? `<div class="hero" style="margin-top:16px;padding:18px 22px"><div class="k">${c.now ? "Ya casi" : "Faltan"}</div><div class="big"><b style="font-size:3.2rem">${esc(c.big)}</b><span>${esc(c.unit)}</span></div><div class="when">${esc(evWhen(e, occ))}</div></div>`
-      : `<div class="card block"><h3>Cuándo</h3><p>${esc(evWhen(e, occ))}</p><p class="hint" style="margin-top:4px">Ya pasó 💭</p></div>`}
+      : `<div class="card block"><h3>Cuándo</h3><p>${esc(evWhen(e, occ))}</p><p class="hint" style="margin-top:4px">Ya pasó</p></div>`}
     ${pl ? `<div class="sec"><h2>El plan</h2></div><div class="ideas">${ideaCard(pl)}</div>` : ""}
     ${e.place ? `<div class="card block"><h3>Dónde</h3><p style="margin-bottom:10px">${esc(e.place)}</p><a class="btn" href="${esc(mapUrl)}" target="_blank" rel="noopener">${I("pin")}Ver en el mapa</a></div>` : ""}
     ${e.note ? `<div class="card block"><h3>Notas</h3><p>${esc(e.note)}</p></div>` : ""}
@@ -1068,8 +1117,8 @@ function renderNosotros() {
       <div class="stat"><b>${mxn(doneYear.reduce((s, i) => s + ideaTotal(i), 0))}</b><span>gastado aprox. en ${yr}</span></div>
       <div class="stat"><b>${mxn(pend.reduce((s, i) => s + ideaTotal(i), 0))}</b><span>costarían las pendientes</span></div>
     </div>
-    ${catCounts.length ? `<div class="sec"><h2>Lo que más les gusta</h2></div><div class="card catbar">${catCounts.map(x => `<span>${x.c.e}</span><span class="t"><i style="width:${x.n / maxCat * 100}%"></i></span><span class="c">${x.n}</span>`).join("")}</div>` : ""}
-    ${done.length ? `<div class="sec"><h2>Recuerdos 💭</h2></div><div class="list">${[...done].sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 6).map(i => `<button class="row" data-go="#idea/${esc(i.id)}"><span class="ico">${ideaEmoji(i)}</span><span class="tx"><b>${esc(i.title)}</b><span>${i.doneAt ? esc(fLong(isoOf(new Date(i.doneAt)))) : ""} · idea de ${esc(nameOf(i.owner))}</span></span><span class="ch">${I("chev")}</span></button>`).join("")}</div>` : ""}
+    ${catCounts.length ? `<div class="sec"><h2>Lo que más les gusta</h2></div><div class="card catbar">${catCounts.map(x => `<span class="ci">${I(x.c.i)}</span><span class="t"><i style="width:${x.n / maxCat * 100}%"></i></span><span class="c">${x.n}</span>`).join("")}</div>` : ""}
+    ${done.length ? `<div class="sec"><h2>Recuerdos</h2></div><div class="list">${[...done].sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 6).map(i => `<button class="row" data-go="#idea/${esc(i.id)}"><span class="ico">${ideaEmoji(i)}</span><span class="tx"><b>${esc(i.title)}</b><span>${i.doneAt ? esc(fLong(isoOf(new Date(i.doneAt)))) : ""} · idea de ${esc(nameOf(i.owner))}</span></span><span class="ch">${I("chev")}</span></button>`).join("")}</div>` : ""}
     <div class="sec"><h2>Ajustes</h2></div>
     <div class="list">
       <button class="row" data-act="push"><span class="ico">${I("bell")}</span><span class="tx"><b>Avisos en este cel</b><span id="pushS">${esc(pushStateText())}</span></span><span class="ch">${I("chev")}</span></button>
@@ -1078,7 +1127,7 @@ function renderNosotros() {
       ${p ? `<button class="row" data-act="share"><span class="ico">${I("share")}</span><span class="tx"><b>Link de invitación</b><span>Por si tu pareja necesita volver a entrar</span></span><span class="ch">${I("chev")}</span></button>` : ""}
       <button class="row" data-act="signout"><span class="ico">${I("out")}</span><span class="tx"><b>Salir</b><span>${esc(S.user.email || "")}</span></span></button>
     </div>
-    <p class="hint center" style="margin-top:18px">Solo ustedes dos pueden ver esto 🔒</p>
+    <p class="hint center" style="margin-top:18px">Solo ustedes dos pueden ver esto</p>
   </div>`;
   app.querySelectorAll("[data-theme-set]").forEach(b => b.addEventListener("click", () => {
     document.documentElement.setAttribute("data-theme", b.dataset.themeSet); localStore("planes.tema", b.dataset.themeSet); render();
@@ -1107,7 +1156,7 @@ async function enablePush() {
     if (!token) { toast("No se pudo registrar este cel"); return; }
     await setDoc(doc(fdb, "planes", S.cid, "privado", me(), "avisos", "t-" + hashStr(token)), { token, device: (navigator.userAgent || "").slice(0, 140), createdAt: Date.now() });
     localStore("planes.push", token);
-    if (had === token) { await reg.showNotification("Faltan 3 días para su cita 🥂", { body: "Así se verán sus avisos.", icon: "icon-192.png" }); toast("Te mandé un aviso de prueba"); }
+    if (had === token) { await reg.showNotification("Faltan 3 días para su cita", { body: "Así se verán sus avisos.", icon: "icon-192.png" }); toast("Te mandé un aviso de prueba"); }
     else toast("¡Listo! Les avisaré de sus planes");
     if (sub) sub.textContent = pushStateText();
   } catch (e) { console.error(e); toast(e && e.code === "permission-denied" ? "Firebase no dio permiso. Faltan las reglas nuevas." : "No se pudieron activar: " + ((e && (e.code || e.message)) || "error")); }
@@ -1127,16 +1176,16 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#sheetB
 
 function ideaForm(id) {
   const it = id ? ideaById(id) : null;
-  let emoji = it?.emoji || "", catK = it?.cat || "";
+  let emoji = (it?.icon && P[it.icon]) ? it.icon : "", catK = it?.cat || "";
   let acts = (it?.activities || []).map(a => ({ ...a }));
   let costs = (it?.costs || []).map(c => ({ ...c }));
   const rel = new Set(it?.related || []);
   const others = S.ideas.filter(x => x.id !== id);
   openSheet(`<form id="ideaF" style="display:contents">
     <div class="sheet-head"><h2>${it ? "Editar plan" : "Nueva idea de plan"}</h2><button type="button" class="x" data-close aria-label="Cerrar">×</button></div>
-    <div class="emo-pick"><button type="button" class="cur" id="emoCur" aria-label="Elegir emoji"></button><label class="field" style="flex:1">¿Qué plan?<input class="input" id="fT" maxlength="90" required placeholder="Ej. Noche de tacos y karaoke" value="${esc(it?.title)}"></label></div>
-    <div class="emo-grid" id="emoGrid" hidden>${EMOJIS.map(e => `<button type="button" data-e="${e}">${e}</button>`).join("")}</div>
-    <div class="field">Tipo de plan<div class="chips" id="catChips">${CATS.map(c => `<button type="button" class="chip" data-c="${c.k}">${c.e} ${c.l}</button>`).join("")}</div></div>
+    <div class="emo-pick"><button type="button" class="cur" id="emoCur" aria-label="Elegir ícono"></button><label class="field" style="flex:1">¿Qué plan?<input class="input" id="fT" maxlength="90" required placeholder="Ej. Noche de tacos y karaoke" value="${esc(it?.title)}"></label></div>
+    <div class="emo-grid" id="emoGrid" hidden>${ICONS.map(e => `<button type="button" data-e="${e}" aria-label="${e}">${I(e)}</button>`).join("")}</div>
+    <div class="field">Tipo de plan<div class="chips" id="catChips">${CATS.map(c => `<button type="button" class="chip" data-c="${c.k}">${I(c.i)}${c.l}</button>`).join("")}</div></div>
     <label class="field">Descripción <span class="opt">¿De qué se trata? ¿Por qué se te antojó?</span><textarea class="input" id="fN" maxlength="800" placeholder="Ej. Ir al centro, cenar tacos y luego karaoke con amigos">${esc(it?.note)}</textarea></label>
     <div class="field">Actividades <span class="opt">Con hora y costo si quieres (ej. 7:00 pm · Cena · $600)</span>
       <div id="actRows" style="display:grid;gap:6px"></div>
@@ -1144,18 +1193,18 @@ function ideaForm(id) {
     </div>
     <div class="field">Otros gastos <span class="opt">Transporte, entradas, hospedaje…</span>
       <div id="costRows" style="display:grid;gap:6px"></div>
-      <div class="chips" id="costSug">${["🚕 Transporte", "🎟️ Entradas", "🏨 Hospedaje", "⛽ Gasolina", "🍹 Bebidas"].map(s => `<button type="button" class="chip" data-s="${s.slice(s.indexOf(" ") + 1)}">${s}</button>`).join("")}</div>
+      <div class="chips" id="costSug">${["Transporte", "Entradas", "Hospedaje", "Gasolina", "Bebidas"].map(s => `<button type="button" class="chip" data-s="${s}">+ ${s}</button>`).join("")}</div>
     </div>
     <div class="total-box"><span>Costo aproximado<br><span class="hint" id="perP"></span></span><b id="tot">$0</b></div>
     <label class="field" id="budWrap">Costo total aprox. <span class="opt">Si no quieres desglosar</span><input class="input" id="fB" inputmode="decimal" placeholder="Ej. 1500" value="${it && Number(it.budget) > 0 ? esc(it.budget) : ""}"></label>
     <label class="field">Lugar <span class="opt">Opcional</span><input class="input" id="fP" maxlength="140" placeholder="Ej. Coyoacán" value="${esc(it?.place)}"></label>
     <label class="field">Link <span class="opt">Reservación, boletos, Instagram del lugar…</span><input class="input" id="fL" inputmode="url" placeholder="https://" value="${esc(it?.link)}"></label>
     ${others.length ? `<div class="field">Conectar con otros planes <span class="opt">Ej. “Viaje a Oaxaca” con “Tour de mezcal”</span><div class="chips">${others.slice(0, 40).map(o => `<button type="button" class="chip" data-r="${esc(o.id)}" aria-pressed="${rel.has(o.id)}">${ideaEmoji(o)} ${esc(o.title)}</button>`).join("")}</div></div>` : ""}
-    <button class="btn btn-primary btn-block" type="submit" id="fSave">${it ? "Guardar cambios" : "Proponer este plan 💡"}</button>
+    <button class="btn btn-primary btn-block" type="submit" id="fSave">${it ? "Guardar cambios" : "Proponer este plan"}</button>
     ${it && it.owner === me() ? `<button type="button" class="link-danger" id="fDel" data-label="Borrar esta idea">Borrar esta idea</button>` : ""}
   </form>`, root => {
     const f = root.querySelector("#ideaF");
-    const paintEmo = () => { root.querySelector("#emoCur").textContent = emoji || (catK ? cat(catK).e : "💞"); root.querySelectorAll("#emoGrid [data-e]").forEach(b => b.setAttribute("aria-pressed", b.dataset.e === emoji)); };
+    const paintEmo = () => { root.querySelector("#emoCur").innerHTML = I(emoji || (catK ? cat(catK).i : "heart")); root.querySelectorAll("#emoGrid [data-e]").forEach(b => b.setAttribute("aria-pressed", b.dataset.e === emoji)); };
     const paintCat = () => root.querySelectorAll("#catChips [data-c]").forEach(b => b.setAttribute("aria-pressed", b.dataset.c === catK));
     const readRows = () => {
       acts = [...root.querySelectorAll("#actRows .erow")].map((r, k) => ({ time: r.querySelector("[data-f=time]").value, t: r.querySelector("[data-f=t]").value, cost: num(r.querySelector("[data-f=cost]").value), done: !!acts[k]?.done }));
@@ -1195,7 +1244,7 @@ function ideaForm(id) {
       const title = root.querySelector("#fT").value.trim();
       if (!title) { root.querySelector("#fT").focus(); return; }
       const data = {
-        title, emoji, cat: catK || "otro", note: root.querySelector("#fN").value.trim(),
+        title, icon: emoji, emoji: "", cat: catK || "otro", note: root.querySelector("#fN").value.trim(),
         activities: acts.filter(a => a.t.trim()).map(a => ({ t: a.t.trim(), time: a.time || "", cost: a.cost || 0, done: !!a.done })),
         costs: costs.filter(c => c.t.trim() || c.amount).map(c => ({ t: c.t.trim() || "Otro gasto", amount: c.amount || 0 })),
         budget: num(root.querySelector("#fB").value), place: root.querySelector("#fP").value.trim(), link: root.querySelector("#fL").value.trim(),
@@ -1204,7 +1253,7 @@ function ideaForm(id) {
       const b = root.querySelector("#fSave"); b.disabled = true;
       try {
         if (it) await updateDoc(doc(fdb, "planes", S.cid, "ideas", id), data);
-        else { const ref = await addDoc(collection(fdb, "planes", S.cid, "ideas"), { ...data, owner: me(), likes: {}, done: false, createdAt: Date.now() }); closeSheet(); go("#idea/" + ref.id); toast("¡Idea agregada! 💡"); return; }
+        else { const ref = await addDoc(collection(fdb, "planes", S.cid, "ideas"), { ...data, owner: me(), likes: {}, done: false, createdAt: Date.now() }); closeSheet(); go("#idea/" + ref.id); toast("¡Idea agregada!"); return; }
         closeSheet(); toast("Guardado");
       } catch (e) { b.disabled = false; writeErr(e); }
     });
@@ -1221,9 +1270,9 @@ function openEventForm(id, pre = {}) {
   const ideas = [...S.ideas].sort((a, b) => a.done - b.done || (b.createdAt || 0) - (a.createdAt || 0));
   openSheet(`<form id="evF" style="display:contents">
     <div class="sheet-head"><h2>${it ? "Editar evento" : "Agendar"}</h2><button type="button" class="x" data-close aria-label="Cerrar">×</button></div>
-    <label class="field">Conectar con un plan <span class="opt">De su lista de ideas</span><select class="input" id="eP"><option value="">Ninguno</option>${ideas.map(i => `<option value="${esc(i.id)}" ${v.planId === i.id ? "selected" : ""}>${ideaEmoji(i)} ${esc(i.title)}${i.done ? " (hecho)" : ""}</option>`).join("")}</select></label>
+    <label class="field">Conectar con un plan <span class="opt">De su lista de ideas</span><select class="input" id="eP"><option value="">Ninguno</option>${ideas.map(i => `<option value="${esc(i.id)}" ${v.planId === i.id ? "selected" : ""}>${esc(i.title)}${i.done ? " (hecho)" : ""}</option>`).join("")}</select></label>
     <label class="field">¿Qué es?<input class="input" id="eT" maxlength="90" required placeholder="Ej. Cena de aniversario" value="${esc(v.title)}"></label>
-    <div class="field">Tipo<div class="chips" id="tChips">${TYPES.map(t => `<button type="button" class="chip" data-t="${t.k}"><span class="dot" style="background:${tcolor(t.k)}"></span>${t.e} ${t.l}</button>`).join("")}</div></div>
+    <div class="field">Tipo<div class="chips" id="tChips">${TYPES.map(t => `<button type="button" class="chip" data-t="${t.k}"><span class="dot" style="background:${tcolor(t.k)}"></span>${t.l}</button>`).join("")}</div></div>
     <label class="field">Fecha<input class="input" type="date" id="eD" required value="${esc(v.date)}"></label>
     <label class="switch">Dura varios días<input type="checkbox" id="eMulti" ${multi ? "checked" : ""}></label>
     <label class="field" id="eEndW" ${multi ? "" : "hidden"}>Hasta<input class="input" type="date" id="eE" value="${esc(v.endDate || "")}"></label>
@@ -1233,7 +1282,7 @@ function openEventForm(id, pre = {}) {
     <label class="field">Lugar <span class="opt">Opcional</span><input class="input" id="eL" maxlength="140" placeholder="Ej. Restaurante Pujol" value="${esc(v.place)}"></label>
     <label class="field">Notas <span class="opt">Opcional</span><textarea class="input" id="eN" maxlength="600" placeholder="Ej. Reservación a nombre de Diego">${esc(v.note)}</textarea></label>
     <div class="field">Avisarnos <span class="opt">Les llega a los dos: “Faltan 7 días para…”</span><div class="chips" id="rChips">${REMINDERS.map(r => `<button type="button" class="chip" data-rm="${r.k}" aria-pressed="${remind.has(r.k)}">${r.l}</button>`).join("")}</div></div>
-    <button class="btn btn-primary btn-block" type="submit" id="eSave">${it ? "Guardar cambios" : "Agendar 📅"}</button>
+    <button class="btn btn-primary btn-block" type="submit" id="eSave">${it ? "Guardar cambios" : "Agendar"}</button>
     ${it ? `<button type="button" class="link-danger" id="eDel" data-label="Borrar del calendario">Borrar del calendario</button>` : ""}
   </form>`, root => {
     const f = root.querySelector("#evF");
@@ -1279,7 +1328,7 @@ function openEventForm(id, pre = {}) {
       const b = root.querySelector("#eSave"); b.disabled = true;
       try {
         if (it) await updateDoc(doc(fdb, "planes", S.cid, "eventos", id), data);
-        else { const ref = await addDoc(collection(fdb, "planes", S.cid, "eventos"), { ...data, createdBy: me(), createdAt: Date.now() }); closeSheet(); go("#evento/" + ref.id); toast("¡Agendado! 📅"); return; }
+        else { const ref = await addDoc(collection(fdb, "planes", S.cid, "eventos"), { ...data, createdBy: me(), createdAt: Date.now() }); closeSheet(); go("#evento/" + ref.id); toast("¡Agendado!"); return; }
         closeSheet(); toast("Guardado");
       } catch (e) { b.disabled = false; writeErr(e); }
     });
@@ -1307,7 +1356,7 @@ document.addEventListener("click", async ev => {
   try {
     if (act === "like") { const likes = { ...(i.likes || {}) }; if (likes[me()]) delete likes[me()]; else likes[me()] = true; await updateDoc(ref, { likes }); }
     if (act === "toggleAct") { const acts = (i.activities || []).map((x, k) => k === +a.dataset.k ? { ...x, done: !x.done } : x); await updateDoc(ref, { activities: acts }); }
-    if (act === "doneIdea") { await updateDoc(ref, { done: !i.done, doneAt: i.done ? null : Date.now() }); if (!i.done) toast("¡Qué bonito! Quedó en sus recuerdos 💭"); }
+    if (act === "doneIdea") { await updateDoc(ref, { done: !i.done, doneAt: i.done ? null : Date.now() }); if (!i.done) toast("¡Qué bonito! Quedó en sus recuerdos"); }
     if (act === "scheduleIdea") {
       const firstT = (i.activities || []).map(x => x.time).filter(Boolean).sort()[0] || "";
       openEventForm(null, { title: i.title, planId: i.id, place: i.place || "", time: firstT, type: i.cat === "viaje" ? "viaje" : "plan", date: addDays(todayISO(), 1) });
@@ -1358,7 +1407,7 @@ async function findCouple() {
       if (!(d.members || []).includes(me())) {
         if ((d.members || []).length >= 2) { S.error = "Este espacio ya tiene a dos personas."; return render(); }
         await updateDoc(ref, { members: arrayUnion(me()), ["names." + me()]: firstName(S.user) });
-        setTimeout(() => toast("¡Ya están conectados! 💞"), 600);
+        setTimeout(() => toast("¡Ya están conectados!"), 600);
       }
       return openCouple(joinId);
     }
