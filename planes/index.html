@@ -420,6 +420,16 @@ input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-dat
 .te-prev { display: flex; align-items: center; gap: 12px; background: var(--card); border-radius: 22px; padding: 12px 14px; font-weight: 700; font-size: 1.05rem; }
 .idea .emo svg, .d-emo svg { color: inherit; }
 .x svg { width: 20px; height: 20px; }
+
+/* Perfil */
+.av.xl { width: 128px; height: 128px; font-size: 3rem; border-width: 4px; }
+.pf-photo { position: relative; display: inline-block; cursor: pointer; margin-top: 6px; }
+.pf-cam { position: absolute; right: 2px; bottom: 4px; width: 40px; height: 40px; border-radius: 50%; background: var(--ink); color: var(--on-ink); display: grid; place-items: center; border: 3px solid var(--bg); }
+.pf-cam svg { width: 19px; height: 19px; }
+.av-btn { border: none; background: none; padding: 0; border-radius: 50%; }
+.duo .av-btn + .av, .duo .av + .av-btn { margin-left: -10px; }
+.row .ico .av { width: 46px; height: 46px; border: none; }
+.card .input { background: var(--bg); }
 </style>
 </head>
 <body>
@@ -585,7 +595,7 @@ const firstName = u => ((u && u.displayName) || "Yo").trim().split(/\s+/)[0];
 const nameOf = uid => uid === me() ? (S.couple?.names?.[uid] || firstName(S.user)) : (S.couple?.names?.[uid] || "Tu pareja");
 const pIdx = uid => { const i = members().indexOf(uid); return i < 0 ? 0 : i + 1; };
 const pColor = uid => pIdx(uid) ? `var(--p${pIdx(uid)})` : "var(--muted)";
-const photoOf = uid => { const p = S.couple?.photos?.[uid]; return (typeof p === "string" && /^https:\/\//.test(p)) ? p : ""; };
+const photoOf = uid => { const p = S.couple?.photos?.[uid]; return (typeof p === "string" && (/^https:\/\//.test(p) || /^data:image\/(jpeg|png|webp);base64,/.test(p))) ? p : ""; };
 function avatar(uid, cls = "") {
   const src = photoOf(uid);
   return `<span class="av p${pIdx(uid)} ${cls}" title="${esc(nameOf(uid))}">${src ? `<img src="${esc(src)}" alt="" referrerpolicy="no-referrer">` : esc(nameOf(uid).charAt(0).toUpperCase())}</span>`;
@@ -699,6 +709,7 @@ function route() {
   }
   if (h[0] === "evento" && h[1]) return { v: "evento", id: h[1] };
   if (h[0] === "nosotros") return { v: "nosotros" };
+  if (h[0] === "perfil") return { v: "perfil" };
   return { v: "inicio" };
 }
 const go = h => { if (location.hash !== h) location.hash = h; else render(); };
@@ -709,7 +720,7 @@ const NAVS = { inicio: ["home", "Inicio"], ideas: ["bulb", "Ideas"], cal: ["cal"
 function setNav(r) {
   const show = !!(S.user && S.couple && S.loaded);
   $("#nav").hidden = !show;
-  const cur = r.v === "idea" ? "ideas" : r.v === "evento" ? "cal" : r.v;
+  const cur = r.v === "idea" ? "ideas" : r.v === "evento" ? "cal" : r.v === "perfil" ? "nosotros" : r.v;
   document.querySelectorAll("#nav [data-nav]").forEach(b => {
     const [ic, lb] = NAVS[b.dataset.nav];
     b.innerHTML = `${I(ic)}<span>${lb}</span>`;
@@ -733,6 +744,7 @@ function render() {
   else if (r.v === "cal") renderCal(r);
   else if (r.v === "evento") renderEvento(r.id);
   else if (r.v === "nosotros") renderNosotros();
+  else if (r.v === "perfil") renderPerfil();
   else renderHome();
   if (keepScroll) window.scrollTo(0, y); else window.scrollTo(0, 0);
   lastView = key;
@@ -1164,7 +1176,7 @@ function renderNosotros() {
   const theme = document.documentElement.getAttribute("data-theme") || "auto";
   app.innerHTML = `<div class="wrap screen">
     <div class="d-head" style="padding-top:18px">
-      <div class="duo" style="justify-content:center">${ms.map(u => avatar(u, "lg")).join("")}${!p ? `<span class="av lg p0" style="margin-left:-10px">?</span>` : ""}</div>
+      <div class="duo" style="justify-content:center">${ms.map(u => u === me() ? `<button class="av-btn" data-go="#perfil" aria-label="Mi perfil">${avatar(u, "lg")}</button>` : avatar(u, "lg")).join("")}${!p ? `<span class="av lg p0" style="margin-left:-10px">?</span>` : ""}</div>
       <h1 style="margin-top:12px">${esc(nameOf(me()))} <em style="color:var(--muted);font-style:normal;font-weight:400">&amp;</em> ${esc(p ? nameOf(p) : "…")}</h1>
       ${since ? `<p class="hint" style="margin-top:4px">Planeando juntos desde el ${esc(since)}</p>` : ""}
     </div>
@@ -1188,6 +1200,7 @@ function renderNosotros() {
     ${done.length ? `<div class="sec"><h2>Recuerdos</h2></div><div class="list">${[...done].sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 6).map(i => `<button class="row" data-go="#idea/${esc(i.id)}"><span class="ico">${ideaEmoji(i)}</span><span class="tx"><b>${esc(i.title)}</b><span>${i.doneAt ? esc(fLong(isoOf(new Date(i.doneAt)))) : ""} · idea de ${esc(nameOf(i.owner))}</span></span><span class="ch">${I("chev")}</span></button>`).join("")}</div>` : ""}
     <div class="sec"><h2>Ajustes</h2></div>
     <div class="list">
+      <button class="row" data-go="#perfil"><span class="ico" style="padding:0;overflow:hidden">${avatar(me())}</span><span class="tx"><b>Mi perfil</b><span>Tu foto y tu nombre</span></span><span class="ch">${I("chev")}</span></button>
       <button class="row" data-act="push"><span class="ico">${I("bell")}</span><span class="tx"><b>Avisos en este cel</b><span id="pushS">${esc(pushStateText())}</span></span><span class="ch">${I("chev")}</span></button>
       <div class="row"><span class="ico">${I("moon")}</span><span class="tx"><b>Tema</b><span>Se guarda en este cel</span></span></div>
       <div style="padding:0 16px 14px"><div class="seg">${[["auto", "Auto"], ["claro", "Claro"], ["oscuro", "Oscuro"]].map(([k, l]) => `<button data-theme-set="${k}" aria-current="${theme === k}">${l}</button>`).join("")}</div></div>
@@ -1200,6 +1213,79 @@ function renderNosotros() {
   app.querySelectorAll("[data-theme-set]").forEach(b => b.addEventListener("click", () => {
     document.documentElement.setAttribute("data-theme", b.dataset.themeSet); localStore("planes.tema", b.dataset.themeSet); render();
   }));
+}
+
+/* ---------- Mi perfil ---------- */
+// Foto cuadrada y comprimida (se guarda dentro de Firestore, ~40 KB).
+function squarePhoto(file, size = 360, cap = 60000) {
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const side = Math.min(img.width, img.height), sx = (img.width - side) / 2, sy = (img.height - side) / 2;
+      const c = document.createElement("canvas"); c.width = c.height = Math.min(size, side);
+      const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, sx, sy, side, side, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      let q = 0.82, out = c.toDataURL("image/jpeg", q);
+      while (out.length > cap && q > 0.4) { q -= 0.08; out = c.toDataURL("image/jpeg", q); }
+      res(out);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("img")); };
+    img.src = url;
+  });
+}
+function renderPerfil() {
+  const u = me(), mine = S.ideas.filter(i => i.owner === u);
+  const hearts = mine.reduce((n, i) => n + Object.keys(i.likes || {}).filter(x => x !== u).length, 0);
+  const cur = photoOf(u), google = S.user.photoURL || "";
+  app.innerHTML = `<div class="wrap screen">
+    ${topBar(backBtn("#nosotros"), "")}
+    <div class="d-head">
+      <label class="pf-photo" aria-label="Cambiar foto de perfil">
+        ${avatar(u, "xl")}
+        <span class="pf-cam">${I("camera")}</span>
+        <input type="file" id="pfFile" accept="image/*" hidden>
+      </label>
+      <h1 style="margin-top:14px">${esc(nameOf(u))}</h1>
+      <p class="hint" style="margin-top:4px">${esc(S.user.email || "")}</p>
+      <div class="chips" style="justify-content:center;margin-top:14px">
+        <label class="chip" for="pfFile2" style="cursor:pointer">${I("camera")}Cambiar foto<input type="file" id="pfFile2" accept="image/*" hidden></label>
+        ${google && cur !== google ? `<button class="chip" id="pfGoogle">Usar mi foto de Google</button>` : ""}
+        ${cur ? `<button class="chip" id="pfNone">Quitar foto</button>` : ""}
+      </div>
+    </div>
+    <div class="card block">
+      <h3>Tu nombre</h3>
+      <p class="hint" style="margin-bottom:10px">Así te ve ${esc(partner() ? nameOf(partner()) : "tu pareja")} en la app.</p>
+      <div style="display:flex;gap:8px"><input class="input" id="pfName" maxlength="24" value="${esc(nameOf(u))}" aria-label="Tu nombre"><button class="btn btn-primary" id="pfSave" style="flex:none">Guardar</button></div>
+    </div>
+    <div class="sec"><h2>Tus números</h2></div>
+    <div class="stats">
+      <div class="stat"><b>${mine.length}</b><span>ideas que propusiste</span></div>
+      <div class="stat"><b>${mine.filter(i => i.done).length}</b><span>de tus ideas ya hicieron</span></div>
+      <div class="stat"><b>${hearts}</b><span>corazones que te dieron</span></div>
+      <div class="stat"><b>${S.events.filter(e => e.createdBy === u).length}</b><span>eventos que agendaste</span></div>
+    </div>
+  </div>`;
+  const setPhoto = async (val, msg) => {
+    const photos = { ...(S.couple.photos || {}) }; photos[u] = val;
+    try { await saveCouple({ ["photos." + u]: val }, { photos }); toast(msg); render(); } catch (e) { writeErr(e); }
+  };
+  const onFile = async e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return;
+    try { toast("Subiendo tu foto…"); await setPhoto(await squarePhoto(f), "¡Foto actualizada!"); }
+    catch (err) { if (err && err.message === "img") toast("No se pudo leer esa foto. Prueba con otra."); else writeErr(err); }
+  };
+  $("#pfFile").addEventListener("change", onFile); $("#pfFile2").addEventListener("change", onFile);
+  $("#pfGoogle")?.addEventListener("click", () => setPhoto(google, "Listo, usas tu foto de Google"));
+  $("#pfNone")?.addEventListener("click", () => setPhoto("", "Foto quitada"));
+  const save = async () => {
+    const n = $("#pfName").value.trim().slice(0, 24);
+    if (!n) { $("#pfName").focus(); return; }
+    const names = { ...(S.couple.names || {}), [u]: n };
+    try { await saveCouple({ ["names." + u]: n }, { names }); toast("Nombre guardado"); render(); } catch (e) { writeErr(e); }
+  };
+  $("#pfSave").addEventListener("click", save);
+  $("#pfName").addEventListener("keydown", e => { if (e.key === "Enter") save(); });
 }
 
 /* ---------- Avisos (push) ---------- */
@@ -1567,7 +1653,8 @@ async function syncProfile() {
   const c = S.couple; if (!c) return;
   const want = {};
   if (!c.names || !c.names[me()]) want["names." + me()] = firstName(S.user);
-  if (S.user.photoURL && (!c.photos || c.photos[me()] !== S.user.photoURL)) want["photos." + me()] = S.user.photoURL;
+  const mine = c.photos && c.photos[me()];
+  if (S.user.photoURL && (mine === undefined || (/^https:/.test(mine || "") && mine !== S.user.photoURL))) want["photos." + me()] = S.user.photoURL;
   if (Object.keys(want).length) try { await updateDoc(doc(fdb, "planes", S.cid), want); } catch (e) { console.warn(e); }
 }
 async function findCouple() {
