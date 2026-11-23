@@ -9,9 +9,9 @@
   // Tema guardado en este cel: "auto" (sigue al cel), "claro" u "oscuro".
   (function () { var t = "auto"; try { t = localStorage.getItem("planes.tema") || t; } catch (e) {} document.documentElement.setAttribute("data-theme", t); })();
 </script>
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=3">
-<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png?v=3">
-<link rel="manifest" href="manifest.json?v=3">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=4">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png?v=4">
+<link rel="manifest" href="manifest.json?v=4">
 <meta name="apple-mobile-web-app-title" content="Planes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -430,6 +430,18 @@ input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-dat
 .duo .av-btn + .av, .duo .av + .av-btn { margin-left: -10px; }
 .row .ico .av { width: 46px; height: 46px; border: none; }
 .card .input { background: var(--bg); }
+
+/* Calendario de día y semana: todo el día cabe en la pantalla */
+.tscroll { overflow: hidden; min-height: 0; }
+.tgrid { height: 100%; }
+.tgrid .hours, .tgrid .col { height: 100%; }
+.tgrid .col { background-image: linear-gradient(to bottom, var(--line) 0 1px, transparent 1px); background-size: 100% calc(100% / var(--rows)); background-repeat: repeat-y; }
+.tgrid .hours span { font-size: .62rem; right: 5px; }
+.tgrid.dense .hours span.odd { display: none; }
+.blk { min-height: 12px; padding: 2px 5px; }
+.blk span { font-size: .62rem; }
+.tgrid.tiny .blk:not(.wide) span { display: none; }
+.tgrid.tiny .blk { font-size: .64rem; line-height: 1.1; padding: 1px 4px; border-radius: 6px; }
 </style>
 </head>
 <body>
@@ -519,7 +531,7 @@ const P = {
   repeat: '<path d="M4 12a8 8 0 0 1 13.7-5.7L20 8.6M20 4v4.6h-4.6M20 12a8 8 0 0 1-13.7 5.7L4 15.4M4 20v-4.6h4.6"/>',
 };
 const I = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[k]}</svg>`;
-const LOGO = `<img class="logo" src="icon-512.png?v=3" alt="">`;
+const LOGO = `<img class="logo" src="icon-512.png?v=4" alt="">`;
 const GOOGLE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.5c2.1-1.9 3.3-4.7 3.3-8z"/><path fill="#34A853" d="M12 23c3 0 5.4-1 7.2-2.7l-3.5-2.7c-1 .7-2.2 1-3.7 1-2.9 0-5.3-1.9-6.2-4.5H2.2v2.8A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.8 14.1a6.6 6.6 0 0 1 0-4.2V7.1H2.2a11 11 0 0 0 0 9.8z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3 .6 4.2 1.6l3.1-3.1A11 11 0 0 0 2.2 7.1l3.6 2.8C6.7 7.3 9.1 5.4 12 5.4z"/></svg>`;
 
 /* ---------- Catálogos ---------- */
@@ -1027,25 +1039,11 @@ function renderCal(r) {
   // Tocar una hora vacía crea un evento a esa hora.
   app.querySelectorAll(".tgrid .col").forEach(c => c.addEventListener("click", ev => {
     if (ev.target.closest(".blk")) return;
-    const rect = c.getBoundingClientRect(), h = Math.max(0, Math.min(23, Math.floor((ev.clientY - rect.top) / parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hour")))));
+    const g = c.closest(".tgrid"), h0 = +g.dataset.h0, h1 = +g.dataset.h1, rect = c.getBoundingClientRect();
+    const h = Math.max(0, Math.min(23, h0 + Math.floor((ev.clientY - rect.top) / rect.height * (h1 - h0))));
     openEventForm(null, { date: c.dataset.d, time: `${pad2(h)}:00` });
   }));
-  const sc = app.querySelector(".tscroll");
-  if (sc) {
-    const H = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hour"));
-    const key = r.view + r.d;
-    let want;
-    if (gridScroll.key === key) want = gridScroll.top;                    // se volvió a pintar (datos nuevos): no mover
-    else {
-      const first = Math.min(...[...app.querySelectorAll(".blk")].map(b => parseFloat(b.style.top)).filter(Number.isFinite), 8 * H);
-      const isNow = r.d === todayISO() || (r.view === "semana" && weekStart(r.d) === weekStart(todayISO()));
-      const now = new Date(), nowY = (now.getHours() + now.getMinutes() / 60) * H;
-      want = isNow ? nowY - H * 2 : first - H / 2;
-    }
-    const apply = () => { fitGrid(); sc.scrollTop = Math.max(0, want); gridScroll = { key, top: sc.scrollTop }; };
-    apply(); requestAnimationFrame(apply); setTimeout(apply, 120);       // Safari a veces aplica el scroll hasta que termina de acomodar
-    sc.addEventListener("scroll", () => { gridScroll = { key, top: sc.scrollTop }; }, { passive: true });
-  }
+  if (app.querySelector(".tscroll")) { fitGrid(); requestAnimationFrame(fitGrid); setTimeout(fitGrid, 150); }   // Safari acomoda tarde
   // Swipe a los lados para cambiar de periodo.
   let sx = null, sy = null;
   const area = app.querySelector(".month, .tgrid-wrap");
@@ -1058,12 +1056,16 @@ function renderCal(r) {
   }
 }
 // La cuadrícula de horas ocupa justo lo que queda de pantalla (sin que la página tenga que moverse).
-let gridScroll = { key: "", top: 0 };
 function fitGrid() {
   const sc = app.querySelector(".tscroll"); if (!sc) return;
+  const g = sc.querySelector(".tgrid"), rows = +g.dataset.h1 - +g.dataset.h0;
   const nav = $("#nav"), navTop = nav && !nav.hidden ? nav.querySelector(".nav-in").getBoundingClientRect().top : window.innerHeight;
   const top = sc.getBoundingClientRect().top + window.scrollY;
-  sc.style.height = Math.max(280, Math.floor(navTop - top - 14)) + "px";
+  const hgt = Math.max(rows * 13, Math.floor(navTop - top - 12));   // si de plano no cabe, mínimo 13 px por hora
+  sc.style.height = hgt + "px";
+  g.style.height = hgt + "px";
+  g.classList.toggle("dense", hgt / rows < 22);                       // poco espacio: solo se ven las horas pares
+  g.classList.toggle("tiny", hgt / rows < 17);
 }
 window.addEventListener("resize", fitGrid);
 function monthView(d) {
@@ -1104,23 +1106,27 @@ function layoutDay(evs) {
   return out;
 }
 function timeGrid(days, wide) {
-  const t = todayISO(), cols = `44px repeat(${days.length}, minmax(0, 1fr))`;
-  const H = 48;
+  const t = todayISO(), cols = `40px repeat(${days.length}, minmax(0, 1fr))`;
   const head = days.length > 1 ? `<div class="tgrid-head" style="grid-template-columns:${cols}"><span></span>${days.map(d => { const x = parse(d); return `<button class="h ${d === t ? "today" : ""}" data-go="#cal/dia/${d}"><small>${DIAS3[x.getDay()]}</small><b>${x.getDate()}</b></button>`; }).join("")}</div>` : "";
   const alls = days.map(d => evsOn(d).filter(e => !isTimed(e)));
-  const allRow = alls.some(a => a.length) ? `<div class="allday" style="grid-template-columns:${cols}"><span class="lab">todo<br>el día</span>${alls.map((a, k) => `<div class="cell">${a.map(e => `<button class="adev" style="${tstyle(e.type)}" data-go="#evento/${esc(e.id)}">${esc(e.title)}</button>`).join("")}</div>`).join("")}</div>` : "";
-  let hours = ""; for (let h = 1; h < 24; h++) hours += `<span style="top:${h * H}px">${h % 12 || 12}${h < 12 ? "am" : "pm"}</span>`;
-  const now = new Date(), nowTop = (now.getHours() * 60 + now.getMinutes()) / 60 * H;
-  const colHtml = days.map(d => {
-    const blocks = layoutDay(evsOn(d).filter(isTimed)).map(it => {
-      const top = it.s / 60 * H, hgt = Math.max(22, (it.en - it.s) / 60 * H - 2);
+  const allRow = alls.some(a => a.length) ? `<div class="allday" style="grid-template-columns:${cols}"><span class="lab">todo<br>el día</span>${alls.map(a => `<div class="cell">${a.map(e => `<button class="adev" style="${tstyle(e.type)}" data-go="#evento/${esc(e.id)}">${esc(e.title)}</button>`).join("")}</div>`).join("")}</div>` : "";
+  // Horas que se muestran: de 7 am a medianoche, o más si hay algo antes. Todo cabe en la pantalla.
+  const laid = days.map(d => layoutDay(evsOn(d).filter(isTimed)));
+  const all = laid.flat();
+  const h0 = Math.min(7, ...all.map(it => Math.floor(it.s / 60)));
+  const h1 = Math.max(24, ...all.map(it => Math.ceil(it.en / 60)));
+  const span = (h1 - h0) * 60, pct = m => ((m - h0 * 60) / span * 100).toFixed(3) + "%";
+  let hours = ""; for (let h = h0 + 1; h < h1; h++) hours += `<span class="${(h - h0) % 2 ? "odd" : ""}" style="top:${pct(h * 60)}">${h % 12 || 12}${h < 12 ? "am" : "pm"}</span>`;
+  const now = new Date(), nowM = now.getHours() * 60 + now.getMinutes();
+  const colHtml = days.map((d, k) => {
+    const blocks = laid[k].map(it => {
       const w = 100 / it.cols;
-      return `<button class="blk ${wide ? "wide" : ""}" data-go="#evento/${esc(it.e.id)}" style="top:${top}px;height:${hgt}px;left:calc(${it.col * w}% + 2px);width:calc(${w}% - 4px);${tstyle(it.e.type)}"><b>${esc(it.e.title)}</b>${hgt > 30 ? `<span>${esc(fTime(it.e.time))}${wide && it.e.endTime ? " – " + esc(fTime(it.e.endTime)) : ""}${wide && it.e.place ? " · " + esc(it.e.place) : ""}</span>` : ""}</button>`;
+      return `<button class="blk ${wide ? "wide" : ""}" data-go="#evento/${esc(it.e.id)}" style="top:${pct(it.s)};height:calc(${((it.en - it.s) / span * 100).toFixed(3)}% - 2px);left:calc(${it.col * w}% + 2px);width:calc(${w}% - 4px);${tstyle(it.e.type)}"><b>${esc(it.e.title)}</b><span>${esc(fTime(it.e.time))}${wide && it.e.endTime ? " – " + esc(fTime(it.e.endTime)) : ""}${wide && it.e.place ? " · " + esc(it.e.place) : ""}</span></button>`;
     }).join("");
-    return `<div class="col ${d === t ? "today" : ""}" data-d="${d}" style="height:${24 * H}px">${blocks}${d === t ? `<div class="nowline" style="top:${nowTop}px"></div>` : ""}</div>`;
+    return `<div class="col ${d === t ? "today" : ""}" data-d="${d}">${blocks}${d === t && nowM >= h0 * 60 ? `<div class="nowline" style="top:${pct(nowM)}"></div>` : ""}</div>`;
   }).join("");
-  const dayList = wide ? (() => { const evs = evsOn(days[0]); return evs.length ? `<div class="sec"><h2>${days[0] === t ? "Hoy" : "Este día"}</h2></div><div class="list">${evs.map(e => evRow(e, days[0], days[0] >= t)).join("")}</div>` : `<p class="hint center" style="margin-top:16px">Día libre Toca una hora para agendar algo.</p>`; })() : "";
-  return `<div class="card tgrid-wrap">${head}${allRow}<div class="tscroll"><div class="tgrid" style="grid-template-columns:${cols}"><div class="hours" style="height:${24 * H}px">${hours}</div>${colHtml}</div></div></div>${dayList}`;
+  const dayList = wide ? (() => { const evs = evsOn(days[0]); return evs.length ? `<div class="sec"><h2>${days[0] === t ? "Hoy" : "Este día"}</h2></div><div class="list">${evs.map(e => evRow(e, days[0], days[0] >= t)).join("")}</div>` : `<p class="hint center" style="margin-top:16px">Día libre. Toca una hora para agendar algo.</p>`; })() : "";
+  return `<div class="card tgrid-wrap">${head}${allRow}<div class="tscroll"><div class="tgrid" data-h0="${h0}" data-h1="${h1}" style="grid-template-columns:${cols};--rows:${h1 - h0}"><div class="hours">${hours}</div>${colHtml}</div></div></div>${dayList}`;
 }
 
 /* ---------- Detalle de evento ---------- */
@@ -1392,8 +1398,8 @@ function shortcutsSheet() {
     </div>`;
   openSheet(`<div class="sheet-head"><h2>Atajos</h2><button type="button" class="x" data-close aria-label="Cerrar">×</button></div>
     <p class="hint">Copia el link y ábrelo en <b>Safari</b>. Ahí toca <b>Compartir → Agregar a pantalla de inicio</b>. Después puedes arrastrar el ícono a la barra de abajo.</p>
-    ${item("nueva-idea.html", "Nueva idea", "Abre directo el formulario para proponer un plan.", "icon-idea-180.png?v=1")}
-    ${item("agendar.html", "Agendar", "Abre directo el formulario del calendario.", "icon-agendar-180.png?v=1")}
+    ${item("nueva-idea.html", "Nueva idea", "Abre directo el formulario para proponer un plan.", "icon-idea-180.png?v=2")}
+    ${item("agendar.html", "Agendar", "Abre directo el formulario del calendario.", "icon-agendar-180.png?v=2")}
     <p class="hint center">La primera vez que abras cada atajo, entra con tu Google.</p>
     <div class="card block" style="margin:0"><h3>Para el Centro de control</h3>
       <p class="hint" style="margin-bottom:10px">En la app Atajos crea un atajo con la acción <b>Abrir URL</b> y pega uno de estos links. Luego agrégalo al Centro de control con <b>+ → Agregar un control → Atajo</b>.</p>
