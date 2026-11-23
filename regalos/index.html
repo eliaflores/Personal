@@ -502,6 +502,42 @@ body { font-size: 14.5px; }
 .for { display: flex; align-items: center; gap: 10px; }
 .for-av { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; }
 
+/* Filtros, tipo de regalo y combos */
+.filters { display: flex; flex-direction: column; gap: 8px; margin: -6px 0 16px; }
+.chips.scroll { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 2px 2px 4px; margin: 0 -2px; }
+.chips.scroll::-webkit-scrollbar { display: none; }
+.chips.scroll .chip { flex: none; }
+.chip { display: inline-flex; align-items: center; gap: 6px; }
+.chip svg { width: 16px; height: 16px; flex: none; }
+.chip small { font-size: .74rem; opacity: .65; font-weight: 600; }
+.tile .top .ct { width: 28px; height: 28px; padding: 0; display: grid; place-items: center; border-radius: 50%; }
+.tile .top .ct svg { width: 15px; height: 15px; }
+.combos { display: flex; flex-direction: column; gap: 14px; }
+.combo { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.combo-h { display: flex; align-items: center; gap: 12px; }
+.combo-h b { display: block; font-weight: 600; font-size: 1.02rem; }
+.combo-h span { display: block; color: var(--muted); font-size: .84rem; font-variant-numeric: tabular-nums; }
+.combo-pics { display: flex; gap: 8px; overflow-x: auto; }
+.mini-tile { position: relative; flex: none; width: 76px; height: 76px; border-radius: 16px; overflow: hidden; background: var(--tile-bg); display: block; }
+.mini-tile img { width: 100%; height: 100%; object-fit: cover; }
+.mini-tile img.fit { object-fit: contain; background: var(--photo-bg); padding: 6px; }
+.mini-tile .ph { position: absolute; inset: 0; display: grid; place-items: center; color: var(--icon); opacity: .6; }
+.mini-tile .ph svg { width: 40%; height: 40%; }
+.combo-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.combo-list li + li { border-top: 1px solid var(--line); }
+.combo-list a { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; color: inherit; text-decoration: none; font-size: .9rem; }
+.combo-list .cn { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.combo-list .cn svg { width: 16px; height: 16px; flex: none; color: var(--muted); }
+.combo-list .cp { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; }
+.combo-f { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.combo-f span { color: var(--muted); font-size: .86rem; font-weight: 500; }
+.tabs button { padding-inline: 4px; white-space: nowrap; font-size: .86rem; }
+.tabs button small { font-size: .74rem; opacity: .7; font-weight: 600; }
+[data-tema="colorido"] .combos > :nth-child(3n+1) .combo-h .ic { background: var(--honeydew); }
+[data-tema="colorido"] .combos > :nth-child(3n+2) .combo-h .ic { background: var(--sky); }
+[data-tema="colorido"] .combos > :nth-child(3n+3) .combo-h .ic { background: var(--stone); }
+[data-tema="colorido"] .mini-tile { background: var(--soft); }
+
 /* Ajustes */
 .themes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .theme-opt { border: 2px solid var(--line); background: var(--card); border-radius: 26px; padding: 14px; display: flex; flex-direction: column; gap: 12px; text-align: left; box-shadow: var(--shadow); }
@@ -572,6 +608,16 @@ const P = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  spark: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16.5l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6z"/>',
+  shirt: '<path d="M8 3L3 6l2 4 2-1v12h10V9l2 1 2-4-5-3c-.6 1.7-2.1 3-4 3S8.6 4.7 8 3z"/>',
+  book: '<path d="M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4z"/><path d="M20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z"/>',
+  device: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  home: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  game: '<rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10.5v3.5M5.3 12.2h3.4M15.5 11.5h.01M18 13.5h.01"/>',
+  ticket: '<path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><path d="M13 7v2M13 11v2M13 15v2"/>',
+  watch: '<circle cx="12" cy="12" r="5"/><path d="M9 7.5L10 3h4l1 4.5M9 16.5l1 4.5h4l1-4.5M12 10v2l1.2 1.2"/>',
+  combo: '<rect x="3" y="10" width="9" height="11" rx="2"/><rect x="12" y="6" width="9" height="15" rx="2"/><path d="M7.5 10V8a2 2 0 0 1 2-2"/>',
+  sort: '<path d="M7 4v16M3.5 16.5L7 20l3.5-3.5M17 20V4M13.5 7.5L17 4l3.5 3.5"/>',
   refresh: '<path d="M20 11.5a8 8 0 1 1-2.4-5.7"/><path d="M20 4v5h-5"/>',
   star: '<path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9 6.8 19.7l1-5.9-4.3-4.1 5.9-.8z"/>',
   tree: '<path d="M12 3l5 7h-3l4 6H6l4-6H7z"/><path d="M12 16v5"/>',
@@ -596,6 +642,21 @@ const OCCASIONS = [
   { k: "otro", l: "Otro", i: "gift" },
 ];
 const occ = k => OCCASIONS.find(o => o.k === k) || OCCASIONS[4];
+// Tipos de regalo. Si la persona no elige uno, se adivina por el nombre, la descripción y el link.
+const CATS = [
+  { k: "belleza", l: "Belleza", i: "spark", kw: /maquill|labial|lipstick|r[ií]mel|m[aá]scara de pesta|sombras?\b|paleta de|rubor|base de maq|corrector|perfume|fragancia|colonia|eau de|crema|s[eé]rum|skin ?care|facial|shampoo|champ[uú]|acondicionador|u[ñn]as|esmalte|brocha|cosm[eé]t|sephora|nyx|maybelline|l'?or[eé]al|clinique|dior|chanel|rare beauty|fenty|benefit|kiko/i },
+  { k: "libros", l: "Libros", i: "book", kw: /\blibros?\b|novela|pasta dura|pasta blanda|c[oó]mic|manga|poemario|gandhi|editorial/i },
+  { k: "tecnologia", l: "Tecnología", i: "device", kw: /aud[ií]fono|airpods|bocina|speaker|celular|iphone|samsung|tablet|ipad|laptop|computadora|cargador|smartwatch|apple watch|kindle|consola|c[aá]mara|teclado|mouse|monitor|jbl|sony|bose|xiaomi|alexa|echo dot|bluetooth|gopro|power ?bank|aud[ií]o/i },
+  { k: "juegos", l: "Juegos y hobbies", i: "game", kw: /lego|juego de mesa|rompecabezas|puzzle|videojuego|ps5|playstation|nintendo|switch|xbox|control para|pintura|acuarela|guitarra|ukulele|bal[oó]n|pelota|bicicleta|patineta|yoga|pesas|raqueta|peluche|funko|cartas/i },
+  { k: "experiencias", l: "Experiencias", i: "ticket", kw: /boleto|concierto|viaje|vuelo|hotel|cena para|spa\b|masaje|curso|clase de|taller|suscripci[oó]n|membres[ií]a|tarjeta de regalo|gift ?card/i },
+  { k: "accesorios", l: "Accesorios", i: "watch", kw: /reloj|collar|arete|pulsera|anillo|joya|bolsa\b|bolso|cartera|billetera|lentes|gafas|gorra|sombrero|mochila|cintur[oó]n|bufanda|casio|pandora|swarovski|fossil/i },
+  { k: "ropa", l: "Ropa y zapatos", i: "shirt", kw: /playera|camis|pantal[oó]n|jeans|vestido|sudadera|hoodie|chamarra|chaqueta|abrigo|su[eé]ter|blusa|falda|short|pijama|calcet|\bropa\b|tenis|zapat|botas?\b|sandalia|sneaker|nike|adidas|zara|shein|bershka|levi|puma|vans|converse/i },
+  { k: "hogar", l: "Hogar y cocina", i: "home", kw: /taza|vela|cafetera|sart[eé]n|olla|cocina|licuadora|freidora|almohada|cobija|s[aá]bana|edred[oó]n|l[aá]mpara|planta|maceta|decoraci|cuadro|florero|termo|vaso|plato|cuchill|toalla|difusor|aromatiz|silla|escritorio|mueble|shark|ninja|oster|t-fal|hogar|secadora|plancha/i },
+  { k: "otro", l: "Otro", i: "gift" },
+];
+const catInfo = k => CATS.find(c => c.k === k) || CATS[CATS.length - 1];
+const guessCat = (text) => { const t = String(text || "").replace(/[-_/]+/g, " "); return (CATS.find(c => c.kw && c.kw.test(t)) || CATS[CATS.length - 1]).k; };
+const catOf = i => (i && CATS.some(c => c.k === i.category)) ? i.category : guessCat([i && i.title, i && i.note, i && i.url].join(" "));
 const QUICK = [500, 1000, 3000, 5000, 10000];
 const mxn = n => new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: n % 1 ? 2 : 0 }).format(n || 0);
 const MES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
@@ -926,7 +987,13 @@ function renderFiesta(fid) {
   const p = partner(), bought = f.bought || {};
   const used = spent(f), left = f.budget - used;
   const pct = Math.min(100, Math.round((used / f.budget) * 100));
-  const ideas = theirItems().filter(i => !bought[i.id] && matchesOcc(i, f) && priceOf(i) > 0 && priceOf(i) <= left).sort((a, b) => priceOf(b) - priceOf(a));
+  const ideasAll = theirItems().filter(i => !bought[i.id] && matchesOcc(i, f) && priceOf(i) > 0 && priceOf(i) <= left);
+  if (S.ffFor !== fid) { S.ffFor = fid; S.ff = { cat: "all", price: "all", sort: "desc" }; }
+  const ff = S.ff;
+  const inCat = i => ff.cat === "all" || catOf(i) === ff.cat;
+  const band = PRICE_BANDS.find(b => b.k === ff.price);
+  const ideas = ideasAll.filter(i => inCat(i) && (!band || (priceOf(i) > band.min && priceOf(i) <= band.max)))
+    .sort((a, b) => ff.sort === "asc" ? priceOf(a) - priceOf(b) : priceOf(b) - priceOf(a));
   const boughtList = Object.entries(bought).map(([id, b]) => ({ ...(S.items.find(i => i.id === id) || { id, title: b.title, price: b.price, gone: true }), id, paid: b.price }));
   const nb = boughtList.length;
 
@@ -943,13 +1010,19 @@ function renderFiesta(fid) {
     </div>
     <h2 class="for">${avatarOf(p) ? `<img class="for-av" src="${esc(avatarOf(p))}" alt="" referrerpolicy="no-referrer">` : ""}Ideas para ${esc(nameOf(p))}</h2>
     <div class="tabs" role="tablist">
-      <button role="tab" data-tab="ideas" aria-selected="${S.tab === "ideas"}">Te alcanza (${ideas.length})</button>
-      <button role="tab" data-tab="comprados" aria-selected="${S.tab === "comprados"}">Comprados (${nb})</button>
+      <button role="tab" data-tab="ideas" aria-selected="${S.tab === "ideas"}">Te alcanza <small>${ideasAll.length}</small></button>
+      <button role="tab" data-tab="combos" aria-selected="${S.tab === "combos"}">Combos</button>
+      <button role="tab" data-tab="comprados" aria-selected="${S.tab === "comprados"}">Comprados <small>${nb}</small></button>
     </div>`;
+  if (S.tab !== "comprados" && ideasAll.length) html += filtersHtml(ideasAll, ff, S.tab === "ideas");
   const list = S.tab === "comprados" ? boughtList : ideas;
-  if (!list.length) {
+  if (S.tab === "combos") {
+    html += combosHtml(f, ideasAll.filter(inCat), left);
+  } else if (!list.length) {
     html += S.tab === "comprados"
       ? `<div class="empty"><h3>Aún no compras nada</h3><p>Abre un regalo y toca <b>Ya lo compré</b>. ${esc(nameOf(p))} nunca lo va a ver.</p></div>`
+      : ideasAll.length
+        ? `<div class="empty"><h3>Nada con esos filtros</h3><p>Prueba con otro tipo de regalo u otro rango de precio.</p></div>`
       : left <= 0
         ? `<div class="empty"><h3>Ya usaste todo tu presupuesto</h3><p>Revisa lo que compraste en la pestaña <b>Comprados</b>.</p></div>`
         : `<div class="empty"><h3>Nada entra en ${mxn(left)}</h3><p>${theirItems().length ? `Lo de su wishlist para ${esc(occ(f.occasion).l)} cuesta más.` : `${esc(nameOf(p))} todavía no agrega regalos a su wishlist.`}</p></div>`;
@@ -959,7 +1032,7 @@ function renderFiesta(fid) {
       const was = !isB ? givenElsewhere(i.id, f.id) : "";
       return `<a class="gcard" href="#f/${esc(f.id)}/i/${esc(i.id)}">
         <div class="tile ${isB ? "bought" : ""}">${photoHtml(i)}
-          <div class="top">${isB ? `<span>Comprado</span>` : `<i></i>`}<span class="p">${mxn(isB ? Number(i.paid) : priceOf(i))}</span></div>
+          <div class="top">${isB ? `<span>Comprado</span>` : `<span class="ct" title="${esc(catInfo(catOf(i)).l)}">${I(catInfo(catOf(i)).i)}</span>`}<span class="p">${mxn(isB ? Number(i.paid) : priceOf(i))}</span></div>
           ${isB ? `<span class="stamp">Listo</span>` : isLate(i, f) ? `<span class="late-badge">No llega a tiempo</span>` : ""}
         </div>
         <h3>${esc(itemName(i))}</h3>
@@ -972,6 +1045,17 @@ function renderFiesta(fid) {
   app.innerHTML = html;
   wireGo();
   app.querySelectorAll("[data-tab]").forEach(b => b.addEventListener("click", () => { S.tab = b.dataset.tab; render(); }));
+  app.querySelectorAll("[data-fcat]").forEach(b => b.addEventListener("click", () => { ff.cat = b.dataset.fcat; render(); }));
+  app.querySelectorAll("[data-fprice]").forEach(b => b.addEventListener("click", () => { ff.price = b.dataset.fprice; render(); }));
+  const so = $("#fSort"); if (so) so.addEventListener("click", () => { ff.sort = ff.sort === "asc" ? "desc" : "asc"; render(); });
+  app.querySelectorAll("[data-buy-combo]").forEach(b => b.addEventListener("click", async ev => {
+    const ids = b.dataset.buyCombo.split(",");
+    if (!arm("combo" + b.dataset.buyCombo, ev.currentTarget, "¿Seguro? Toca otra vez")) return;
+    const upd = {};
+    for (const id of ids) { const it = S.items.find(x => x.id === id); if (it) upd["bought." + id] = { price: priceOf(it), title: String(itemName(it)).slice(0, 120), at: Date.now() }; }
+    try { await updateDoc(doc(fdb, "regalos", S.listId, "privado", me(), "fiestas", f.id), upd); S.tab = "comprados"; toast(`Tachados ${ids.length} regalos. Es secreto.`); }
+    catch (e) { writeErr(e); }
+  }));
   $("#toBought").addEventListener("click", () => { S.tab = "comprados"; render(); });
   $("#fDate").addEventListener("change", async ev => {
     const v = ev.target.value;
@@ -983,6 +1067,67 @@ function renderFiesta(fid) {
     try { await deleteDoc(doc(fdb, "regalos", S.listId, "privado", me(), "fiestas", f.id)); location.replace("#fiestas"); toast("Festividad borrada"); }
     catch (e) { writeErr(e); }
   });
+}
+
+/* ---------- Filtros y combos de una festividad ---------- */
+const PRICE_BANDS = [
+  { k: "500", l: "Hasta $500", min: 0, max: 500 },
+  { k: "1000", l: "$500 a $1,000", min: 500, max: 1000 },
+  { k: "2000", l: "$1,000 a $2,000", min: 1000, max: 2000 },
+  { k: "5000", l: "$2,000 a $5,000", min: 2000, max: 5000 },
+  { k: "mas", l: "Más de $5,000", min: 5000, max: Infinity },
+];
+function filtersHtml(items, ff, withPrice) {
+  const counts = {}; items.forEach(i => { const c = catOf(i); counts[c] = (counts[c] || 0) + 1; });
+  const cats = CATS.filter(c => counts[c.k]);
+  const bands = PRICE_BANDS.filter(b => items.some(i => (ff.cat === "all" || catOf(i) === ff.cat) && priceOf(i) > b.min && priceOf(i) <= b.max));
+  let h = `<div class="filters">`;
+  if (cats.length > 1) h += `<div class="chips scroll" aria-label="Tipo de regalo"><button type="button" class="chip" data-fcat="all" aria-pressed="${ff.cat === "all"}">Todo</button>${cats.map(c => `<button type="button" class="chip" data-fcat="${c.k}" aria-pressed="${ff.cat === c.k}">${I(c.i)}${esc(c.l)} <small>${counts[c.k]}</small></button>`).join("")}</div>`;
+  if (withPrice) h += `<div class="chips scroll" aria-label="Precio"><button type="button" class="chip" id="fSort" aria-label="Cambiar orden">${I("sort")}${ff.sort === "asc" ? "Menor precio" : "Mayor precio"}</button>${bands.length > 1 ? `<button type="button" class="chip" data-fprice="all" aria-pressed="${ff.price === "all"}">Cualquier precio</button>${bands.map(b => `<button type="button" class="chip" data-fprice="${b.k}" aria-pressed="${ff.price === b.k}">${esc(b.l)}</button>`).join("")}` : ""}</div>`;
+  return h + `</div>`;
+}
+
+// Combos: juntar 2 a 5 regalos que quepan en lo que queda. Se recomiendan los que más aprovechan el
+// presupuesto, los que dan más regalos y los más variados (de distintos tipos).
+function buildCombos(items, left) {
+  const pool = [...items].sort((a, b) => priceOf(b) - priceOf(a)).slice(0, 24);
+  const all = [];
+  const walk = (start, pick, sum) => {
+    if (pick.length >= 2) all.push({ items: pick.slice(), sum });
+    if (pick.length === 5 || all.length > 60000) return;
+    for (let k = start; k < pool.length; k++) {
+      const pr = priceOf(pool[k]);
+      if (sum + pr <= left) { pick.push(pool[k]); walk(k + 1, pick, sum + pr); pick.pop(); }
+    }
+  };
+  walk(0, [], 0);
+  if (!all.length) return [];
+  all.forEach(c => { c.cats = new Set(c.items.map(catOf)).size; c.key = c.items.map(i => i.id).sort().join(","); });
+  const chosen = [];
+  const same = (a, b) => { const A = new Set(a.items.map(i => i.id)); const inter = b.items.filter(i => A.has(i.id)).length; return inter / Math.max(a.items.length, b.items.length) >= 0.67; };
+  const add = (label, c) => { if (c && !chosen.some(x => x.c.key === c.key || same(x.c, c))) chosen.push({ label, c }); };
+  const by = (...fns) => [...all].sort((a, b) => { for (const fn of fns) { const d = fn(b) - fn(a); if (d) return d; } return 0; });
+  add("Aprovecha tu presupuesto", by(c => c.sum, c => -c.items.length)[0]);
+  add("Más regalos", by(c => c.items.length, c => c.sum)[0]);
+  add("Variado", by(c => c.cats, c => c.sum).find(c => c.cats >= 2));
+  for (const c of by(c => c.sum)) { if (chosen.length >= 5) break; add("Otra opción", c); }
+  return chosen;
+}
+function combosHtml(f, items, left) {
+  if (items.length < 2) return `<div class="empty"><h3>Faltan opciones para un combo</h3><p>Necesitas al menos 2 regalos que te alcancen${S.ff.cat !== "all" ? " de ese tipo" : ""} para armar combinaciones.</p></div>`;
+  const combos = buildCombos(items, left);
+  if (!combos.length) return `<div class="empty"><h3>No caben dos juntos</h3><p>Con ${mxn(left)} solo te alcanza un regalo a la vez. Revisa la pestaña <b>Te alcanza</b>.</p></div>`;
+  return `<p class="hint" style="margin:0 0 12px">Te recomiendo estas combinaciones con los ${mxn(left)} que te quedan.</p>
+  <div class="combos">${combos.map(({ label, c }) => {
+    const late = c.items.filter(i => isLate(i, f)).length;
+    return `<div class="combo card">
+      <div class="combo-h"><span class="ic">${I("combo")}</span><div><b>${esc(label)}</b><span>${c.items.length} regalos · ${mxn(c.sum)}</span></div></div>
+      <div class="combo-pics">${c.items.map(i => `<a class="mini-tile" href="#f/${esc(f.id)}/i/${esc(i.id)}" aria-label="${esc(itemName(i))}">${photoHtml(i)}</a>`).join("")}</div>
+      <ul class="combo-list">${c.items.map(i => `<li><a href="#f/${esc(f.id)}/i/${esc(i.id)}"><span class="cn">${I(catInfo(catOf(i)).i)}${esc(itemName(i))}</span><span class="cp">${mxn(priceOf(i))}</span></a></li>`).join("")}</ul>
+      ${late ? `<div class="late-box">${I("cal")}<span>${late === 1 ? "1 de estos no llegaría" : late + " de estos no llegarían"} a tiempo si los pides hoy.</span></div>` : ""}
+      <div class="combo-f"><span>${left - c.sum > 0 ? `Te sobran ${mxn(left - c.sum)}` : "Justo tu presupuesto"}</span><button class="btn btn-primary btn-sm" data-buy-combo="${esc(c.items.map(i => i.id).join(","))}"><span class="lb">Ya compré este combo</span></button></div>
+    </div>`;
+  }).join("")}</div>`;
 }
 
 /* ---------- Detalle del regalo ---------- */
@@ -1039,13 +1184,17 @@ function renderDetail(fid, iid) {
 
 /* ---------- Mi wishlist ---------- */
 function renderMine() {
-  const mine = myItems();
+  const allMine = myItems();
+  if (!S.mineCat) S.mineCat = "all";
+  const mine = allMine.filter(i => S.mineCat === "all" || catOf(i) === S.mineCat);
   let html = `<div class="wrap screen">
     <div class="pf-head"><h1 class="title">Mi wishlist</h1><div class="hdr-btns">${refreshBtn()}<button class="btn btn-primary btn-sm" id="add">${I("plus")} Agregar</button></div></div>
     <p class="hint" style="margin:10px 0 18px">Lo que pongas aquí se queda para todas las festividades. ${partner() ? esc(nameOf(partner())) : "Tu pareja"} solo ve lo que le alcanza con su presupuesto.</p>`;
+  if (allMine.length) { const counts = {}; allMine.forEach(i => { const c = catOf(i); counts[c] = (counts[c] || 0) + 1; }); const cats = CATS.filter(c => counts[c.k]);
+    if (cats.length > 1) html += `<div class="filters"><div class="chips scroll" aria-label="Tipo de regalo"><button type="button" class="chip" data-mcat="all" aria-pressed="${S.mineCat === "all"}">Todo</button>${cats.map(c => `<button type="button" class="chip" data-mcat="${c.k}" aria-pressed="${S.mineCat === c.k}">${I(c.i)}${esc(c.l)} <small>${counts[c.k]}</small></button>`).join("")}</div></div>`; }
   html += mine.length
     ? `<div class="grid">${mine.map(i => `<button class="gcard" data-edit="${esc(i.id)}">
-        <div class="tile">${photoHtml(i)}<div class="top"><i></i>${priceOf(i) > 0 ? `<span class="p">${mxn(priceOf(i))}</span>` : `<span>Sin precio</span>`}</div></div>
+        <div class="tile">${photoHtml(i)}<div class="top"><span class="ct" title="${esc(catInfo(catOf(i)).l)}">${I(catInfo(catOf(i)).i)}</span>${priceOf(i) > 0 ? `<span class="p">${mxn(priceOf(i))}</span>` : `<span>Sin precio</span>`}</div></div>
         <h3>${esc(itemName(i))}</h3>
         ${i.url ? `<span class="was">${esc(!linkFresh(i) || !i.linkCheckedAt ? "Buscando precio y foto…" : Number(i.linkPrice) > 0 ? "Precio de la tienda" : "La tienda no dejó leer el precio")}</span>` : ""}
         <div class="desc"><p>${esc(i.note || (i.url ? hostOf(safeUrl(i.url)) : "Toca para editar"))}</p>${I("arrow")}</div>
@@ -1055,6 +1204,7 @@ function renderMine() {
   app.innerHTML = html;
   wireGo();
   $("#add").addEventListener("click", () => openSheet(null));
+  app.querySelectorAll("[data-mcat]").forEach(b => b.addEventListener("click", () => { S.mineCat = b.dataset.mcat; render(); }));
   app.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => openSheet(b.dataset.edit)));
   setTimeout(autoLookup, 400);
 }
@@ -1399,6 +1549,7 @@ function openSheet(editId) {
   let found = null;           // { url, r } de la última búsqueda en la tienda
   let webImage = it ? webImg(it) : "";
   let ownPhoto = !!(it && it.ownPhoto && photos.length);
+  let cat = it && CATS.some(c => c.k === it.category) ? it.category : "", catPicked = !!cat;   // tipo de regalo
   const root = $("#sheetRoot");
   root.innerHTML = `
     <div class="sheet-bg" id="sheetBg">
@@ -1418,6 +1569,9 @@ function openSheet(editId) {
         <label class="field">Precio (MXN) <span class="opt">Si pones el link, el precio se toma de la tienda y se mantiene al día. Este se usa si la tienda no deja leerlo.</span><input class="input" id="fPrice" inputmode="decimal" placeholder="${it && linkFresh(it) && Number(it.linkPrice) > 0 ? "En la tienda: " + esc(mxn(Number(it.linkPrice))) : "Ej. 450"}" value="${it && Number(it.price) > 0 ? esc(it.price) : ""}"></label>
         <div class="field">¿Para qué ocasión me lo darías? <span class="opt">Si no eliges, sirve para cualquiera</span>
           <div class="chips" style="margin-top:4px">${OCCASIONS.map(o => `<button type="button" class="chip" data-o="${o.k}" aria-pressed="${sel.has(o.k)}">${o.l}</button>`).join("")}</div>
+        </div>
+        <div class="field">Tipo de regalo <span class="opt" id="catHint">${it && it.category ? "" : "Lo adivino por el nombre; cámbialo si quieres"}</span>
+          <div class="chips" style="margin-top:4px" id="fCats">${CATS.map(c => `<button type="button" class="chip" data-c="${c.k}">${I(c.i)}${c.l}</button>`).join("")}</div>
         </div>
         <label class="field" id="otherWrap" ${sel.has("otro") ? "" : "hidden"}>¿Cuál ocasión?<input class="input" id="fOther" maxlength="40" placeholder="Ej. graduación" value="${esc(it?.otherOccasion)}"></label>
         <button class="btn btn-primary btn-block" type="submit" id="fSave">${it ? "Guardar cambios" : "Agregar a mi wishlist"}</button>
@@ -1463,7 +1617,7 @@ function openSheet(editId) {
     if (r.failed && !r.blocked) { showLookup("No pude abrir la tienda ahora. Guárdalo y lo busco de nuevo en unos minutos.", "warn-t"); return; }
     const ft = $("#fTitle");
     if (!r.title && ft && !ft.value.trim()) { showLookup(`<span class="spin">${I("refresh")}</span> Buscando el nombre del producto…`, "busy"); r.title = await LK.searchTitle(url); if (seq !== lookSeq || !$("#lookup")) return; }
-    if (r.title && ft && (!ft.value.trim() || ft.dataset.auto === "1")) { ft.value = r.title; ft.dataset.auto = "1"; }
+    if (r.title && ft && (!ft.value.trim() || ft.dataset.auto === "1")) { ft.value = r.title; ft.dataset.auto = "1"; if (!catPicked) paintCats(); }
     if (r.image) { shopImg = r.image; paintPick(); }
     else if (!photos.length) {
       const q = r.title || $("#fTitle").value.trim();
@@ -1478,6 +1632,13 @@ function openSheet(editId) {
     else showLookup(r.blocked ? "La tienda no dejó leer la página. Pon un precio aproximado y una foto." : "No encontré el precio en esa página. Pon uno aproximado.", "warn-t");
   }
   $("#fTitle").addEventListener("input", e => { e.target.dataset.auto = ""; });
+  const paintCats = () => {
+    const k = cat || guessCat([$("#fTitle").value, $("#fNote").value, $("#fUrl").value].join(" "));
+    $("#fCats").querySelectorAll("[data-c]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.c === k)));
+  };
+  $("#fCats").querySelectorAll("[data-c]").forEach(b => b.addEventListener("click", () => { cat = b.dataset.c; catPicked = true; $("#catHint").textContent = ""; paintCats(); }));
+  ["#fTitle", "#fNote"].forEach(sel => $(sel).addEventListener("input", () => { if (!catPicked) paintCats(); }));
+  paintCats();
   const fUrl = $("#fUrl");
   fUrl.addEventListener("paste", () => setTimeout(runLookup, 50));
   fUrl.addEventListener("change", runLookup);
@@ -1512,6 +1673,7 @@ function openSheet(editId) {
     if (rawUrl && !safeUrl(rawUrl)) { toast("Ese link no se ve bien. Revísalo."); $("#fUrl").focus(); return; }
     const body = {
       title, titleAuto, price: price > 0 ? price : 0, url: rawUrl ? safeUrl(rawUrl) : "", photo: photos[0] || "", photos, ownPhoto: !!(ownPhoto && photos.length), webImage: webImage || "",
+      category: cat || guessCat([title, $("#fNote").value, rawUrl].join(" ")),
       occasions: OCCASIONS.map(o => o.k).filter(k => sel.has(k)),
       otherOccasion: sel.has("otro") ? $("#fOther").value.trim() : "",
       note: $("#fNote").value.trim(),
