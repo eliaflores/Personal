@@ -1394,11 +1394,15 @@ function shortcutsSheet() {
     <p class="hint">Copia el link y ábrelo en <b>Safari</b>. Ahí toca <b>Compartir → Agregar a pantalla de inicio</b>. Después puedes arrastrar el ícono a la barra de abajo.</p>
     ${item("nueva-idea.html", "Nueva idea", "Abre directo el formulario para proponer un plan.", "icon-idea-180.png?v=1")}
     ${item("agendar.html", "Agendar", "Abre directo el formulario del calendario.", "icon-agendar-180.png?v=1")}
-    <p class="hint center">La primera vez que abras cada atajo, entra con tu Google.</p>`, root => {
+    <p class="hint center">La primera vez que abras cada atajo, entra con tu Google.</p>
+    <div class="card block" style="margin:0"><h3>Para el Centro de control</h3>
+      <p class="hint" style="margin-bottom:10px">En la app Atajos crea un atajo con la acción <b>Abrir URL</b> y pega uno de estos links. Luego agrégalo al Centro de control con <b>+ → Agregar un control → Atajo</b>.</p>
+      ${[["Nueva idea", "#nueva-idea"], ["Agendar", "#agendar"]].map(([l, h]) => `<input class="input" readonly value="${esc(base + h)}" aria-label="Link ${l}" style="font-size:.85rem;margin-bottom:8px"><button type="button" class="btn btn-block" data-copy="${esc(base + h)}" style="margin-bottom:12px">${I("link")}Copiar link de ${l}</button>`).join("")}
+    </div>`, root => {
     root.addEventListener("click", async e => {
       const b = e.target.closest("[data-copy]"); if (!b) return;
       try { await navigator.clipboard.writeText(b.dataset.copy); toast("Link copiado. Ábrelo en Safari"); }
-      catch (err) { const i = b.closest(".block").querySelector("input"); i.focus(); i.select(); toast("Copia el link de arriba"); }
+      catch (err) { const i = b.previousElementSibling && b.previousElementSibling.tagName === "INPUT" ? b.previousElementSibling : b.closest(".block").querySelector("input"); i.focus(); i.select(); toast("Copia el link de arriba"); }
     });
   });
 }
