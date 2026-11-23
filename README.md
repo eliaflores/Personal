@@ -51,6 +51,9 @@ App aparte (carpeta [`planes/`](planes/)) para planear en pareja. Solo la ven la
 - **¿Quién propone más?:** en Inicio y en *Nosotros* se ve cuántas ideas propuso cada quien, cuántas ya hicieron, los corazones recibidos y los eventos agendados.
 - **Calendario compartido:** vista de **día, semana y mes** (se puede deslizar a los lados). Cada evento tiene tipo, fecha, hora de inicio y fin (o todo el día, o varios días), lugar, notas, se puede **repetir** (cada semana, mes o año, ideal para cumpleaños y aniversarios) y se puede **conectar con un plan** de la lista. En la vista de día o semana, tocar una hora vacía agenda algo a esa hora. Cada evento tiene botón para agregarlo a Google Calendar.
 - **Cuenta regresiva y avisos:** Inicio muestra cuántos días (u horas) faltan para lo siguiente. Si activan los avisos en *Nosotros*, a los dos les llega "Faltan 7 días para…", "Mañana…", "Hoy…" y "En 1 hora…", según los avisos que elijan en cada evento (1 mes, 2 semanas, 1 semana, 3 días, 1 día, el mismo día, 3 h, 1 h o 30 min antes). También le avisa a uno cuando el otro propone un plan o agenda algo. Lo manda el Action [`Planes - avisos del calendario`](.github/workflows/planes-avisos.yml) cada 15 minutos con [`planes-avisos/`](planes-avisos/); usa el mismo secreto `FIREBASE_SERVICE_ACCOUNT` y no imprime nombres, títulos ni fechas en sus registros.
+- **Tipos de plan y colores:** en *Nosotros → Tipos de plan y colores* (o con "+ Nuevo tipo" al crear una idea o un evento) se agregan tipos propios con nombre, ícono y color, que sirven para ideas y calendario. También se le puede cambiar el color a los tipos de siempre. Se guardan en el espacio de la pareja (`tipos` y `colores`).
+- **Atajos en la pantalla de inicio:** [`planes/nueva-idea.html`](planes/nueva-idea.html) y [`planes/agendar.html`](planes/agendar.html) tienen su propio ícono; agregados a la pantalla de inicio desde Safari, abren directo el formulario. Los links se copian en *Nosotros → Atajos para tu pantalla de inicio*.
+- **Notion:** el calendario se copia solo a la base de datos "Nuestros Planes" de Notion (de la app a Notion), con [`planes-avisos/notion.js`](planes-avisos/notion.js) en el mismo Action de los avisos. Cada 15 minutos manda lo nuevo o cambiado; cada hora archiva en Notion lo que se borró en la app y mueve los eventos que se repiten a su siguiente fecha. Necesita el secreto `NOTION_TOKEN` (ver abajo).
 - **Tema:** Auto (sigue al cel), Claro u Oscuro, en *Nosotros*.
 
 Usa el mismo proyecto de Firebase e inicio de sesión con Google, pero guarda todo en su propia colección (`planes`), separada de Mi Cartera y de Regalos.
@@ -60,3 +63,10 @@ Usa el mismo proyecto de Firebase e inicio de sesión con Google, pero guarda to
 1. **Firestore Database → Rules**: pega todo el contenido de [`firestore.rules`](firestore.rules) (trae las reglas de Mi Cartera, Regalos y Planes) y publica.
 2. Abre `https://eliaflores.github.io/Personal/planes/`, entra con Google y toca **Crear nuestro espacio**. Comparte el link de invitación con tu pareja; el espacio admite dos personas.
 3. Cada quien, en *Nosotros → Avisos en este cel*, activa los avisos (en iPhone primero hay que agregar la app a la pantalla de inicio).
+
+### Conectar con Notion
+
+1. En [notion.so/profile/integrations](https://www.notion.so/profile/integrations) crea una integración **interna** llamada "Nuestros Planes" y copia su **Internal Integration Secret**.
+2. En Notion abre la base **Nuestros Planes**, toca **•••** → **Conexiones** → **Nuestros Planes** para darle acceso.
+3. En GitHub: Settings → Secrets and variables → Actions → **New repository secret**, nombre `NOTION_TOKEN`, y pega el secreto.
+4. En Actions → *Planes - avisos y Notion* → **Run workflow** para que se copie todo de una vez (o espera 15 minutos).

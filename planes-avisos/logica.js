@@ -87,10 +87,8 @@ const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 const fLong = (iso) => { const d = new Date(dayNum(iso) * 86400000); return `${DIAS[d.getUTCDay()]} ${d.getUTCDate()} de ${MESES[d.getUTCMonth()]}`; };
 const fTime = (t) => { const m = toMin(t); if (m == null) return ""; const h = Math.floor(m / 60); return `${h % 12 || 12}:${pad2(m % 60)} ${h < 12 ? "am" : "pm"}`; };
-const EMO = { plan: "💞", cita: "🥂", viaje: "✈️", cumple: "🎂", aniversario: "💍", pendiente: "📌", otro: "✨" };
 
-function message(e, r, emoji) {
-  const em = emoji || EMO[e.type] || "💞";
+function message(e, r) {
   const t = e.title || "su plan";
   const at = isTimed(e) ? ` a las ${fTime(e.time)}` : "";
   const where = e.place ? ` · ${e.place}` : "";
@@ -100,11 +98,11 @@ function message(e, r, emoji) {
     const left = Number.isFinite(r.left) ? r.left : n * (unit === "h" ? 60 : 1);
     const h = Math.floor((left + 7) / 60), mi = left - h * 60;
     const txt = left < 53 ? `${Math.max(1, left)} min` : h === 1 && mi < 8 ? "1 hora" : mi >= 8 ? `${h} h ${mi} min` : `${h} horas`;
-    return { title: `En ${txt}: ${t} ${em}`, body: `Hoy${at}${where}. ¡Ya casi!` };
+    return { title: `En ${txt}: ${t}`, body: `Hoy${at}${where}. ¡Ya casi!` };
   }
-  if (r.days <= 0) return { title: `Hoy: ${t} ${em}`, body: `${isTimed(e) ? "A las " + fTime(e.time) : "Todo el día"}${where}. Disfrútenlo 💞` };
-  if (r.days === 1) return { title: `Mañana: ${t} ${em}`, body: `${fLong(r.occ)}${at}${where}.` };
-  return { title: `Faltan ${r.days} días para ${t} ${em}`, body: `${fLong(r.occ)}${at}${where}.` };
+  if (r.days <= 0) return { title: `Hoy: ${t}`, body: `${isTimed(e) ? "A las " + fTime(e.time) : "Todo el día"}${where}. ¡Disfrútenlo!` };
+  if (r.days === 1) return { title: `Mañana: ${t}`, body: `${fLong(r.occ)}${at}${where}.` };
+  return { title: `Faltan ${r.days} días para ${t}`, body: `${fLong(r.occ)}${at}${where}.` };
 }
 
 module.exports = { dueReminders, message, mxParts, mxToMs, nextStart, DEFAULT_REMIND };

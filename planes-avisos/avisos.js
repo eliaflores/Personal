@@ -50,8 +50,6 @@ async function send(tokens, m, path, tag) {
     const evs = new Map();
     for (const d of (await c.ref.collection("eventos").where("date", ">=", today).get()).docs) evs.set(d.id, d);
     for (const d of (await c.ref.collection("eventos").where("repeat", "in", ["semanal", "mensual", "anual"]).get()).docs) evs.set(d.id, d);
-    const ideaCache = {};
-    const ideaOf = async (id) => { if (!id) return null; if (!(id in ideaCache)) { const s = await c.ref.collection("ideas").doc(id).get(); ideaCache[id] = s.exists ? s.data() : null; } return ideaCache[id]; };
 
     for (const d of evs.values()) {
       const e = d.data();
@@ -59,8 +57,8 @@ async function send(tokens, m, path, tag) {
       // Cuenta regresiva
       const due = dueReminders(e, now, e.avisos || {});
       if (due.length) {
-        const r = due[0], idea = await ideaOf(e.planId);
-        const m = message(e, r, idea && idea.emoji);
+        const r = due[0];
+        const m = message(e, r);
         const ok = await send(all, m, "#evento/" + d.id, "ev-" + d.id);
         if (ok) { sent += ok; recordatorios++; r.alsoKeys.forEach((k) => (upd[`avisos.${k}`] = today)); }
       }
@@ -69,7 +67,7 @@ async function send(tokens, m, path, tag) {
         const other = members.filter((u) => u !== e.createdBy).flatMap((u) => tokensOf[u]);
         if (other.length) {
           const who = names[e.createdBy] || "Tu pareja";
-          const ok = await send(other, { title: `${who} agendó algo 📅`, body: `${e.title || "Un plan"} · ${e.date}` }, "#evento/" + d.id, "nuevo-ev-" + d.id);
+          const ok = await send(other, { title: `${who} agendó algo`, body: `${e.title || "Un plan"} · ${e.date}` }, "#evento/" + d.id, "nuevo-ev-" + d.id);
           sent += ok; if (ok) nuevos++;
         }
         upd.nuevoAvisado = true;
@@ -84,7 +82,7 @@ async function send(tokens, m, path, tag) {
       const other = members.filter((u) => u !== i.owner).flatMap((u) => tokensOf[u]);
       if (other.length) {
         const who = names[i.owner] || "Tu pareja";
-        const ok = await send(other, { title: `${who} propuso un plan ${i.emoji || "💡"}`, body: `${i.title || "Una idea nueva"}. ¿Te late?` }, "#idea/" + d.id, "nueva-idea-" + d.id);
+        const ok = await send(other, { title: `${who} propuso un plan`, body: `${i.title || "Una idea nueva"}. ¿Te late?` }, "#idea/" + d.id, "nueva-idea-" + d.id);
         sent += ok; if (ok) nuevos++;
       }
       await d.ref.update({ nuevoAvisado: true });
