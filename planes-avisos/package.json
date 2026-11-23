@@ -1,0 +1,8 @@
+{
+  "name": "planes-avisos",
+  "private": true,
+  "description": "Manda los avisos del calendario de Nuestros Planes (cuántos días faltan, y horas antes)",
+  "dependencies": {
+    "firebase-admin": "12.1.0"
+  }
+}

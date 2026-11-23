@@ -42,3 +42,21 @@ Usa el mismo proyecto de Firebase para iniciar sesión con Google, pero guarda t
 2. **Authentication → Settings → Authorized domains**: confirma que está `eliaflores.github.io`.
 3. Abre `https://eliaflores.github.io/Personal/regalos/`, entra con Google y toca **Crear nuestra lista**. Comparte el link de invitación con tu pareja; la lista admite dos personas.
 4. Para tenerla como app en el cel: en Safari, Compartir → Agregar a inicio; en Chrome, menú → Agregar a la pantalla principal.
+
+## Nuestros Planes
+
+App aparte (carpeta [`planes/`](planes/)) para planear en pareja. Solo la ven las dos personas conectadas:
+
+- **Ideas de planes:** cada quien propone planes con emoji, tipo (comida, salida, viaje, en casa…), descripción, lugar y link. Se desglosan en **actividades** (con hora y costo) y **otros gastos** (transporte, entradas, hospedaje…), y la app suma el **costo aproximado** y cuánto toca a cada quien. Se pueden **conectar con otros planes** (ej. "Viaje a Oaxaca" con "Tour de mezcal"), darles ♥ y marcarlos como hechos (quedan en *Recuerdos*). Hay un dado para elegir un plan al azar.
+- **¿Quién propone más?:** en Inicio y en *Nosotros* se ve cuántas ideas propuso cada quien, cuántas ya hicieron, los corazones recibidos y los eventos agendados.
+- **Calendario compartido:** vista de **día, semana y mes** (se puede deslizar a los lados). Cada evento tiene tipo, fecha, hora de inicio y fin (o todo el día, o varios días), lugar, notas, se puede **repetir** (cada semana, mes o año, ideal para cumpleaños y aniversarios) y se puede **conectar con un plan** de la lista. En la vista de día o semana, tocar una hora vacía agenda algo a esa hora. Cada evento tiene botón para agregarlo a Google Calendar.
+- **Cuenta regresiva y avisos:** Inicio muestra cuántos días (u horas) faltan para lo siguiente. Si activan los avisos en *Nosotros*, a los dos les llega "Faltan 7 días para…", "Mañana…", "Hoy…" y "En 1 hora…", según los avisos que elijan en cada evento (1 mes, 2 semanas, 1 semana, 3 días, 1 día, el mismo día, 3 h, 1 h o 30 min antes). También le avisa a uno cuando el otro propone un plan o agenda algo. Lo manda el Action [`Planes - avisos del calendario`](.github/workflows/planes-avisos.yml) cada 15 minutos con [`planes-avisos/`](planes-avisos/); usa el mismo secreto `FIREBASE_SERVICE_ACCOUNT` y no imprime nombres, títulos ni fechas en sus registros.
+- **Tema:** Auto (sigue al cel), Claro u Oscuro, en *Nosotros*.
+
+Usa el mismo proyecto de Firebase e inicio de sesión con Google, pero guarda todo en su propia colección (`planes`), separada de Mi Cartera y de Regalos.
+
+### Configuración
+
+1. **Firestore Database → Rules**: pega todo el contenido de [`firestore.rules`](firestore.rules) (trae las reglas de Mi Cartera, Regalos y Planes) y publica.
+2. Abre `https://eliaflores.github.io/Personal/planes/`, entra con Google y toca **Crear nuestro espacio**. Comparte el link de invitación con tu pareja; el espacio admite dos personas.
+3. Cada quien, en *Nosotros → Avisos en este cel*, activa los avisos (en iPhone primero hay que agregar la app a la pantalla de inicio).

@@ -1,0 +1,13 @@
+{
+  "name": "Nuestros Planes",
+  "short_name": "Planes",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FBF6F1",
+  "theme_color": "#FBF6F1",
+  "icons": [
+    { "src": "icon-192.png?v=1", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png?v=1", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
