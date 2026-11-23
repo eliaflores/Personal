@@ -442,6 +442,8 @@ input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-dat
 .blk span { font-size: .62rem; }
 .tgrid.tiny .blk:not(.wide) span { display: none; }
 .tgrid.tiny .blk { font-size: .64rem; line-height: 1.1; padding: 1px 4px; border-radius: 6px; }
+.who-chip { padding-left: 5px; }
+.who-chip .av { border-width: 0; margin-right: 2px; }
 </style>
 </head>
 <body>
@@ -641,6 +643,8 @@ const ideaTotal = i => {
 const ideaIconKey = i => (i.icon && P[i.icon]) ? i.icon : cat(i.cat).i;
 const ideaEmoji = i => I(ideaIconKey(i));
 const ideaById = id => S.ideas.find(i => i.id === id);
+// De quién es la idea (se puede elegir al anotarla); "owner" es quien la escribió.
+const ideaBy = i => (i && i.by && members().includes(i.by)) ? i.by : i.owner;
 const eventsOfIdea = id => S.events.filter(e => e.planId === id);
 
 /* ---------- Eventos: repeticiones y cuenta regresiva ---------- */
@@ -855,7 +859,7 @@ function evRow(e, occ, showCount = true) {
 }
 function duelCard(link = true) {
   const ms = members();
-  const counts = ms.map(u => S.ideas.filter(i => i.owner === u).length);
+  const counts = ms.map(u => S.ideas.filter(i => ideaBy(i) === u).length);
   const total = counts.reduce((a, b) => a + b, 0);
   let lead = "Propongan su primer plan";
   if (ms.length === 2 && total) {
@@ -871,7 +875,7 @@ function duelCard(link = true) {
   </${link ? "button" : "div"}>`;
 }
 function miniIdea(i) {
-  return `<button class="mini-idea" data-go="#idea/${esc(i.id)}"><span class="emo">${ideaEmoji(i)}</span><b>${esc(i.title)}</b><span><span style="font-weight:700">${esc(nameOf(i.owner))}</span>${ideaTotal(i) ? " · ~" + mxn(ideaTotal(i)) : ""}</span></button>`;
+  return `<button class="mini-idea" data-go="#idea/${esc(i.id)}"><span class="emo">${ideaEmoji(i)}</span><b>${esc(i.title)}</b><span><span style="font-weight:700">${esc(nameOf(ideaBy(i)))}</span>${ideaTotal(i) ? " · ~" + mxn(ideaTotal(i)) : ""}</span></button>`;
 }
 function renderHome() {
   const h = new Date().getHours();
@@ -906,7 +910,7 @@ function ideaCard(i) {
     <span class="emo" style="${catStyle(i.cat)}">${ideaEmoji(i)}</span>
     <span class="tx">
       <h3>${esc(i.title)}</h3>
-      <span class="meta"><span class="who"><i style="background:${pColor(i.owner)}"></i>${esc(nameOf(i.owner))}</span>${tot ? `<span>~${mxn(tot)}</span>` : ""}${acts ? `<span>${plural(acts, "actividad", "actividades")}</span>` : ""}</span>
+      <span class="meta"><span class="who"><i style="background:${pColor(ideaBy(i))}"></i>${esc(nameOf(ideaBy(i)))}</span>${tot ? `<span>~${mxn(tot)}</span>` : ""}${acts ? `<span>${plural(acts, "actividad", "actividades")}</span>` : ""}</span>
       <span class="tags"><span class="pill gray">${esc(cat(i.cat).l)}</span>${st.l ? `<span class="pill ${st.c}">${esc(st.l)}</span>` : ""}</span>
     </span>
     ${likes ? `<span class="likes" title="${likes > 1 ? "A los dos les late" : "Le late a uno"}">${I("heart")}${likes > 1 ? "2" : ""}</span>` : ""}
@@ -915,7 +919,7 @@ function ideaCard(i) {
 function renderIdeas() {
   const ms = members();
   let list = [...S.ideas];
-  if (S.ideaWho !== "todas") list = list.filter(i => i.owner === S.ideaWho);
+  if (S.ideaWho !== "todas") list = list.filter(i => ideaBy(i) === S.ideaWho);
   if (S.cat) list = list.filter(i => i.cat === S.cat);
   const bySt = k => list.filter(i => ideaStatus(i).k === k);
   if (S.ideaSt === "pendientes") list = list.filter(i => !i.done);
@@ -927,7 +931,7 @@ function renderIdeas() {
     ${topBar(`<h1 class="title">Ideas de <em>planes</em></h1>`, `${refreshBtn()}<button class="icon-btn" data-act="roulette" aria-label="Elegir un plan al azar">${I("dice")}</button><button class="icon-btn accent" data-act="newIdea" aria-label="Nueva idea">${I("plus")}</button>`)}
     <div class="chips scroll" style="margin-top:10px">
       <button class="chip" data-who="todas" aria-pressed="${S.ideaWho === "todas"}">Los dos</button>
-      ${ms.map(u => `<button class="chip" data-who="${esc(u)}" aria-pressed="${S.ideaWho === u}"><span class="dot" style="background:${pColor(u)}"></span>${esc(nameOf(u))} · ${S.ideas.filter(i => i.owner === u).length}</button>`).join("")}
+      ${ms.map(u => `<button class="chip" data-who="${esc(u)}" aria-pressed="${S.ideaWho === u}"><span class="dot" style="background:${pColor(u)}"></span>${esc(nameOf(u))} · ${S.ideas.filter(i => ideaBy(i) === u).length}</button>`).join("")}
     </div>
     <div class="seg" style="margin-top:12px">
       ${[["pendientes", "Por hacer"], ["agendadas", "Agendadas"], ["hechas", "Hechas"], ["todas", "Todas"]].map(([k, l]) => `<button data-st="${k}" aria-current="${S.ideaSt === k}">${l}</button>`).join("")}
@@ -953,7 +957,7 @@ function roulette() {
       const t = setInterval(() => {
         pick = pool[Math.floor(Math.random() * pool.length)];
         root.querySelector("#rl").innerHTML = ideaEmoji(pick); root.querySelector("#rlT").textContent = pick.title;
-        if (++n > 12) { clearInterval(t); root.querySelector("#rlGo").disabled = false; root.querySelector("#rlM").textContent = `Lo propuso ${nameOf(pick.owner)}${ideaTotal(pick) ? " · ~" + mxn(ideaTotal(pick)) : ""}`; }
+        if (++n > 12) { clearInterval(t); root.querySelector("#rlGo").disabled = false; root.querySelector("#rlM").textContent = `Lo propuso ${nameOf(ideaBy(pick))}${ideaTotal(pick) ? " · ~" + mxn(ideaTotal(pick)) : ""}`; }
       }, 90);
     };
     root.querySelector("#rlAgain").addEventListener("click", spin);
@@ -979,7 +983,7 @@ function renderIdea(id) {
     <div class="d-head">
       <div class="d-emo" style="${catStyle(i.cat)}">${ideaEmoji(i)}</div>
       <h1>${esc(i.title)}</h1>
-      <div class="sub"><span class="byline">${avatar(i.owner, "sm")}Lo propuso ${esc(i.owner === me() ? "tú" : nameOf(i.owner))}</span><span class="pill gray">${esc(cat(i.cat).l)}</span>${i.done ? `<span class="pill ok">Hecho</span>` : ""}</div>
+      <div class="sub"><span class="byline">${avatar(ideaBy(i), "sm")}${ideaBy(i) === me() ? "Idea tuya" : "Idea de " + esc(nameOf(ideaBy(i)))}${ideaBy(i) !== i.owner ? ` <span class="hint" style="font-weight:500">· la anotó ${esc(i.owner === me() ? "tú" : nameOf(i.owner))}</span>` : ""}</span><span class="pill gray">${esc(cat(i.cat).l)}</span>${i.done ? `<span class="pill ok">Hecho</span>` : ""}</div>
       <div style="margin-top:14px;display:flex;justify-content:center;gap:10px;align-items:center">
         <button class="like-btn" data-act="like" aria-pressed="${liked}">${I("heart")}${liked ? "Me late" : "¿Te late?"}</button>
         ${likers.length ? `<span class="hint">${likers.length === 2 ? "¡A los dos les late!" : "A " + esc(likers[0] === me() ? "ti" : nameOf(likers[0])) + " le late"}</span>` : ""}
@@ -1174,7 +1178,7 @@ function renderEvento(id) {
 /* ---------- Nosotros: estadísticas y ajustes ---------- */
 function renderNosotros() {
   const ms = members(), p = partner();
-  const by = u => S.ideas.filter(i => i.owner === u);
+  const by = u => S.ideas.filter(i => ideaBy(i) === u);
   const row = (label, f) => {
     if (ms.length < 2) return "";
     const a = f(ms[0]), b = f(ms[1]), tot = a + b || 1;
@@ -1211,7 +1215,7 @@ function renderNosotros() {
       <div class="stat"><b>${mxn(pend.reduce((s, i) => s + ideaTotal(i), 0))}</b><span>costarían las pendientes</span></div>
     </div>
     ${catCounts.length ? `<div class="sec"><h2>Lo que más les gusta</h2></div><div class="card catbar">${catCounts.map(x => `<span class="ci">${I(x.c.i)}</span><span class="t"><i style="width:${x.n / maxCat * 100}%"></i></span><span class="c">${x.n}</span>`).join("")}</div>` : ""}
-    ${done.length ? `<div class="sec"><h2>Recuerdos</h2></div><div class="list">${[...done].sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 6).map(i => `<button class="row" data-go="#idea/${esc(i.id)}"><span class="ico">${ideaEmoji(i)}</span><span class="tx"><b>${esc(i.title)}</b><span>${i.doneAt ? esc(fLong(isoOf(new Date(i.doneAt)))) : ""} · idea de ${esc(nameOf(i.owner))}</span></span><span class="ch">${I("chev")}</span></button>`).join("")}</div>` : ""}
+    ${done.length ? `<div class="sec"><h2>Recuerdos</h2></div><div class="list">${[...done].sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 6).map(i => `<button class="row" data-go="#idea/${esc(i.id)}"><span class="ico">${ideaEmoji(i)}</span><span class="tx"><b>${esc(i.title)}</b><span>${i.doneAt ? esc(fLong(isoOf(new Date(i.doneAt)))) : ""} · idea de ${esc(nameOf(ideaBy(i)))}</span></span><span class="ch">${I("chev")}</span></button>`).join("")}</div>` : ""}
     <div class="sec"><h2>Ajustes</h2></div>
     <div class="list">
       <button class="row" data-go="#perfil"><span class="ico" style="padding:0;overflow:hidden">${avatar(me())}</span><span class="tx"><b>Mi perfil</b><span>Tu foto y tu nombre</span></span><span class="ch">${I("chev")}</span></button>
@@ -1249,7 +1253,7 @@ function squarePhoto(file, size = 360, cap = 60000) {
   });
 }
 function renderPerfil() {
-  const u = me(), mine = S.ideas.filter(i => i.owner === u);
+  const u = me(), mine = S.ideas.filter(i => ideaBy(i) === u);
   const hearts = mine.reduce((n, i) => n + Object.keys(i.likes || {}).filter(x => x !== u).length, 0);
   const cur = photoOf(u), google = S.user.photoURL || "";
   app.innerHTML = `<div class="wrap screen">
@@ -1474,11 +1478,13 @@ function ideaForm(id) {
   let acts = (it?.activities || []).map(a => ({ ...a }));
   let costs = (it?.costs || []).map(c => ({ ...c }));
   const rel = new Set(it?.related || []);
+  let byU = it ? ideaBy(it) : me();
   const others = S.ideas.filter(x => x.id !== id);
   openSheet(`<form id="ideaF" style="display:contents">
     <div class="sheet-head"><h2>${it ? "Editar plan" : "Nueva idea de plan"}</h2><button type="button" class="x" data-close aria-label="Cerrar">×</button></div>
     <div class="emo-pick"><button type="button" class="cur" id="emoCur" aria-label="Elegir ícono"></button><label class="field" style="flex:1">¿Qué plan?<input class="input" id="fT" maxlength="90" required placeholder="Ej. Noche de tacos y karaoke" value="${esc(it?.title)}"></label></div>
     <div class="emo-grid" id="emoGrid" hidden>${ICONS.map(e => `<button type="button" data-e="${e}" aria-label="${e}">${I(e)}</button>`).join("")}</div>
+    ${members().length > 1 ? `<div class="field">¿De quién es la idea? <span class="opt">Cuenta para “¿Quién propone más?”</span><div class="chips" id="byChips">${members().map(u => `<button type="button" class="chip who-chip" data-by="${esc(u)}">${avatar(u, "sm")}${u === me() ? "Mía" : "De " + esc(nameOf(u))}</button>`).join("")}</div></div>` : ""}
     <div class="field">Tipo de plan<div class="chips" id="catChips">${catChipsHtml()}</div><div class="ntbox card" hidden>${typeFormHtml("nt", {}, true)}<div class="btn-row"><button type="button" class="btn" data-ntcancel>Cancelar</button><button type="button" class="btn btn-primary" data-ntsave>Agregar tipo</button></div></div></div>
     <label class="field">Descripción <span class="opt">¿De qué se trata? ¿Por qué se te antojó?</span><textarea class="input" id="fN" maxlength="800" placeholder="Ej. Ir al centro, cenar tacos y luego karaoke con amigos">${esc(it?.note)}</textarea></label>
     <div class="field">Actividades <span class="opt">Con hora y costo si quieres (ej. 7:00 pm · Cena · $600)</span>
@@ -1517,6 +1523,9 @@ function ideaForm(id) {
       total();
     };
     paintEmo(); paintCat(); paintRows();
+    const paintBy = () => root.querySelectorAll("#byChips [data-by]").forEach(b => b.setAttribute("aria-pressed", b.dataset.by === byU));
+    paintBy();
+    root.querySelector("#byChips")?.addEventListener("click", e => { const b = e.target.closest("[data-by]"); if (b) { byU = b.dataset.by; paintBy(); } });
     root.querySelector("#emoCur").addEventListener("click", () => { root.querySelector("#emoGrid").hidden = !root.querySelector("#emoGrid").hidden; });
     root.querySelector("#emoGrid").addEventListener("click", e => { const b = e.target.closest("[data-e]"); if (!b) return; emoji = b.dataset.e; paintEmo(); root.querySelector("#emoGrid").hidden = true; });
     const nt = wireNewType(root, t => { root.querySelector("#catChips").innerHTML = catChipsHtml(); catK = t.k; paintCat(); paintEmo(); });
@@ -1539,7 +1548,7 @@ function ideaForm(id) {
       const title = root.querySelector("#fT").value.trim();
       if (!title) { root.querySelector("#fT").focus(); return; }
       const data = {
-        title, icon: emoji, emoji: "", cat: catK || "otro", note: root.querySelector("#fN").value.trim(),
+        title, by: members().includes(byU) ? byU : me(), icon: emoji, emoji: "", cat: catK || "otro", note: root.querySelector("#fN").value.trim(),
         activities: acts.filter(a => a.t.trim()).map(a => ({ t: a.t.trim(), time: a.time || "", cost: a.cost || 0, done: !!a.done })),
         costs: costs.filter(c => c.t.trim() || c.amount).map(c => ({ t: c.t.trim() || "Otro gasto", amount: c.amount || 0 })),
         budget: num(root.querySelector("#fB").value), place: root.querySelector("#fP").value.trim(), link: root.querySelector("#fL").value.trim(),

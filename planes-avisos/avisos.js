@@ -82,7 +82,9 @@ async function send(tokens, m, path, tag) {
       const other = members.filter((u) => u !== i.owner).flatMap((u) => tokensOf[u]);
       if (other.length) {
         const who = names[i.owner] || "Tu pareja";
-        const ok = await send(other, { title: `${who} propuso un plan`, body: `${i.title || "Una idea nueva"}. ¿Te late?` }, "#idea/" + d.id, "nueva-idea-" + d.id);
+        const yours = i.by && i.by !== i.owner;   // la anotó por la otra persona
+        const m = yours ? { title: `${who} anotó una idea tuya`, body: `${i.title || "Una idea"}. Ya cuenta como tuya.` } : { title: `${who} propuso un plan`, body: `${i.title || "Una idea nueva"}. ¿Te late?` };
+        const ok = await send(other, m, "#idea/" + d.id, "nueva-idea-" + d.id);
         sent += ok; if (ok) nuevos++;
       }
       await d.ref.update({ nuevoAvisado: true });
