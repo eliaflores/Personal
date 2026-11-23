@@ -100,6 +100,13 @@ service cloud.firestore {
         allow update: if inCouple() && request.resource.data.createdBy == resource.data.createdBy;
       }
 
+      // Pendientes compartidos: los dos agregan, editan, tachan y borran.
+      match /pendientes/{todoId} {
+        allow read, delete: if inCouple();
+        allow create: if inCouple() && request.resource.data.createdBy == request.auth.uid;
+        allow update: if inCouple() && request.resource.data.createdBy == resource.data.createdBy;
+      }
+
       // Cels donde cada quien activó los avisos (solo los ve y cambia su dueño).
       match /privado/{uid}/avisos/{tokenId} {
         allow read, write: if inCouple() && request.auth.uid == uid;

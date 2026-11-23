@@ -75,6 +75,33 @@ async function send(tokens, m, path, tag) {
       if (Object.keys(upd).length) await d.ref.update(upd);
     }
 
+    // Pendientes: el día de su fecha límite (desde las 9:00) y cuando uno le agrega uno al otro.
+    const mxNow = mxParts(now);
+    const forWho = (t) => (t.para && t.para !== "ambos" && members.includes(t.para)) ? [t.para] : members;
+    if (mxNow.min >= 9 * 60) {
+      for (const d of (await c.ref.collection("pendientes").where("due", "==", today).get()).docs) {
+        const t = d.data();
+        if (t.done || t.avisoDia === today) continue;
+        const to = forWho(t).flatMap((u) => tokensOf[u]);
+        if (to.length) {
+          const ok = await send(to, { title: "Pendiente para hoy", body: t.t || "Tienen un pendiente" }, "#pendientes", "pend-" + d.id);
+          sent += ok; if (ok) recordatorios++;
+        }
+        await d.ref.update({ avisoDia: today });
+      }
+    }
+    for (const d of (await c.ref.collection("pendientes").where("createdAt", ">", now - NEW_WINDOW).get()).docs) {
+      const t = d.data();
+      if (t.nuevoAvisado || now - t.createdAt < 60000) continue;
+      const to = forWho(t).filter((u) => u !== t.createdBy).flatMap((u) => tokensOf[u]);
+      if (to.length) {
+        const who = names[t.createdBy] || "Tu pareja";
+        const ok = await send(to, { title: `${who} agregó un pendiente`, body: (t.t || "") + (t.due ? ` · para el ${t.due}` : "") }, "#pendientes", "nuevo-pend-" + d.id);
+        sent += ok; if (ok) nuevos++;
+      }
+      await d.ref.update({ nuevoAvisado: true });
+    }
+
     // Ideas nuevas: avisarle a la otra persona
     for (const d of (await c.ref.collection("ideas").where("createdAt", ">", now - NEW_WINDOW).get()).docs) {
       const i = d.data();
