@@ -715,7 +715,7 @@ function route() {
   if (h[0] === "ideas") return { v: "ideas" };
   if (h[0] === "idea" && h[1]) return { v: "idea", id: h[1] };
   if (h[0] === "cal") {
-    const view = ["dia", "semana", "mes"].includes(h[1]) ? h[1] : (localStore("planes.vista") || "mes");
+    const view = ["dia", "semana", "mes"].includes(h[1]) ? h[1] : "mes";   // al entrar al calendario siempre se ve el mes
     const d = /^\d{4}-\d{2}-\d{2}$/.test(h[2] || "") ? h[2] : todayISO();
     return { v: "cal", view, d };
   }
@@ -1020,8 +1020,9 @@ function calTitle(view, d) {
   const s = parse(weekStart(d)), e = parse(addDays(weekStart(d), 6));
   return s.getMonth() === e.getMonth() ? `${s.getDate()} – ${e.getDate()} ${MES3[e.getMonth()]}` : `${s.getDate()} ${MES3[s.getMonth()]} – ${e.getDate()} ${MES3[e.getMonth()]}`;
 }
+let lastCalView = "mes";   // para regresar de un evento a la vista donde estabas
 function renderCal(r) {
-  localStore("planes.vista", r.view);
+  lastCalView = r.view;
   const step = r.view === "mes" ? null : r.view === "semana" ? 7 : 1;
   const prev = step ? addDays(r.d, -step) : addMonths(r.d, -1), next = step ? addDays(r.d, step) : addMonths(r.d, 1);
   let body = "";
@@ -1151,7 +1152,7 @@ function renderEvento(id) {
   const rem = (e.remind || DEFAULT_REMIND).filter(k => isTimed(e) || !/[hm]$/.test(k));
   const mapUrl = e.place ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(e.place) : "";
   app.innerHTML = `<div class="wrap screen">
-    ${topBar(backBtn(`#cal/${localStore("planes.vista") || "mes"}/${occ}`), `<button class="icon-btn" data-act="editEvent" data-id="${esc(id)}" aria-label="Editar">${I("edit")}</button>`)}
+    ${topBar(backBtn(`#cal/${lastCalView}/${occ}`), `<button class="icon-btn" data-act="editEvent" data-id="${esc(id)}" aria-label="Editar">${I("edit")}</button>`)}
     <div class="d-head">
       <div class="d-emo" style="${tstyle(e.type)}">${evEmoji(e)}</div>
       <h1>${esc(e.title)}</h1>
