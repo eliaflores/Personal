@@ -60,6 +60,15 @@ service cloud.firestore {
       }
     }
 
+    // Täglich (alemán diario): cada quien solo lee y escribe su propio progreso (no toca nada de las otras apps).
+    // aleman/{uid} = perfil · aleman/{uid}/srs/* = repasos · aleman/{uid}/avisos/* = cels con recordatorio.
+    match /aleman/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+      match /{rest=**} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+
     // Nuestros Planes: un espacio compartido por dos personas (no toca nada de Mi Cartera ni de Regalos).
     match /planes/{coupleId} {
       function pSignedIn() { return request.auth != null; }

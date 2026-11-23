@@ -71,3 +71,32 @@ Usa el mismo proyecto de Firebase e inicio de sesión con Google, pero guarda to
 2. En Notion abre la base **Nuestros Planes**, toca **•••** → **Conexiones** → **Nuestros Planes** para darle acceso.
 3. En GitHub: Settings → Secrets and variables → Actions → **New repository secret**, nombre `NOTION_TOKEN`, y pega el secreto.
 4. En Actions → *Planes - avisos y Notion* → **Run workflow** para que se copie todo de una vez (o espera 15 minutos).
+
+## Täglich (alemán diario)
+
+App aparte (carpeta [`aleman/`](aleman/)) para aprender alemán un poco cada día, del A1 al B1, explicada en español. Está hecha con lo que la investigación sabe sobre cómo se aprende (en la app, *Yo → La ciencia detrás de la app* explica cada punto con sus referencias):
+
+- **Repetición espaciada con FSRS-5:** cada palabra tiene su propio calendario. La app estima qué tan firme está cada recuerdo y te la vuelve a preguntar justo cuando la probabilidad de recordarla baja al 90% (se puede cambiar a 85% o 95% en Ajustes).
+- **Recuperación activa y dificultad adaptativa:** casi todo son ejercicios donde tienes que recordar. Cada palabra pasa de reconocerla a escribirla, completarla en una frase, escucharla y decirla. Si aciertas más del ~93% los ejercicios se ponen más difíciles y si bajas del ~72% más guiados, para quedarte cerca del 85%, la zona donde más se aprende.
+- **Calificación automática:** no hay que autoevaluarse. La app califica según si acertaste, si fue con falta de ortografía, si pediste pista y qué tan rápido respondiste.
+- **Corrección inteligente:** acepta `ae/oe/ue/ss` en lugar de `ä/ö/ü/ß`, perdona faltas de ortografía pequeñas, exige el artículo en los sustantivos, avisa de las mayúsculas y detecta cuando escribiste otra palabra que existe (Butter en vez de Mutter). Cada error trae su explicación: la regla de género, la conjugación o el porqué de la gramática, y la palabra vuelve a salir unos ejercicios después.
+- **Contenido:** 734 palabras en 23 unidades (con artículo y color por género, plural, ejemplo, audio y notas), 30 temas de gramática con 330 ejercicios y 17 lecturas graduadas con audio, traducción por frase, palabras que se tocan para ver su significado y preguntas de comprensión.
+- **Ejercicios:** elegir, escribir, der/die/das, plural, completar frases, ordenar fichas, dictado, escuchar, hablar (reconocimiento de voz), conjugar, Perfekt y parejas.
+- **Ruta tipo camino:** unidades con lecciones, gramática y lectura. Si ya sabes algo, hay un examen para saltar unidades.
+- **Hábito:** meta diaria, racha con protectores (ganas uno cada 7 días), calendario de constancia, límite de palabras nuevas por día y un plan de «cuándo y dónde» vas a estudiar.
+- **Estadísticas:** nivel estimado (A1/A2/B1), retención real, repasos de los próximos 14 días, estado de tu memoria, aciertos por tipo de ejercicio y tus palabras más difíciles.
+- **Sin internet:** se instala como app y funciona offline; el progreso se sube cuando vuelve la conexión.
+
+Se entra con Google o con correo y contraseña, o se puede probar sin cuenta (el progreso queda solo en ese dispositivo y se sube a la cuenta la primera vez que entras). Usa el mismo proyecto de Firebase, pero guarda todo en su propia colección (`aleman/{uid}`), separada de Mi Cartera, Regalos y Planes; cada quien solo puede ver lo suyo.
+
+- **Recordatorio diario:** si en *Yo → Ajustes* activas el recordatorio, a la hora que elegiste (en tu zona horaria) te llega «🔥 ¡No pierdas tu racha de 12 días!» o «🧠 Tus palabras se están olvidando», solo si ese día todavía no has estudiado. Lo manda el Action [`Täglich - recordatorio diario de alemán`](.github/workflows/aleman-avisos.yml) cada hora con [`aleman-avisos/`](aleman-avisos/); usa el mismo secreto `FIREBASE_SERVICE_ACCOUNT` y no imprime nombres ni progreso en sus registros.
+
+### Configuración
+
+1. **Firestore Database → Rules**: pega todo el contenido de [`firestore.rules`](firestore.rules) (ahora también trae las reglas de `aleman`) y publica.
+2. **Authentication → Sign-in method**: Google ya está activo; para entrar con correo activa también **Correo electrónico/contraseña**.
+3. Abre `https://eliaflores.github.io/Personal/aleman/` y entra. Para tenerla como app en el cel: en Safari, Compartir → Agregar a inicio; en Chrome, menú → Agregar a la pantalla principal (en iPhone los avisos solo funcionan desde la app agregada a inicio).
+
+### Pruebas
+
+`node aleman/pruebas.mjs` revisa el motor y todo el contenido (más de 29 000 comprobaciones: que cada ejercicio generado acepte su respuesta correcta, conjugaciones, FSRS, etc.) y `node aleman-avisos/pruebas.js` la lógica del recordatorio.
