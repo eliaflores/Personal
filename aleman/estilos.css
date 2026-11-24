@@ -1,7 +1,7 @@
 /* Täglich · estilos.
    Papel cálido, tinta casi negra, oro para XP y racha, un color por género (azul der, rojo die, verde das)
    y los pasteles de cada nivel (menta A1, cielo A2, rosa B1, mantequilla para lo importante).
-   Tarjetas grandes muy redondeadas, íconos en círculos, botones de flecha con anillo de progreso y destellos decorativos. */
+   Sin emojis: solo íconos de línea. Tarjetas grandes muy redondeadas, íconos en círculos, botones de flecha con anillo de progreso y destellos decorativos. */
 :root {
   --bg: #F7F5EF; --card: #FFFFFF; --soft: #EFECE3; --soft-2: #E6E2D7; --line: #E4E0D5;
   --ink: #1B1A17; --ink-2: #4A4740; --muted: #827E73; --on-ink: #FFFFFF;
@@ -116,7 +116,7 @@ body.sin-nav #app { padding-bottom: 0; }
 .cab-meta { display: flex; align-items: center; gap: 8px; color: var(--gold-ink); }
 .cab-meta .ico { width: 18px; height: 18px; }
 .cab-meta small { color: var(--muted); font-weight: 700; font-size: 12.5px; }
-.cab-barra { display: block; width: 130px; max-width: 45%; height: 8px; border-radius: 9px; background: var(--soft-2); overflow: hidden; }
+.cab-barra { display: block; width: 90px; max-width: 40%; height: 8px; border-radius: 9px; background: var(--soft-2); overflow: hidden; }
 .cab-barra i { display: block; height: 100%; background: var(--gold); border-radius: 9px; }
 .titulo-fila { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin: 4px 0 2px; }
 .titulo { font-size: 34px; line-height: 1.06; font-weight: 800; letter-spacing: -.025em; }
@@ -630,3 +630,39 @@ body.sin-nav #toastRoot { bottom: calc(110px + env(safe-area-inset-bottom)); }
 .circ.p-rosa, .f-emoji.p-rosa, .mf-ico.p-rosa, .chip-nv.p-rosa { background: var(--b1); }
 .circ.p-mantequilla, .f-emoji.p-mantequilla, .mf-ico.p-mantequilla { background: var(--gold-soft); }
 .circ.p-arena, .f-emoji.p-arena { background: var(--soft); }
+
+/* ---------- Íconos de línea (sin emojis) ---------- */
+.intro-emoji .ico { width: 54px; height: 54px; stroke-width: 1.6; }
+.ex-emoji { width: 84px; height: 84px; }
+.ex-emoji .ico { width: 38px; height: 38px; stroke-width: 1.7; }
+.f-emoji .ico { width: 21px; height: 21px; }
+.fp-emoji .ico { width: 42px; height: 42px; stroke-width: 1.7; }
+.op-emoji .ico { width: 30px; height: 30px; stroke-width: 1.8; }
+.opcion.fila .op-emoji .ico { width: 25px; height: 25px; }
+.mf-ico .ico { width: 24px; height: 24px; }
+.lc-marca { opacity: .09; color: var(--ink); filter: none; right: -18px; bottom: -22px; }
+.lc-marca .ico { width: 150px; height: 150px; stroke-width: 1.2; }
+.nodo { color: var(--ink); }
+.nodo-ico { display: grid; place-items: center; }
+.nodo-ico .ico { width: 30px; height: 30px; stroke-width: 1.9; }
+.nodo.hecho { color: #1B1A17; }
+.nodo.actual { color: var(--on-ink); }
+.nodo.bloq .nodo-ico .ico { width: 24px; height: 24px; }
+.pp-ico { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--card); }
+.pp-ico .ico { width: 18px; height: 18px; }
+.fin-emoji .ico { width: 40px; height: 40px; color: var(--gold-ink); stroke-width: 1.8; }
+.tip { display: flex; gap: 10px; align-items: flex-start; }
+.tip > .ico { width: 18px; height: 18px; margin-top: 2px; flex: none; }
+.fb-nota { display: flex; gap: 8px; align-items: flex-start; }
+.fb-nota > .ico { width: 17px; height: 17px; margin-top: 2px; flex: none; opacity: .85; }
+.fin-sci { display: flex; gap: 10px; align-items: flex-start; }
+.fin-sci > .ico { width: 20px; height: 20px; flex: none; margin-top: 1px; color: var(--gold-ink); }
+.pila i { font-style: normal; font-weight: 800; font-size: 16px; color: var(--ink); }
+.pila i.g-m { color: var(--der); } .pila i.g-f { color: var(--die); } .pila i.g-n { color: var(--das); } .pila i.g-pl { color: var(--pl); }
+.fchip .ico { width: 16px; height: 16px; vertical-align: -3px; margin-right: 2px; }
+.hero-tema { position: absolute; top: 14px; right: 14px; z-index: 2; }
+.carta .circ .ico { width: 21px; height: 21px; }
+.ex-emoji.p-menta, .fp-emoji.p-menta, .pp-ico.p-menta { background: var(--a1); }
+.ex-emoji.p-cielo, .fp-emoji.p-cielo, .pp-ico.p-cielo { background: var(--a2); }
+.ex-emoji.p-rosa, .fp-emoji.p-rosa, .pp-ico.p-rosa { background: var(--b1); }
+.ex-emoji.p-mantequilla, .fp-emoji.p-mantequilla, .pp-ico.p-mantequilla { background: var(--gold-soft); }

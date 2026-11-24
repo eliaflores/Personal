@@ -38,9 +38,9 @@ function mensaje(perfil, hoy) {
   const n = r.n || 0;
   const pend = pendientes(perfil, hoy);
   const rep = pend ? `Tienes ${pend} ${pend === 1 ? "repaso pendiente" : "repasos pendientes"}. ` : "";
-  if (n >= 2 && (ayer || protegida)) return { title: `🔥 ¡No pierdas tu racha de ${n} días!`, body: `${rep}Con 5 minutos basta.`, tag: "racha-" + hoy };
-  if (pend >= 5) return { title: "🧠 Tus palabras se están olvidando", body: `${pend} palabras están en su punto justo para repasarlas. Recupéralas hoy y se te quedan.`, tag: "repaso-" + hoy };
-  return { title: "☕ Hora de tu alemán", body: `${rep}Una lección cortita y listo. Jeden Tag ein bisschen!`, tag: "dia-" + hoy };
+  if (n >= 2 && (ayer || protegida)) return { title: `¡No pierdas tu racha de ${n} días!`, body: `${rep}Con 5 minutos basta.`, tag: "racha-" + hoy };
+  if (pend >= 5) return { title: "Tus palabras se están olvidando", body: `${pend} palabras están en su punto justo para repasarlas. Recupéralas hoy y se te quedan.`, tag: "repaso-" + hoy };
+  return { title: "Hora de tu alemán", body: `${rep}Una lección cortita y listo. Jeden Tag ein bisschen!`, tag: "dia-" + hoy };
 }
 
 module.exports = { partesEn, debeAvisar, mensaje, pendientes, TZ };

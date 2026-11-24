@@ -5,13 +5,14 @@
 const limpio = (s) => s.replace(/<[^>]+>/g, "").replace(/"/g, "&quot;");
 const ej = (de, es) => `<div class="ej" data-say="${limpio(de)}"><span>${de}</span><i>${es}</i></div>`;
 const tabla = (filas) => `<div class="tabla-wrap"><table class="tabla">${filas.map((f, i) => `<tr>${f.map((c) => (i === 0 ? `<th>${c}</th>` : `<td>${c}</td>`)).join("")}</tr>`).join("")}</table></div>`;
-const tip = (s) => `<div class="tip">${s}</div>`;
+const BOMBILLA = `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5M9 18h6M10 22h4"/></svg>`;
+const tip = (s) => `<div class="tip">${BOMBILLA}<span>${s}</span></div>`;
 const m = (s) => `<b class="g-m">${s}</b>`, f = (s) => `<b class="g-f">${s}</b>`, n = (s) => `<b class="g-n">${s}</b>`, pl = (s) => `<b class="g-pl">${s}</b>`;
 
 export const TEMAS = {};
 
 TEMAS.aussprache = {
-  nivel: "A1", emoji: "👄", titulo: "Pronunciación",
+  nivel: "A1", titulo: "Pronunciación",
   html: `
 <p>El alemán se lee casi como se escribe. Si aprendes estas reglas desde el principio, podrás leer en voz alta cualquier palabra. Toca cada ejemplo para escucharlo.</p>
 ${tabla([["Se escribe", "Suena como", "Ejemplo"], ["ei", "«ai»", "mein, Wein"], ["ie", "«i» larga", "Liebe, Bier"], ["eu / äu", "«oi»", "neu, Häuser"], ["sch", "«sh» inglesa", "Schule"], ["sp / st (al inicio)", "«shp» / «sht»", "Sport, Straße"], ["z", "«ts»", "Zeit, zehn"], ["w", "«v» (labios y dientes)", "Wasser"], ["v", "«f»", "Vater, viel"], ["j", "«y»", "ja, Jahr"], ["ch (tras a, o, u)", "«j» española suave", "acht, Buch"], ["ch (tras e, i, ä, ö, ü)", "un siseo suave, como «sh» con sonrisa", "ich, Milch"]])}
@@ -20,7 +21,7 @@ ${ej("Die Schule beginnt um zehn.", "La escuela empieza a las diez.")}
 <p><b>Las vocales con diéresis</b> (Umlaut) son sonidos distintos: <b>ä</b> ≈ «e» abierta; <b>ö</b> = di «e» con los labios en «o»; <b>ü</b> = di «i» con los labios en «u».</p>
 ${ej("schön, grün, Käse", "bonito, verde, queso")}
 <p><b>ß</b> (Eszett) es una «s» fuerte. Va después de vocal larga o diptongo (Straße, heißen); tras vocal corta se escribe <b>ss</b> (Wasser, muss).</p>
-${tip("💡 Vocal + consonante doble = vocal corta (Bett, Mann). Vocal + h = vocal larga, la h no suena (Uhr, fahren). Al final de palabra, -er suena casi como «a»: Lehrer ≈ «léra».")}
+${tip("Vocal + consonante doble = vocal corta (Bett, Mann). Vocal + h = vocal larga, la h no suena (Uhr, fahren). Al final de palabra, -er suena casi como «a»: Lehrer ≈ «léra».")}
 ${ej("Mein Vater fährt Fahrrad.", "Mi papá anda en bici.")}`,
   ejercicios: `
 ? Ich h___ße Maria. | ei | ie, eu | Me llamo Maria. | «ei» suena «ai»: heißen.
@@ -36,7 +37,7 @@ ${ej("Mein Vater fährt Fahrrad.", "Mi papá anda en bici.")}`,
 };
 
 TEMAS.sein = {
-  nivel: "A1", emoji: "🧍", titulo: "Pronombres y el verbo «sein»",
+  nivel: "A1", titulo: "Pronombres y el verbo «sein»",
   html: `
 <p><b>sein</b> significa <b>ser</b> y <b>estar</b> a la vez. Es irregular, pero es el verbo que más vas a usar.</p>
 ${tabla([["Pronombre", "sein", "Español"], ["ich", "bin", "yo soy/estoy"], ["du", "bist", "tú eres"], ["er / sie / es", "ist", "él / ella / ello es"], ["wir", "sind", "nosotros somos"], ["ihr", "seid", "ustedes (vosotros) son"], ["sie / Sie", "sind", "ellos son / usted es"]])}
@@ -44,7 +45,7 @@ ${ej("Ich bin müde.", "Estoy cansado.")}
 ${ej("Wir sind Freunde.", "Somos amigos.")}
 <p><b>du</b> se usa con amigos, familia y niños. <b>Sie</b> (con mayúscula) es «usted»: con desconocidos, en tiendas y en el trabajo. Se conjuga igual que «sie» (ellos).</p>
 ${ej("Sind Sie Frau Weber?", "¿Es usted la señora Weber?")}
-${tip("💡 En alemán siempre hay que decir el sujeto: «Bin müde» está mal; se dice «Ich bin müde».")}`,
+${tip("En alemán siempre hay que decir el sujeto: «Bin müde» está mal; se dice «Ich bin müde».")}`,
   ejercicios: `
 ? Ich ___ müde. | bin | bist, ist, sind | Estoy cansado. | Con «ich» siempre «bin».
 ? Du ___ sehr nett. | bist | bin, ist, seid | Eres muy amable. | Con «du»: bist.
@@ -62,10 +63,10 @@ ${tip("💡 En alemán siempre hay que decir el sujeto: «Bin müde» está mal;
 };
 
 TEMAS.genero = {
-  nivel: "A1", emoji: "🎨", titulo: "der, die, das: el género",
+  nivel: "A1", titulo: "der, die, das: el género",
   html: `
 <p>Cada sustantivo alemán tiene un género: ${m("der")} (masculino), ${f("die")} (femenino) o ${n("das")} (neutro). El plural siempre es ${pl("die")}. El género casi nunca coincide con el español (${n("das")} Mädchen = la niña).</p>
-${tip("🎯 Aprende cada sustantivo con su artículo, como si fuera una sola palabra: no «Tisch», sino «der Tisch». En esta app los colores te ayudan: azul = der, rojo = die, verde = das.")}
+${tip("Aprende cada sustantivo con su artículo, como si fuera una sola palabra: no «Tisch», sino «der Tisch». En esta app los colores te ayudan: azul = der, rojo = die, verde = das.")}
 <p>Pero sí hay reglas que funcionan casi siempre:</p>
 ${tabla([["Siempre/casi siempre", "Terminación o tipo", "Ejemplos"], [f("die"), "-ung, -heit, -keit, -schaft, -tion, -tät, -ik, -ie, -ei", "die Zeitung, die Freiheit, die Universität"], [f("die"), "mujeres con -in", "die Lehrerin, die Ärztin"], [n("das"), "-chen, -lein, -ment, -um", "das Mädchen, das Museum"], [n("das"), "verbos usados como sustantivo", "das Essen, das Leben"], [m("der"), "días, meses, estaciones", "der Montag, der Mai, der Winter"], [m("der"), "-ling, -ismus, -or, personas en -er", "der Frühling, der Lehrer"]])}
 <p>El artículo indefinido: ${m("ein")} Tisch, ${f("eine")} Lampe, ${n("ein")} Haus (en plural no hay).</p>
@@ -90,14 +91,14 @@ ${ej("Das Mädchen liest ein Buch.", "La niña lee un libro.")}`,
 };
 
 TEMAS.uhrzeit = {
-  nivel: "A1", emoji: "🕒", titulo: "Números y la hora",
+  nivel: "A1", titulo: "Números y la hora",
   html: `
 <p>Del 13 al 19 se dice la unidad + <b>zehn</b>: dreizehn, vierzehn… (ojo: <b>sechzehn</b>, <b>siebzehn</b>). Del 21 en adelante, ¡al revés!: <b>einundzwanzig</b> = «uno y veinte».</p>
 ${ej("dreizehn, sechzehn, siebzehn", "13, 16, 17")}
 ${ej("Er ist fünfundzwanzig Jahre alt.", "Tiene 25 años.")}
 <p>Preguntar la hora: <b>Wie spät ist es?</b> o <b>Wie viel Uhr ist es?</b></p>
 ${tabla([["Hora", "Informal", "Formal (24 h)"], ["3:00", "drei Uhr", "drei Uhr"], ["3:10", "zehn nach drei", "drei Uhr zehn"], ["3:15", "Viertel nach drei", "drei Uhr fünfzehn"], ["3:30", "<b>halb vier</b> (¡!)", "drei Uhr dreißig"], ["3:45", "Viertel vor vier", "drei Uhr fünfundvierzig"], ["15:50", "zehn vor vier", "fünfzehn Uhr fünfzig"]])}
-${tip("⚠️ «halb drei» NO es 3:30: es «media hora antes de las tres» = 2:30. Es el error más común de los hispanohablantes.")}
+${tip("«halb drei» NO es 3:30: es «media hora antes de las tres» = 2:30. Es el error más común de los hispanohablantes.")}
 <p>Preposiciones de tiempo: <b>um</b> + hora (um acht Uhr), <b>am</b> + día o parte del día (am Montag, am Abend), <b>im</b> + mes o estación (im Mai, im Winter).</p>
 ${ej("Der Kurs beginnt um halb neun.", "El curso empieza a las ocho y media.")}`,
   ejercicios: `
@@ -116,14 +117,14 @@ ${ej("Der Kurs beginnt um halb neun.", "El curso empieza a las ocho y media.")}`
 };
 
 TEMAS.praesens = {
-  nivel: "A1", emoji: "🔧", titulo: "El presente",
+  nivel: "A1", titulo: "El presente",
   html: `
 <p>Los verbos regulares se conjugan quitando <b>-en</b> al infinitivo (wohn-en) y añadiendo estas terminaciones:</p>
 ${tabla([["", "wohnen", "Terminación"], ["ich", "wohn<b>e</b>", "-e"], ["du", "wohn<b>st</b>", "-st"], ["er / sie / es", "wohn<b>t</b>", "-t"], ["wir", "wohn<b>en</b>", "-en"], ["ihr", "wohn<b>t</b>", "-t"], ["sie / Sie", "wohn<b>en</b>", "-en"]])}
 ${ej("Ich wohne in Berlin. Wo wohnst du?", "Vivo en Berlín. ¿Dónde vives tú?")}
 <p>Si la raíz termina en <b>-t</b> o <b>-d</b>, se mete una <b>e</b>: du arbeit<b>e</b>st, er arbeit<b>e</b>t, ihr find<b>e</b>t. Si termina en <b>-s, -ß, -z</b>, con du solo se pone <b>-t</b>: du heißt, du tanzt.</p>
 ${ej("Er arbeitet viel.", "Él trabaja mucho.")}
-${tip("🎯 La regla de oro del alemán: en una oración normal, el verbo conjugado va en la <b>posición 2</b>. Lo demás se puede mover: «Heute lerne ich Deutsch».")}
+${tip("La regla de oro del alemán: en una oración normal, el verbo conjugado va en la <b>posición 2</b>. Lo demás se puede mover: «Heute lerne ich Deutsch».")}
 <p>El presente alemán también sirve para el futuro: «Morgen fahre ich nach Berlin» = Mañana voy a Berlín.</p>`,
   ejercicios: `
 ? Ich ___ in Berlin. (wohnen) | wohne | wohnst, wohnt, wohnen | Vivo en Berlín. | ich → -e.
@@ -142,7 +143,7 @@ O Heute lerne ich Deutsch. / Ich lerne heute Deutsch. | Hoy aprendo alemán. | E
 };
 
 TEMAS.haben = {
-  nivel: "A1", emoji: "🤲", titulo: "«haben» y el acusativo con «ein»",
+  nivel: "A1", titulo: "«haben» y el acusativo con «ein»",
   html: `
 <p><b>haben</b> (tener) es irregular en du y er:</p>
 ${tabla([["", "haben"], ["ich", "habe"], ["du", "ha<b>st</b>"], ["er / sie / es", "ha<b>t</b>"], ["wir", "haben"], ["ihr", "habt"], ["sie / Sie", "haben"]])}
@@ -150,7 +151,7 @@ ${tabla([["", "haben"], ["ich", "habe"], ["du", "ha<b>st</b>"], ["er / sie / es"
 ${tabla([["", m("masculino"), f("femenino"), n("neutro")], ["sujeto (nominativo)", "ein / der", "eine / die", "ein / das"], ["acusativo", "<b>einen / den</b>", "eine / die", "ein / das"]])}
 ${ej("Ich habe einen Bruder und eine Schwester.", "Tengo un hermano y una hermana.")}
 ${ej("Ich möchte einen Kaffee, bitte.", "Quisiera un café, por favor.")}
-${tip("💡 Expresiones con haben: Hunger haben (tener hambre), Durst haben (tener sed), Zeit haben, Angst haben, Lust haben (tener ganas).")}`,
+${tip("Expresiones con haben: Hunger haben (tener hambre), Durst haben (tener sed), Zeit haben, Angst haben, Lust haben (tener ganas).")}`,
   ejercicios: `
 ? Ich ___ Hunger. | habe | hast, hat | Tengo hambre. | ich → habe.
 ? Du ___ einen Bruder. | hast | habt, hat | Tienes un hermano. | du → hast.
@@ -168,7 +169,7 @@ ${tip("💡 Expresiones con haben: Hunger haben (tener hambre), Durst haben (ten
 };
 
 TEMAS.negacion = {
-  nivel: "A1", emoji: "🚫", titulo: "Decir que no: «nicht» y «kein»",
+  nivel: "A1", titulo: "Decir que no: «nicht» y «kein»",
   html: `
 <p>Hay dos formas de negar:</p>
 ${tabla([["", "Se usa para", "Ejemplo"], ["<b>kein</b>", "sustantivos con «ein» o sin artículo", "Ich habe <b>kein</b> Auto."], ["<b>nicht</b>", "todo lo demás: verbos, adjetivos, nombres, sustantivos con der/die/das", "Das ist <b>nicht</b> gut."]])}
@@ -177,7 +178,7 @@ ${ej("Ich habe keine Zeit und keinen Hunger.", "No tengo tiempo ni hambre.")}
 <p><b>nicht</b> va al final de la oración o justo antes de lo que niegas (un adjetivo, un lugar):</p>
 ${ej("Er kommt heute nicht.", "Hoy no viene.")}
 ${ej("Das Hotel ist nicht teuer.", "El hotel no es caro.")}
-${tip("💡 Para decir «¡sí!» a una pregunta negativa se usa <b>doch</b>: «Kommst du nicht?» – «Doch!» (¡Claro que sí!).")}`,
+${tip("Para decir «¡sí!» a una pregunta negativa se usa <b>doch</b>: «Kommst du nicht?» – «Doch!» (¡Claro que sí!).")}`,
   ejercicios: `
 ? Ich habe ___ Auto. | kein | nicht, keine | No tengo carro. | Sustantivo con «ein» → kein.
 ? Das ist ___ gut. | nicht | kein, keine | Eso no está bien. | Adjetivo → nicht.
@@ -194,7 +195,7 @@ ${tip("💡 Para decir «¡sí!» a una pregunta negativa se usa <b>doch</b>: «
 };
 
 TEMAS.fragen = {
-  nivel: "A1", emoji: "❓", titulo: "Preguntas y orden de la frase",
+  nivel: "A1", titulo: "Preguntas y orden de la frase",
   html: `
 <p><b>Preguntas con palabra W:</b> palabra W + verbo + sujeto.</p>
 ${tabla([["Palabra", "Significa", "Ejemplo"], ["was", "qué", "Was machst du?"], ["wer", "quién", "Wer ist das?"], ["wo", "dónde", "Wo wohnst du?"], ["woher", "de dónde", "Woher kommst du?"], ["wohin", "a dónde", "Wohin fährst du?"], ["wann", "cuándo", "Wann beginnt der Kurs?"], ["wie", "cómo", "Wie heißt du?"], ["warum", "por qué", "Warum lernst du Deutsch?"], ["wie viel", "cuánto", "Wie viel kostet das?"]])}
@@ -202,7 +203,7 @@ ${tabla([["Palabra", "Significa", "Ejemplo"], ["was", "qué", "Was machst du?"],
 ${ej("Kommst du heute?", "¿Vienes hoy?")}
 <p><b>Oraciones normales:</b> el verbo siempre en la posición 2. Si empiezas con otra cosa (heute, am Montag…), el sujeto pasa después del verbo.</p>
 ${ej("Ich gehe heute ins Kino. → Heute gehe ich ins Kino.", "Hoy voy al cine.")}
-${tip("🎯 Piensa en el verbo como el «eje» de la frase: siempre en el lugar 2, pase lo que pase en el lugar 1.")}`,
+${tip("Piensa en el verbo como el «eje» de la frase: siempre en el lugar 2, pase lo que pase en el lugar 1.")}`,
   ejercicios: `
 ? ___ heißt du? | Wie | Was, Wo | ¿Cómo te llamas? | Para nombres se pregunta con wie.
 ? ___ kommst du? – Aus Peru. | Woher | Wo, Wohin | ¿De dónde eres? —De Perú. | Origen: woher.
@@ -219,13 +220,13 @@ O Am Montag arbeite ich nicht. / Ich arbeite am Montag nicht. | El lunes no trab
 };
 
 TEMAS.vokalwechsel = {
-  nivel: "A1", emoji: "🔀", titulo: "Verbos que cambian de vocal",
+  nivel: "A1", titulo: "Verbos que cambian de vocal",
   html: `
 <p>Algunos verbos muy comunes cambian la vocal, <b>pero solo con du y er/sie/es</b>. Con ich, wir, ihr y sie son normales.</p>
 ${tabla([["Cambio", "Infinitivo", "du", "er / sie / es"], ["a → ä", "fahren", "fährst", "fährt"], ["a → ä", "schlafen", "schläfst", "schläft"], ["au → äu", "laufen", "läufst", "läuft"], ["e → i", "sprechen", "sprichst", "spricht"], ["e → i", "essen", "isst", "isst"], ["e → i", "geben", "gibst", "gibt"], ["e → i", "nehmen", "nimmst", "nimmt"], ["e → ie", "sehen", "siehst", "sieht"], ["e → ie", "lesen", "liest", "liest"]])}
 ${ej("Ich fahre nach Hause, aber du fährst zur Arbeit.", "Yo voy a casa, pero tú vas al trabajo.")}
 ${ej("Sprichst du Deutsch?", "¿Hablas alemán?")}
-${tip("💡 En las palabras de esta app verás estas formas entre paréntesis: «fahren (fährt)». Practica diciéndolas en voz alta: decirlo ayuda a recordarlo (efecto de producción).")}`,
+${tip("En las palabras de esta app verás estas formas entre paréntesis: «fahren (fährt)». Practica diciéndolas en voz alta: decirlo ayuda a recordarlo (efecto de producción).")}`,
   ejercicios: `
 ? Du ___ zu schnell. (fahren) | fährst | fahrst, fährt | Manejas demasiado rápido. | a → ä con du.
 ? Er ___ ein Buch. (lesen) | liest | lest, lieset | Él lee un libro. | e → ie: er liest.
@@ -243,12 +244,12 @@ ${tip("💡 En las palabras de esta app verás estas formas entre paréntesis: �
 };
 
 TEMAS.plural = {
-  nivel: "A1", emoji: "👯", titulo: "El plural",
+  nivel: "A1", titulo: "El plural",
   html: `
 <p>El plural alemán tiene varias formas. Por eso en esta app cada sustantivo trae su plural: apréndelo junto con la palabra. El artículo del plural siempre es ${pl("die")}.</p>
 ${tabla([["Terminación", "Típico de", "Ejemplo"], ["-e (a veces con ¨)", "masculinos", "der Tag → die Tage, der Stuhl → die Stühle"], ["-er (con ¨ si se puede)", "neutros cortos", "das Kind → die Kinder, das Buch → die Bücher"], ["-n / -en", "casi todos los femeninos", "die Lampe → die Lampen, die Frau → die Frauen"], ["-nen", "mujeres en -in", "die Lehrerin → die Lehrerinnen"], ["-s", "palabras extranjeras, en -a, -o", "das Auto → die Autos"], ["sin cambio (a veces ¨)", "-er, -el, -en", "der Lehrer → die Lehrer, der Vater → die Väter"]])}
 ${ej("Die Kinder lesen Bücher.", "Los niños leen libros.")}
-${tip("💡 Truco: casi todos los femeninos hacen el plural con -(e)n. Si dudas con una palabra femenina, apuesta por -n.")}`,
+${tip("Truco: casi todos los femeninos hacen el plural con -(e)n. Si dudas con una palabra femenina, apuesta por -n.")}`,
   ejercicios: `
 ? ein Kind, zwei ___ | Kinder | Kinds, Kinden | un niño, dos niños | Neutro corto → -er.
 ? eine Frau, zwei ___ | Frauen | Fraus, Fräue | una mujer, dos mujeres | Femenino → -en.
@@ -266,7 +267,7 @@ ${tip("💡 Truco: casi todos los femeninos hacen el plural con -(e)n. Si dudas 
 };
 
 TEMAS.akkusativ = {
-  nivel: "A1", emoji: "🎯", titulo: "El acusativo",
+  nivel: "A1", titulo: "El acusativo",
   html: `
 <p>El <b>acusativo</b> es el complemento directo: lo que (o a quien) ves, compras, quieres… Solo cambia el <b>masculino</b>:</p>
 ${tabla([["", m("der"), f("die"), n("das"), pl("die")], ["nominativo", "der / ein / kein / mein", "die / eine", "das / ein", "die / keine"], ["acusativo", "<b>den / einen / keinen / meinen</b>", "die / eine", "das / ein", "die / keine"]])}
@@ -293,14 +294,14 @@ ${ej("Das Geschenk ist für dich.", "El regalo es para ti.")}`,
 };
 
 TEMAS.trennbar = {
-  nivel: "A1", emoji: "✂️", titulo: "Verbos separables",
+  nivel: "A1", titulo: "Verbos separables",
   html: `
 <p>Muchos verbos tienen un prefijo que se <b>separa</b> y se va al <b>final</b> de la frase: auf·stehen → Ich stehe um sieben Uhr <b>auf</b>.</p>
 ${tabla([["Infinitivo", "Presente", "Significa"], ["aufstehen", "ich stehe … auf", "levantarse"], ["einkaufen", "ich kaufe … ein", "hacer las compras"], ["anrufen", "ich rufe … an", "llamar por teléfono"], ["fernsehen", "ich sehe … fern", "ver la tele"], ["anfangen", "es fängt … an", "empezar"], ["mitkommen", "ich komme … mit", "venir con alguien"]])}
 ${ej("Ich stehe um sieben Uhr auf.", "Me levanto a las siete.")}
 ${ej("Rufst du mich morgen an?", "¿Me llamas mañana?")}
 <p>Con un verbo modal, el separable va <b>junto</b> y al final: Ich muss früh <b>aufstehen</b>. En el Perfekt, el ge- va en medio: auf<b>ge</b>standen.</p>
-${tip("💡 Los prefijos be-, ver-, er-, ent-, emp-, ge-, zer- NUNCA se separan: verstehen → ich verstehe.")}`,
+${tip("Los prefijos be-, ver-, er-, ent-, emp-, ge-, zer- NUNCA se separan: verstehen → ich verstehe.")}`,
   ejercicios: `
 O Ich stehe um sieben Uhr auf. | Me levanto a las siete. | El prefijo «auf» se va al final.
 O Am Samstag kaufen wir ein. / Wir kaufen am Samstag ein. | El sábado hacemos las compras. | «ein» se va al final.
@@ -317,13 +318,13 @@ O Rufst du mich morgen an? | ¿Me llamas mañana? | Pregunta: verbo primero, pre
 };
 
 TEMAS.possessiv = {
-  nivel: "A1", emoji: "🫵", titulo: "Mi, tu, su: los posesivos",
+  nivel: "A1", titulo: "Mi, tu, su: los posesivos",
   html: `
 ${tabla([["Persona", "Posesivo", "Español"], ["ich", "mein", "mi"], ["du", "dein", "tu"], ["er / es", "sein", "su (de él)"], ["sie", "ihr", "su (de ella)"], ["wir", "unser", "nuestro"], ["ihr", "euer", "su (de ustedes) / vuestro"], ["sie / Sie", "ihr / Ihr", "su (de ellos) / su (de usted)"]])}
 <p>Llevan las mismas terminaciones que <b>ein</b>: mein (m, n), mein<b>e</b> (f y plural), mein<b>en</b> (masculino en acusativo).</p>
 ${ej("Das ist mein Vater und das ist meine Mutter.", "Este es mi papá y esta es mi mamá.")}
 ${ej("Ich besuche meinen Bruder.", "Visito a mi hermano.")}
-${tip("⚠️ En español «su» sirve para todo; en alemán debes saber de quién es: sein (de él) o ihr (de ella). «Lisa und ihr Hund» = Lisa y su perro.")}`,
+${tip("En español «su» sirve para todo; en alemán debes saber de quién es: sein (de él) o ihr (de ella). «Lisa und ihr Hund» = Lisa y su perro.")}`,
   ejercicios: `
 ? Das ist ___ Mutter. (mi) | meine | mein, meinen | Ella es mi mamá. | die Mutter → meine.
 ? Wo ist ___ Schlüssel? (tu) | dein | deine, deinen | ¿Dónde está tu llave? | der Schlüssel (sujeto) → dein.
@@ -340,14 +341,14 @@ ${tip("⚠️ En español «su» sirve para todo; en alemán debes saber de qui�
 
 /* ============================ A2 ============================ */
 TEMAS.modal = {
-  nivel: "A2", emoji: "💪", titulo: "Verbos modales",
+  nivel: "A2", titulo: "Verbos modales",
   html: `
 ${tabla([["", "können", "müssen", "wollen", "dürfen", "sollen", "möchten"], ["ich", "kann", "muss", "will", "darf", "soll", "möchte"], ["du", "kannst", "musst", "willst", "darfst", "sollst", "möchtest"], ["er / sie / es", "kann", "muss", "will", "darf", "soll", "möchte"], ["wir / sie / Sie", "können", "müssen", "wollen", "dürfen", "sollen", "möchten"], ["ihr", "könnt", "müsst", "wollt", "dürft", "sollt", "möchtet"]])}
 <p>Fíjate: con ich y er son iguales y no llevan -t. La estructura es como un sándwich: <b>modal en posición 2</b> … <b>infinitivo al final</b>.</p>
 ${ej("Ich kann gut schwimmen.", "Sé nadar bien.")}
 ${ej("Du musst jetzt nach Hause gehen.", "Ahora tienes que irte a casa.")}
 ${tabla([["Modal", "Significa"], ["können", "poder, saber hacer algo"], ["müssen", "tener que (obligación, necesidad)"], ["wollen", "querer (decidido)"], ["möchten", "querer (amable: quisiera)"], ["dürfen", "tener permiso; nicht dürfen = estar prohibido"], ["sollen", "deber (porque otra persona lo dice)"]])}
-${tip("⚠️ «Du musst nicht kommen» = no tienes que venir (no es necesario). «Du darfst nicht kommen» = no puedes venir (está prohibido).")}`,
+${tip("«Du musst nicht kommen» = no tienes que venir (no es necesario). «Du darfst nicht kommen» = no puedes venir (está prohibido).")}`,
   ejercicios: `
 O Ich kann gut schwimmen. | Sé nadar bien. | Modal en posición 2, infinitivo al final.
 O Du musst jetzt nach Hause gehen. | Ahora tienes que irte a casa. | El infinitivo «gehen» va hasta el final.
@@ -365,7 +366,7 @@ O Morgen wollen wir ins Kino gehen. / Wir wollen morgen ins Kino gehen. | Mañan
 };
 
 TEMAS.dativ = {
-  nivel: "A2", emoji: "🎁", titulo: "El dativo",
+  nivel: "A2", titulo: "El dativo",
   html: `
 <p>El <b>dativo</b> responde a «¿a quién?» o «¿para quién?» (el complemento indirecto). También va después de algunas preposiciones y verbos.</p>
 ${tabla([["", m("der"), f("die"), n("das"), pl("die")], ["nominativo", "der / ein", "die / eine", "das / ein", "die"], ["dativo", "<b>dem / einem</b>", "<b>der / einer</b>", "<b>dem / einem</b>", "<b>den</b> + -n"]])}
@@ -374,7 +375,7 @@ ${ej("Wir schenken den Kindern Bücher.", "Les regalamos libros a los niños.")}
 ${tabla([["Nominativo", "Dativo", "Español"], ["ich", "<b>mir</b>", "me / a mí"], ["du", "<b>dir</b>", "te / a ti"], ["er", "<b>ihm</b>", "le / a él"], ["sie", "<b>ihr</b>", "le / a ella"], ["es", "<b>ihm</b>", "le"], ["wir", "uns", "nos"], ["ihr", "euch", "les / a ustedes"], ["sie / Sie", "<b>ihnen / Ihnen</b>", "les / a ellos / a usted"]])}
 <p>Verbos que siempre llevan dativo: <b>helfen, danken, gefallen, gehören, schmecken, antworten, gratulieren</b>.</p>
 ${ej("Das Kleid gefällt mir.", "Me gusta el vestido.")}
-${tip("💡 Truco: en las terminaciones del dativo aparecen mucho la <b>m</b> y la <b>r</b>: dem, einem, der, einer, mir, ihm, ihr.")}`,
+${tip("Truco: en las terminaciones del dativo aparecen mucho la <b>m</b> y la <b>r</b>: dem, einem, der, einer, mir, ihm, ihr.")}`,
   ejercicios: `
 ? Ich helfe ___ Mann. | dem | den, der | Ayudo al hombre. | helfen + dativo: der → dem.
 ? Ich gebe ___ Frau das Buch. | der | die, dem | Le doy el libro a la mujer. | Femenino en dativo: die → der.
@@ -391,7 +392,7 @@ ${tip("💡 Truco: en las terminaciones del dativo aparecen mucho la <b>m</b> y 
 };
 
 TEMAS.praep = {
-  nivel: "A2", emoji: "🧭", titulo: "Preposiciones con caso fijo",
+  nivel: "A2", titulo: "Preposiciones con caso fijo",
   html: `
 <p>Algunas preposiciones <b>siempre</b> llevan el mismo caso. Apréndetelas como canción:</p>
 ${tabla([["Siempre dativo", "Siempre acusativo"], ["<b>aus</b> (de, procedencia)", "<b>durch</b> (a través de)"], ["<b>bei</b> (en casa de, en)", "<b>für</b> (para)"], ["<b>mit</b> (con)", "<b>gegen</b> (contra)"], ["<b>nach</b> (después de, hacia)", "<b>ohne</b> (sin)"], ["<b>seit</b> (desde hace)", "<b>um</b> (a las, alrededor)"], ["<b>von</b> (de, desde)", ""], ["<b>zu</b> (a, hacia personas/lugares)", ""]])}
@@ -399,7 +400,7 @@ ${ej("Ich fahre mit dem Bus zur Arbeit.", "Voy en autobús al trabajo.")}
 ${ej("Ich wohne seit einem Jahr hier.", "Vivo aquí desde hace un año.")}
 <p>Contracciones muy usadas: zu + dem = <b>zum</b>, zu + der = <b>zur</b>, bei + dem = <b>beim</b>, von + dem = <b>vom</b>, in + dem = <b>im</b>, an + dem = <b>am</b>, in + das = <b>ins</b>.</p>
 ${ej("Ich gehe zum Arzt und dann zur Apotheke.", "Voy al médico y luego a la farmacia.")}
-${tip("💡 «nach» para ciudades y países sin artículo (nach Berlin), «zu» para personas y lugares (zu meiner Oma, zum Bahnhof) y «nach Hause» para ir a casa.")}`,
+${tip("«nach» para ciudades y países sin artículo (nach Berlin), «zu» para personas y lugares (zu meiner Oma, zum Bahnhof) y «nach Hause» para ir a casa.")}`,
   ejercicios: `
 ? Ich fahre mit ___ Bus. | dem | den, der | Voy en autobús. | mit + dativo: der Bus → dem.
 ? Das ist ein Geschenk für ___ Mutter. | meine | meiner, meinem | Es un regalo para mi mamá. | für + acusativo.
@@ -417,14 +418,14 @@ ${tip("💡 «nach» para ciudades y países sin artículo (nach Berlin), «zu»
 };
 
 TEMAS.perfekt = {
-  nivel: "A2", emoji: "⏮️", titulo: "El pasado hablado: Perfekt",
+  nivel: "A2", titulo: "El pasado hablado: Perfekt",
   html: `
 <p>Para contar lo que pasó, en la conversación se usa el <b>Perfekt</b>: <b>haben</b> o <b>sein</b> en posición 2 + <b>participio</b> al final.</p>
 ${ej("Ich habe gestern Pizza gegessen.", "Ayer comí pizza.")}
 ${ej("Wir sind nach Berlin gefahren.", "Fuimos a Berlín.")}
 ${tabla([["Tipo", "Forma", "Ejemplos"], ["regular", "ge- … -t", "machen → gemacht, kaufen → gekauft"], ["raíz en -t/-d", "ge- … -et", "arbeiten → gearbeitet"], ["irregular", "ge- … -en (a veces cambia la vocal)", "essen → gegessen, schreiben → geschrieben"], ["separable", "prefijo + ge + …", "aufstehen → aufgestanden, einkaufen → eingekauft"], ["be-, ver-, er-… y -ieren", "sin ge-", "besuchen → besucht, verstehen → verstanden, studieren → studiert"]])}
 <p><b>sein</b> se usa con verbos de <b>movimiento</b> (gehen, fahren, fliegen, kommen) o <b>cambio de estado</b> (aufstehen, einschlafen), y además con sein, bleiben y werden. Todo lo demás usa <b>haben</b>.</p>
-${tip("💡 Cada verbo de esta app trae su Perfekt entre paréntesis (ist gefahren, hat gegessen). En los repasos avanzados te pediremos conjugarlo.")}`,
+${tip("Cada verbo de esta app trae su Perfekt entre paréntesis (ist gefahren, hat gegessen). En los repasos avanzados te pediremos conjugarlo.")}`,
   ejercicios: `
 ? Ich ___ Pizza gegessen. | habe | bin, hat | Comí pizza. | essen → con haben.
 ? Wir ___ nach Berlin gefahren. | sind | haben, seid | Fuimos a Berlín. | Movimiento → sein.
@@ -442,7 +443,7 @@ O Gestern habe ich Deutsch gelernt. / Ich habe gestern Deutsch gelernt. | Ayer e
 };
 
 TEMAS.wechsel = {
-  nivel: "A2", emoji: "📦", titulo: "¿Dónde o a dónde? (Wechselpräpositionen)",
+  nivel: "A2", titulo: "¿Dónde o a dónde? (Wechselpräpositionen)",
   html: `
 <p>Nueve preposiciones pueden llevar <b>dativo</b> o <b>acusativo</b>: <b>in, an, auf, über, unter, vor, hinter, neben, zwischen</b>.</p>
 ${tabla([["Pregunta", "Caso", "Idea", "Ejemplo"], ["<b>Wo?</b> ¿dónde?", "dativo", "estar en un lugar (quieto)", "Das Buch liegt auf <b>dem</b> Tisch."], ["<b>Wohin?</b> ¿a dónde?", "acusativo", "moverse hacia un lugar", "Ich lege das Buch auf <b>den</b> Tisch."]])}
@@ -466,7 +467,7 @@ ${ej("Ich stelle die Flasche in den Kühlschrank. Jetzt steht sie im Kühlschran
 };
 
 TEMAS.reflexiv = {
-  nivel: "A2", emoji: "🪞", titulo: "Verbos reflexivos",
+  nivel: "A2", titulo: "Verbos reflexivos",
   html: `
 <p>Como en español (alegrarse, sentirse), algunos verbos llevan un pronombre reflexivo:</p>
 ${tabla([["", "sich freuen", "Pronombre"], ["ich", "freue <b>mich</b>", "mich"], ["du", "freust <b>dich</b>", "dich"], ["er / sie / es", "freut <b>sich</b>", "sich"], ["wir", "freuen <b>uns</b>", "uns"], ["ihr", "freut <b>euch</b>", "euch"], ["sie / Sie", "freuen <b>sich</b>", "sich"]])}
@@ -474,7 +475,7 @@ ${ej("Ich freue mich auf das Wochenende.", "Ya quiero que llegue el fin de seman
 <p>Muchos van con una preposición fija: sich freuen <b>auf</b> (algo futuro) / <b>über</b> (algo que pasó), sich interessieren <b>für</b>, sich ärgern <b>über</b>.</p>
 <p>Si hay otro complemento (las manos, los dientes), el reflexivo va en <b>dativo</b>: Ich wasche <b>mir</b> die Hände.</p>
 ${ej("Ich putze mir die Zähne.", "Me lavo los dientes.")}
-${tip("⚠️ No todos coinciden con el español: «sich beeilen» (apurarse) sí, pero «aufstehen» (levantarse) no es reflexivo en alemán.")}`,
+${tip("No todos coinciden con el español: «sich beeilen» (apurarse) sí, pero «aufstehen» (levantarse) no es reflexivo en alemán.")}`,
   ejercicios: `
 ? Ich freue ___ auf die Ferien. | mich | mir, sich | Ya quiero que lleguen las vacaciones. | ich → mich.
 ? Du musst ___ beeilen. | dich | dir, sich | Tienes que apurarte. | du → dich.
@@ -490,14 +491,14 @@ ${tip("⚠️ No todos coinciden con el español: «sich beeilen» (apurarse) s�
 };
 
 TEMAS.komparativ = {
-  nivel: "A2", emoji: "📊", titulo: "Comparar: más que, el más",
+  nivel: "A2", titulo: "Comparar: más que, el más",
   html: `
 ${tabla([["", "Comparativo (+er)", "Superlativo (am …sten)"], ["schnell", "schnell<b>er</b>", "am schnell<b>sten</b>"], ["klein", "klein<b>er</b>", "am klein<b>sten</b>"], ["alt", "<b>ä</b>lter", "am <b>ä</b>lte<b>sten</b>"], ["groß", "gr<b>ö</b>ßer", "am gr<b>ö</b>ßten"], ["kalt", "k<b>ä</b>lter", "am k<b>ä</b>ltesten"], ["gut", "<b>besser</b>", "am <b>besten</b>"], ["viel", "<b>mehr</b>", "am <b>meisten</b>"], ["gern", "<b>lieber</b>", "am <b>liebsten</b>"], ["hoch", "<b>höher</b>", "am <b>höchsten</b>"]])}
 <p>Nunca se dice «mehr schnell»: siempre <b>-er</b>. Los adjetivos cortos con a, o, u suelen llevar diéresis.</p>
 ${ej("Der Zug ist schneller als der Bus.", "El tren es más rápido que el autobús.")}
 ${ej("Er ist so groß wie sein Vater.", "Es tan alto como su papá.")}
 <p>Para comparar: <b>als</b> (más … que) y <b>so … wie</b> (tan … como).</p>
-${tip("💡 Delante de un sustantivo, el superlativo lleva terminación de adjetivo: der schönste Tag, die beste Idee.")}`,
+${tip("Delante de un sustantivo, el superlativo lleva terminación de adjetivo: der schönste Tag, die beste Idee.")}`,
   ejercicios: `
 ? Mein Bruder ist ___ als ich. (alt) | älter | alter, mehr alt | Mi hermano es mayor que yo. | alt → älter (con diéresis).
 ? Der Zug ist ___ als der Bus. (schnell) | schneller | schnellerer, mehr schnell | El tren es más rápido que el autobús. | +er.
@@ -514,14 +515,14 @@ ${tip("💡 Delante de un sustantivo, el superlativo lleva terminación de adjet
 };
 
 TEMAS.imperativ = {
-  nivel: "A2", emoji: "📣", titulo: "Dar órdenes: el imperativo",
+  nivel: "A2", titulo: "Dar órdenes: el imperativo",
   html: `
 ${tabla([["", "kommen", "sprechen", "fahren", "sein"], ["du", "Komm!", "Sprich!", "Fahr!", "Sei!"], ["ihr", "Kommt!", "Sprecht!", "Fahrt!", "Seid!"], ["Sie", "Kommen Sie!", "Sprechen Sie!", "Fahren Sie!", "Seien Sie!"]])}
 <p><b>du:</b> la raíz del verbo, sin -st y sin pronombre. Los verbos e → i conservan la i (Gib! Nimm! Lies!), pero los a → ä pierden la diéresis (Fahr! Schlaf!).</p>
 <p><b>ihr:</b> igual que el presente, sin «ihr». <b>Sie:</b> verbo + Sie.</p>
 ${ej("Sprich bitte langsam!", "¡Habla despacio, por favor!")}
 ${ej("Ruf mich morgen an!", "¡Llámame mañana!")}
-${tip("💡 Para sonar amable añade «bitte», «doch» o «mal»: «Komm doch mal vorbei!» = ¡Pásate por aquí!")}`,
+${tip("Para sonar amable añade «bitte», «doch» o «mal»: «Komm doch mal vorbei!» = ¡Pásate por aquí!")}`,
   ejercicios: `
 ? ___ bitte langsam! (sprechen, du) | Sprich | Sprechst, Spreche | ¡Habla despacio, por favor! | e → i se mantiene: Sprich!
 ? ___ mir das Buch! (geben, du) | Gib | Gebe, Gibst | ¡Dame el libro! | geben → Gib!
@@ -538,14 +539,14 @@ O Ruf mich morgen an! | ¡Llámame mañana! | Imperativo con separable: el prefi
 };
 
 TEMAS.praeteritum = {
-  nivel: "A2", emoji: "📜", titulo: "El pasado simple de sein, haben y modales",
+  nivel: "A2", titulo: "El pasado simple de sein, haben y modales",
   html: `
 <p>El <b>Präteritum</b> se usa sobre todo al escribir. Pero con <b>sein, haben</b> y los <b>modales</b> se usa también al hablar (es más corto que el Perfekt).</p>
 ${tabla([["", "sein", "haben", "können", "müssen", "wollen"], ["ich", "war", "hatte", "konnte", "musste", "wollte"], ["du", "warst", "hattest", "konntest", "musstest", "wolltest"], ["er / sie / es", "war", "hatte", "konnte", "musste", "wollte"], ["wir / sie / Sie", "waren", "hatten", "konnten", "mussten", "wollten"], ["ihr", "wart", "hattet", "konntet", "musstet", "wolltet"]])}
 ${ej("Gestern war ich krank und hatte Fieber.", "Ayer estaba enfermo y tenía fiebre.")}
 ${ej("Ich konnte nicht schlafen.", "No pude dormir.")}
 <p>Los modales pierden la diéresis: können → konnte, müssen → musste, dürfen → durfte. Y «es gibt» → <b>es gab</b> (había).</p>
-${tip("⚠️ No confundas: «ich konnte» (pude) con «ich könnte» (podría). La diéresis cambia el tiempo.")}`,
+${tip("No confundas: «ich konnte» (pude) con «ich könnte» (podría). La diéresis cambia el tiempo.")}`,
   ejercicios: `
 ? Gestern ___ ich krank. (sein) | war | bin, wart | Ayer estuve enfermo. | ich war.
 ? Wir ___ keine Zeit. (haben) | hatten | haben, hattet | No teníamos tiempo. | wir hatten.
@@ -562,7 +563,7 @@ ${tip("⚠️ No confundas: «ich konnte» (pude) con «ich könnte» (podría).
 
 /* ============================ B1 ============================ */
 TEMAS.nebensatz = {
-  nivel: "B1", emoji: "🔗", titulo: "Oraciones con weil, dass, wenn, ob",
+  nivel: "B1", titulo: "Oraciones con weil, dass, wenn, ob",
   html: `
 <p>Con <b>weil</b> (porque), <b>dass</b> (que), <b>wenn</b> (cuando / si), <b>ob</b> (si, en preguntas indirectas), <b>obwohl</b> (aunque), <b>als</b> (cuando, una vez en el pasado)… el verbo conjugado se va al <b>FINAL</b>.</p>
 ${ej("Ich bleibe zu Hause, weil ich krank bin.", "Me quedo en casa porque estoy enfermo.")}
@@ -570,7 +571,7 @@ ${ej("Ich weiß, dass du recht hast.", "Sé que tienes razón.")}
 <p>Si la oración subordinada va primero, la principal empieza con el verbo (verbo, verbo):</p>
 ${ej("Wenn ich Zeit habe, lese ich.", "Cuando tengo tiempo, leo.")}
 ${tabla([["Caso", "Ejemplo"], ["con modal", "…, weil ich arbeiten <b>muss</b>."], ["con separable", "…, weil ich früh <b>aufstehe</b>."], ["en Perfekt", "…, dass er gekommen <b>ist</b>."]])}
-${tip("⚠️ «denn» también significa «porque», pero NO manda el verbo al final: «…, denn ich bin müde». Y «deshalb» (por eso) pone el verbo justo después: «…, deshalb gehe ich».")}`,
+${tip("«denn» también significa «porque», pero NO manda el verbo al final: «…, denn ich bin müde». Y «deshalb» (por eso) pone el verbo justo después: «…, deshalb gehe ich».")}`,
   ejercicios: `
 O Ich bleibe zu Hause, weil ich krank bin. | Me quedo en casa porque estoy enfermo. | Con «weil», el verbo al final.
 O Ich weiß, dass du recht hast. | Sé que tienes razón. | Con «dass», el verbo al final.
@@ -588,7 +589,7 @@ O Ich frage, ob er morgen kommt. | Pregunto si viene mañana. | Con «ob», el v
 };
 
 TEMAS.adjektiv = {
-  nivel: "B1", emoji: "🧩", titulo: "Terminaciones del adjetivo",
+  nivel: "B1", titulo: "Terminaciones del adjetivo",
   html: `
 <p>Después del verbo, el adjetivo no cambia: «Das Auto ist <b>neu</b>». Pero delante de un sustantivo lleva terminación.</p>
 <p><b>Regla simple con der/die/das:</b> en nominativo singular (y en acusativo femenino y neutro) es <b>-e</b>; en todo lo demás, <b>-en</b>.</p>
@@ -597,7 +598,7 @@ ${tabla([["", m("masculino"), f("femenino"), n("neutro"), pl("plural")], ["nomin
 ${tabla([["", m("masculino"), f("femenino"), n("neutro")], ["nominativo", "ein neu<b>er</b> Tisch", "eine neu<b>e</b> Lampe", "ein neu<b>es</b> Auto"], ["acusativo", "einen neu<b>en</b> Tisch", "eine neu<b>e</b> Lampe", "ein neu<b>es</b> Auto"], ["dativo", "einem neu<b>en</b> Tisch", "einer neu<b>en</b> Lampe", "einem neu<b>en</b> Auto"]])}
 <p><b>Sin artículo</b>, el adjetivo toma la letra del artículo: kalt<b>er</b> Kaffee (der), kalt<b>e</b> Milch (die), kalt<b>es</b> Wasser (das).</p>
 ${ej("Ich habe ein neues Auto und einen alten Hund.", "Tengo un carro nuevo y un perro viejo.")}
-${tip("🎯 No memorices toda la tabla de golpe: el ejercicio repetido y espaciado hace que «suene bien» o «suene mal». Eso es aprendizaje implícito.")}`,
+${tip("No memorices toda la tabla de golpe: el ejercicio repetido y espaciado hace que «suene bien» o «suene mal». Eso es aprendizaje implícito.")}`,
   ejercicios: `
 ? Das ist ein ___ Tisch. (neu) | neuer | neue, neues | Es una mesa nueva. | ein + masculino (nominativo) → -er.
 ? Ich habe ein ___ Auto. (neu) | neues | neuer, neuen | Tengo un carro nuevo. | ein + neutro → -es.
@@ -614,14 +615,14 @@ ${tip("🎯 No memorices toda la tabla de golpe: el ejercicio repetido y espacia
 };
 
 TEMAS.konjunktiv = {
-  nivel: "B1", emoji: "💭", titulo: "Deseos y cortesía: Konjunktiv II",
+  nivel: "B1", titulo: "Deseos y cortesía: Konjunktiv II",
   html: `
 <p>El <b>Konjunktiv II</b> es como el condicional y el subjuntivo del español: deseos, hipótesis y peticiones amables.</p>
 ${tabla([["Verbo", "Konjunktiv II", "Español"], ["sein", "ich wäre", "sería / estaría / fuera"], ["haben", "ich hätte", "tendría / tuviera"], ["können", "ich könnte", "podría"], ["müssen", "ich müsste", "tendría que"], ["sollen", "ich sollte", "debería"], ["los demás", "ich würde + infinitivo", "ich würde reisen = viajaría"]])}
 ${ej("Wenn ich reich wäre, würde ich die Welt bereisen.", "Si fuera rico, viajaría por el mundo.")}
 ${ej("Könnten Sie mir bitte helfen?", "¿Me podría ayudar, por favor?")}
 ${ej("Ich hätte gern einen Kaffee.", "Me gustaría un café.")}
-${tip("💡 Para dar consejos: «An deiner Stelle würde ich…» (Yo que tú…) o «Du solltest…» (Deberías…).")}`,
+${tip("Para dar consejos: «An deiner Stelle würde ich…» (Yo que tú…) o «Du solltest…» (Deberías…).")}`,
   ejercicios: `
 ? Wenn ich Zeit ___, würde ich mehr lesen. (haben) | hätte | habe, hatte | Si tuviera tiempo, leería más. | haben → hätte.
 ? Wenn ich reich ___, würde ich reisen. (sein) | wäre | war, bin | Si fuera rico, viajaría. | sein → wäre.
@@ -637,14 +638,14 @@ O Ich würde gern nach Japan reisen. | Me gustaría viajar a Japón. | würde en
 };
 
 TEMAS.futur = {
-  nivel: "B1", emoji: "🔮", titulo: "El futuro con «werden»",
+  nivel: "B1", titulo: "El futuro con «werden»",
   html: `
 ${tabla([["", "werden"], ["ich", "werde"], ["du", "wirst"], ["er / sie / es", "wird"], ["wir / sie / Sie", "werden"], ["ihr", "werdet"]])}
 <p>Futuro = <b>werden</b> en posición 2 + <b>infinitivo</b> al final.</p>
 ${ej("Ich werde morgen mehr lernen.", "Mañana estudiaré más.")}
 <p>Pero muchas veces el alemán usa el <b>presente</b> con una palabra de tiempo: «Morgen fahre ich nach Berlin». El Futur se usa sobre todo para promesas, predicciones y suposiciones:</p>
 ${ej("Er ist nicht da. Er wird wohl krank sein.", "No está. Seguramente está enfermo.")}
-${tip("💡 «werden» solo también significa «convertirse en / llegar a ser»: Ich werde Ärztin = Voy a ser doctora.")}`,
+${tip("«werden» solo también significa «convertirse en / llegar a ser»: Ich werde Ärztin = Voy a ser doctora.")}`,
   ejercicios: `
 ? Ich ___ morgen anrufen. | werde | wird, wirst | Llamaré mañana. | ich werde.
 ? Es ___ bald regnen. | wird | werdet, werde | Pronto va a llover. | es wird.
@@ -658,7 +659,7 @@ O Morgen werde ich mehr lernen. / Ich werde morgen mehr lernen. | Mañana estudi
 };
 
 TEMAS.relativ = {
-  nivel: "B1", emoji: "👉", titulo: "Oraciones de relativo",
+  nivel: "B1", titulo: "Oraciones de relativo",
   html: `
 <p>«El hombre <b>que</b> vive aquí». En alemán el «que» cambia según el género y el caso, y el verbo va al <b>final</b>.</p>
 ${tabla([["", m("masculino"), f("femenino"), n("neutro"), pl("plural")], ["nominativo", "der", "die", "das", "die"], ["acusativo", "<b>den</b>", "die", "das", "die"], ["dativo", "<b>dem</b>", "<b>der</b>", "<b>dem</b>", "<b>denen</b>"]])}
@@ -666,7 +667,7 @@ ${tabla([["", m("masculino"), f("femenino"), n("neutro"), pl("plural")], ["nomin
 ${ej("Das ist der Mann, der in Berlin wohnt.", "Ese es el hombre que vive en Berlín.")}
 ${ej("Das ist der Film, den ich gestern gesehen habe.", "Esa es la película que vi ayer.")}
 ${ej("Die Freunde, mit denen ich reise, sind lustig.", "Los amigos con los que viajo son divertidos.")}
-${tip("💡 Si hay preposición, va delante del relativo: «die Kollegin, mit der ich arbeite».")}`,
+${tip("Si hay preposición, va delante del relativo: «die Kollegin, mit der ich arbeite».")}`,
   ejercicios: `
 ? Das ist der Mann, ___ in Berlin wohnt. | der | den, dem | Ese es el hombre que vive en Berlín. | Sujeto masculino → der.
 ? Das ist die Frau, ___ ich liebe. | die | der, den | Esa es la mujer a la que amo. | Femenino acusativo → die.
@@ -682,7 +683,7 @@ O Das ist der Hund, der immer bellt. | Ese es el perro que siempre ladra. | Verb
 };
 
 TEMAS.genitiv = {
-  nivel: "B1", emoji: "🔑", titulo: "El genitivo",
+  nivel: "B1", titulo: "El genitivo",
   html: `
 <p>El <b>genitivo</b> expresa posesión («de»). Al hablar se usa mucho <b>von + dativo</b>, pero al escribir y en el B1 necesitas el genitivo.</p>
 ${tabla([["", m("masculino"), f("femenino"), n("neutro"), pl("plural")], ["genitivo", "<b>des</b> Mann<b>es</b>", "<b>der</b> Frau", "<b>des</b> Kind<b>es</b>", "<b>der</b> Kinder"], ["con ein", "<b>eines</b> Mann<b>es</b>", "<b>einer</b> Frau", "<b>eines</b> Kind<b>es</b>", "—"]])}
@@ -705,7 +706,7 @@ ${ej("Wegen des Regens bleiben wir zu Hause.", "Por la lluvia nos quedamos en ca
 };
 
 TEMAS.konnektoren = {
-  nivel: "B1", emoji: "🧵", titulo: "Conectores: cómo cambian el orden",
+  nivel: "B1", titulo: "Conectores: cómo cambian el orden",
   html: `
 ${tabla([["Grupo", "Conectores", "Orden"], ["Posición 0", "und, aber, oder, denn, sondern", "no cambia nada: …, aber ich <b>bin</b> müde"], ["Adverbios", "deshalb, trotzdem, dann, außerdem, sonst", "ocupan la posición 1 → el verbo justo después: …, deshalb <b>gehe</b> ich"], ["Subordinantes", "weil, obwohl, damit, als, wenn, bevor, nachdem, während", "verbo al final: …, obwohl es kalt <b>ist</b>"]])}
 ${ej("Ich bin müde, deshalb gehe ich ins Bett.", "Estoy cansado, por eso me voy a la cama.")}
@@ -713,7 +714,7 @@ ${ej("Obwohl es kalt ist, trägt er keine Jacke.", "Aunque hace frío, no trae c
 <p><b>um … zu</b> + infinitivo (mismo sujeto) frente a <b>damit</b> (sujetos distintos):</p>
 ${ej("Ich lerne Deutsch, um in Deutschland zu arbeiten.", "Aprendo alemán para trabajar en Alemania.")}
 <p>Conectores dobles: <b>entweder … oder</b> (o … o), <b>sowohl … als auch</b> (tanto … como), <b>weder … noch</b> (ni … ni), <b>nicht nur … sondern auch</b>.</p>
-${tip("💡 «als» = cuando (una sola vez en el pasado); «wenn» = cuando (presente, futuro o cada vez que); «wann» = cuándo (pregunta).")}`,
+${tip("«als» = cuando (una sola vez en el pasado); «wenn» = cuando (presente, futuro o cada vez que); «wann» = cuándo (pregunta).")}`,
   ejercicios: `
 O Ich bin müde, deshalb gehe ich ins Bett. | Estoy cansado, por eso me voy a la cama. | Después de «deshalb» viene el verbo.
 O Es regnet, trotzdem gehen wir spazieren. | Llueve; aun así salimos a caminar. | Después de «trotzdem» viene el verbo.
@@ -730,7 +731,7 @@ O Obwohl es kalt ist, trägt er keine Jacke. | Aunque hace frío, no trae chamar
 };
 
 TEMAS.passiv = {
-  nivel: "B1", emoji: "🏗️", titulo: "La voz pasiva",
+  nivel: "B1", titulo: "La voz pasiva",
   html: `
 <p>La pasiva pone el foco en la <b>acción</b>, no en quién la hace: <b>werden</b> + <b>participio</b>.</p>
 ${tabla([["Tiempo", "Forma", "Ejemplo"], ["presente", "wird + participio", "Das Haus <b>wird</b> gebaut."], ["Präteritum", "wurde + participio", "Das Haus <b>wurde</b> 1900 gebaut."], ["Perfekt", "ist + participio + worden", "Das Haus <b>ist</b> gebaut <b>worden</b>."], ["con modal", "modal + participio + werden", "Der Müll <b>muss</b> getrennt <b>werden</b>."]])}
