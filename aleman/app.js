@@ -241,7 +241,7 @@ function iniciar(sesion, { examen = null } = {}) {
   // La explicación de gramática solo se muestra la primera vez.
   sesion.pasos = sesion.pasos.filter((p) => p.tipo !== "gintro" || !GRAM[p.item.tema].items.some((d) => aprendida(d.id)));
   S.enSesion = true; S.examen = examen; S.sesionActual = sesion;
-  closeSheet();
+  closeSheet(); ocultarTip();
   document.body.classList.add("sin-nav", "en-sesion");
   corredor = correr($("#app"), {
     sesion, ctx: ctxEjercicios(), temas: GRAM, ajustes: A(),
@@ -410,6 +410,7 @@ function render() {
   if (!S.perfil) return;
   if (!P().onboarding) return pintarOnboarding();
   conNav(true);
+  ocultarTip();
   app().onclick = null;
   const r = ruta();
   const vistas = { hoy: vHoy, ruta: vRuta, practicar: vPracticar, palabras: vPalabras, yo: vYo, ajustes: vAjustes, ciencia: vCiencia, gramatica: vGramatica, lecturas: vLecturas, lectura: vLectura };
@@ -1086,22 +1087,27 @@ function vYo() {
   </div>`;
 }
 montar.yo = () => tooltips();
+// Globito de las gráficas: con mouse aparece al pasar encima; en el cel solo al tocar, y se quita solo.
+let tipT = null;
+function ocultarTip() { clearTimeout(tipT); const t = $("#tip"); if (t) t.classList.toggle("on", false); }
 function tooltips() {
   let tip = $("#tip");
-  if (!tip) { tip = document.createElement("div"); tip.id = "tip"; tip.className = "tooltip"; document.body.appendChild(tip); }
+  if (!tip) { tip = document.createElement("div"); tip.id = "tip"; tip.className = "tooltip"; tip.setAttribute("role", "status"); document.body.appendChild(tip); }
   const mostrar = (el) => {
     const t = el.dataset.tip; if (!t) return;
-    tip.textContent = t; tip.classList.add("on");
+    tip.textContent = t; tip.classList.toggle("on", true);
     const r = el.getBoundingClientRect(), w = tip.offsetWidth;
     tip.style.left = Math.min(innerWidth - w - 8, Math.max(8, r.left + r.width / 2 - w / 2)) + "px";
     tip.style.top = (r.top + scrollY - tip.offsetHeight - 8) + "px";
   };
   $$("[data-tip]").forEach((el) => {
-    el.addEventListener("pointerenter", () => mostrar(el));
-    el.addEventListener("pointerleave", () => tip.classList.remove("on"));
-    el.addEventListener("click", () => { mostrar(el); setTimeout(() => tip.classList.remove("on"), 1800); });
+    el.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") mostrar(el); });
+    el.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") ocultarTip(); });
+    el.addEventListener("click", () => { mostrar(el); clearTimeout(tipT); tipT = setTimeout(ocultarTip, 1800); });
   });
 }
+addEventListener("scroll", ocultarTip, { passive: true });
+document.addEventListener("pointerdown", (e) => { if (!e.target.closest("[data-tip]")) ocultarTip(); }, { passive: true });
 
 /* ---------- Ciencia ---------- */
 function vCiencia() {
