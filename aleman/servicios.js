@@ -175,5 +175,27 @@ const P = {
   ojo: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   estrella: '<path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9 6.8 19.7l1-5.9-4.3-4.1 5.9-.8z"/>',
   lupa: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.3-4.3"/>',
+  flechaR: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  diagonal: '<path d="M7 17L17 7M8 7h9v9"/>',
+  mas: '<circle cx="12" cy="5.5" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="18.5" r="1.4" fill="currentColor"/>',
+  reloj: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 3h6"/>',
+  luna: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
+  grafica: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  brillo: '<path d="M12 3c.7 4.6 2.4 6.3 7 7-4.6.7-6.3 2.4-7 7-.7-4.6-2.4-6.3-7-7 4.6-.7 6.3-2.4 7-7z"/>',
 };
 export const I = (k, cls = "") => `<svg class="ico ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[k] || ""}</svg>`;
+
+/* ---------- Piezas visuales compartidas ---------- */
+// Destellos decorativos (como estrellitas) para las tarjetas.
+export const DECO = `<svg class="deco" viewBox="0 0 120 120" aria-hidden="true"><path d="M86 10c1.4 9.6 5 13.2 14.6 14.6C91 26 87.4 29.6 86 39.2 84.6 29.6 81 26 71.4 24.6 81 23.2 84.6 19.6 86 10z"/><path d="M106 50c.8 5.4 2.8 7.4 8.2 8.2-5.4.8-7.4 2.8-8.2 8.2-.8-5.4-2.8-7.4-8.2-8.2 5.4-.8 7.4-2.8 8.2-8.2z"/><path d="M58 30c.6 3.8 2 5.2 5.8 5.8-3.8.6-5.2 2-5.8 5.8-.6-3.8-2-5.2-5.8-5.8 3.8-.6 5.2-2 5.8-5.8z"/></svg>`;
+export const circ = (x, cls = "") => `<span class="circ ${cls}">${x}</span>`;
+export const pastelNivel = (nv) => ({ A1: "p-menta", A2: "p-cielo", B1: "p-rosa" })[nv] || "p-menta";
+export const pastelGenero = (it) => (it && it.t === "n" ? ({ m: "p-cielo", f: "p-rosa", n: "p-menta", pl: "p-mantequilla" })[it.g] : "p-mantequilla");
+// Botón redondo con flecha y, si se da p (0–1), un anillo de progreso alrededor.
+export function flechaAnillo(p = null, icono = "flechaR") {
+  const r = 26, c = 2 * Math.PI * r;
+  const anillo = p == null ? "" : `<svg class="fa" viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="${r}" class="fa-f"/><circle cx="30" cy="30" r="${r}" class="fa-v" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - Math.max(0, Math.min(1, p)))).toFixed(1)}"/></svg>`;
+  return `<span class="flecha-btn">${anillo}${I(icono)}</span>`;
+}
+export const flechaDiag = () => `<span class="flecha-btn chica">${I("diagonal")}</span>`;
+export const onda = (n = 9) => `<span class="onda" aria-hidden="true">${"<i></i>".repeat(n)}</span>`;

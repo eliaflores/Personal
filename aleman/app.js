@@ -6,7 +6,7 @@ import { B1 } from "./vocab-b1.js";
 import { TEMAS } from "./gramatica.js";
 import { LECTURAS } from "./lecturas.js";
 import { CIENCIA } from "./ciencia.js";
-import { $, $$, esc, ls, toast, openSheet, closeSheet, sheetAbierta, Voz, Oido, Sonido, confeti, I } from "./servicios.js";
+import { $, $$, esc, ls, toast, openSheet, closeSheet, sheetAbierta, Voz, Oido, Sonido, confeti, I, DECO, circ, pastelNivel, pastelGenero, flechaAnillo, flechaDiag } from "./servicios.js";
 import { correr, htmlPalabra, formasVerbo, botonAudio, botonLento } from "./sesion.js";
 
 /* ============================ Contenido ============================ */
@@ -247,7 +247,10 @@ function iniciar(sesion, { examen = null } = {}) {
     sesion, ctx: ctxEjercicios(), temas: GRAM, ajustes: A(),
     onCalificar: aplicar,
     onFin: (st, o) => (examen ? terminarExamen(st, examen) : terminar(sesion, st, o)),
-    onCerrar: () => { S.enSesion = false; S.examen = null; corredor = null; document.body.classList.remove("en-sesion"); render(); window.scrollTo(0, 0); },
+    onCerrar: (seguir) => {
+      S.enSesion = false; S.examen = null; corredor = null; document.body.classList.remove("en-sesion"); render(); window.scrollTo(0, 0);
+      if (seguir === true) { const n = nodoActual(); if (n) setTimeout(() => empezarNodo(n), 60); }
+    },
   });
 }
 function terminar(sesion, st, { parcial }) {
@@ -269,7 +272,7 @@ function terminar(sesion, st, { parcial }) {
   const mensajes = perfecto ? ["Ni un error. Tu cerebro está en modo esponja."] : st.ok / st.total >= 0.85 ? ["Justo en la zona ideal de dificultad (~85%).", "Así se aprende: con un poco de esfuerzo."] : ["Los errores de hoy son los aciertos de mañana.", "Fallar y corregir fija mejor la memoria."];
   return {
     xp, total: st.total, ok: st.ok, ms: Date.now() - st.inicio, perfecto, racha: P().racha.n, rachaSube: r.sube, protectorUsado: r.usado,
-    xpHoy: d.xp, meta, metaRecienCumplida: antes < meta && d.xp >= meta, nuevas, repasos, manana: res.pronostico[1], mensaje: mensajes[Math.floor(Math.random() * mensajes.length)],
+    xpHoy: d.xp, meta, metaRecienCumplida: antes < meta && d.xp >= meta, nuevas, repasos, manana: res.pronostico[1], mensaje: mensajes[Math.floor(Math.random() * mensajes.length)], siguiente: infoSiguiente(),
   };
 }
 // Actividad sin sesión (lecturas): suma XP y cuenta para la racha.
@@ -379,7 +382,7 @@ function terminarExamen(st, ex) {
   guardarTodo();
   return {
     xp, total: st.total, ok: st.ok, ms: Date.now() - st.inicio, perfecto: false, racha: P().racha.n, rachaSube: r.sube, protectorUsado: r.usado,
-    xpHoy: d.xp, meta: A().meta, nuevas: 0, repasos: 0, manana: 0,
+    xpHoy: d.xp, meta: A().meta, nuevas: 0, repasos: 0, manana: 0, siguiente: aprobado ? infoSiguiente() : null,
     mensaje: aprobado ? `¡Aprobaste con ${Math.round(pct * 100)}%! Se desbloqueó «${u.titulo}». Las palabras anteriores entran a tus repasos poco a poco.` : `Sacaste ${Math.round(pct * 100)}%. Te conviene empezar un poco antes: así no se te escapan huecos.`,
   };
 }
@@ -438,20 +441,28 @@ function pintarEntrar(modoCorreo = null) {
   const hayLocal = !!(ls.get(LOCAL, null) || {}).perfil;
   app().innerHTML = `
     <div class="entrar anim">
-      ${logo()}
-      <h1>Täglich</h1>
-      <p class="lema">Alemán todos los días, con lo que la ciencia sabe sobre aprender.</p>
-      <div class="feats">
-        <div>${I("repetir")}<span><b>Repetición espaciada</b> que calcula cuándo vas a olvidar cada palabra</span></div>
-        <div>${I("diana")}<span><b>Dificultad adaptativa</b> para que aciertes ~85%: la zona donde más se aprende</span></div>
-        <div>${I("oreja")}<span><b>Escuchar, escribir y hablar</b>: ${C.vocab.length} palabras, ${Object.keys(GRAM).length} temas de gramática y ${LECTURAS.length} lecturas</span></div>
+      <div class="entrar-hero">
+        ${DECO}${DECO.replace('class="deco"', 'class="deco izq"')}
+        <div class="hero-marca"><img class="logo chico" src="icon-512.png" alt="" width="44" height="44"><b>Täglich</b></div>
+        <div class="cartas" aria-hidden="true">
+          <div class="carta c3"><span class="circ p-menta">🏠</span><div><b class="g-n">das Haus</b><small>la casa</small></div><i>${I("audio")}</i></div>
+          <div class="carta c2"><span class="circ p-rosa">🐈</span><div><b class="g-f">die Katze</b><small>el gato</small></div><i>${I("audio")}</i></div>
+          <div class="carta c1"><span class="circ p-cielo">🐕</span><div><b class="g-m">der Hund</b><small>el perro</small></div><i>${I("audio")}</i><em><s style="width:72%"></s></em></div>
+        </div>
       </div>
-      ${modoCorreo ? formCorreo(modoCorreo) : `
-      <button class="btn primario ancho g-btn" data-a="google" ${S.fbError ? "disabled" : ""}>${GOOGLE}<span>Entrar con Google</span></button>
-      <button class="btn sec ancho" data-a="correo" ${S.fbError ? "disabled" : ""}>Entrar con correo</button>
-      <button class="link" data-a="local">${hayLocal ? "Seguir sin cuenta (en este dispositivo)" : "Probar sin cuenta"}</button>
-      ${S.fbError ? `<p class="aviso">No se pudo conectar con Firebase. Revisa tu internet; mientras tanto puedes usarla sin cuenta.</p>` : ""}`}
-      <p class="mini">Tu progreso se guarda en tu cuenta (Firebase) y solo tú puedes verlo.</p>
+      <div class="entrar-hoja">
+        <h1>Aprende alemán<br>todos los días</h1>
+        <p class="lema">Repetición espaciada, dificultad que se adapta a ti y ejercicios de escuchar, escribir y hablar. ${C.vocab.length} palabras del A1 al B1.</p>
+        <div class="feats"><span>${I("repetir")} Repaso espaciado</span><span>${I("diana")} Zona del 85%</span><span>${I("mic")} Voz</span></div>
+        ${modoCorreo ? formCorreo(modoCorreo) : `
+        <div class="entrar-acc">
+          <button class="btn primario ancho g-btn" data-a="google" ${S.fbError ? "disabled" : ""}>${GOOGLE}<span>Entrar con Google</span></button>
+          <button class="btn sec ancho" data-a="correo" ${S.fbError ? "disabled" : ""}>Entrar con correo</button>
+          <button class="link" data-a="local">${hayLocal ? "Seguir sin cuenta (en este dispositivo)" : "Probar sin cuenta"}</button>
+        </div>
+        ${S.fbError ? `<p class="aviso">No se pudo conectar con Firebase. Revisa tu internet; mientras tanto puedes usarla sin cuenta.</p>` : ""}`}
+        <p class="mini">Tu progreso se guarda en tu cuenta y solo tú puedes verlo.</p>
+      </div>
     </div>`;
   const root = app();
   root.onclick = async (e) => {
@@ -523,29 +534,34 @@ const NIVEL_INICIO = [["cero", "🌱", "Desde cero", "No sé nada de alemán", n
 function pintarOnboarding() {
   conNav(false);
   const ob = S.ob || (S.ob = { paso: 0, motivo: "", nivel: "cero", meta: 40, momento: "", hora: "20:00", nombre: P().nombre || "" });
+  const opcion = (campo, k, e, t, sub) => {
+    const on = String(ob[campo]) === String(k);
+    return `<button class="opcion ${sub ? "fila" : ""} ${on ? "on" : ""}" data-ob="${campo}" data-v="${k}"><span class="op-emoji">${e}</span>${sub ? `<div><b>${t}</b><small>${sub}</small></div>` : `<b>${t}</b>`}<span class="op-check">${I("check")}</span></button>`;
+  };
   const pasos = [
-    () => `<h2>¡Hallo${ob.nombre ? ", " + esc(ob.nombre) : ""}! 👋</h2><p class="muted">¿Por qué quieres aprender alemán? Tener un motivo claro te ayuda a no dejarlo.</p>
+    () => `<h2>¡Hallo${ob.nombre ? ", " + esc(ob.nombre) : ""}! 👋<br>¿Para qué quieres el alemán?</h2><p class="muted">Tener un motivo claro te ayuda a no dejarlo.</p>
       ${!P().nombre ? `<label class="campo-ob">¿Cómo te llamas?<input id="obNombre" value="${esc(ob.nombre)}" maxlength="30" autocomplete="given-name"></label>` : ""}
-      <div class="opciones-grid">${MOTIVOS.map(([k, e, t]) => `<button class="opcion ${ob.motivo === k ? "on" : ""}" data-ob="motivo" data-v="${k}"><span>${e}</span>${t}</button>`).join("")}</div>`,
-    () => `<h2>¿Cuánto alemán sabes?</h2><p class="muted">Si ya sabes algo, puedes hacer un examen corto para saltarte lo que ya dominas.</p>
-      <div class="opciones-lista">${NIVEL_INICIO.map(([k, e, t, d]) => `<button class="opcion fila ${ob.nivel === k ? "on" : ""}" data-ob="nivel" data-v="${k}"><span>${e}</span><div><b>${t}</b><small>${d}</small></div></button>`).join("")}</div>`,
+      <div class="opciones-grid">${MOTIVOS.map(([k, e, t]) => opcion("motivo", k, e, t)).join("")}</div>`,
+    () => `<h2>¿Cuánto alemán sabes?</h2><p class="muted">Si ya sabes algo, un examen corto te deja saltar lo que ya dominas.</p>
+      <div class="opciones-lista">${NIVEL_INICIO.map(([k, e, t, d]) => opcion("nivel", k, e, t, d)).join("")}</div>`,
     () => `<h2>Tu meta diaria</h2><p class="muted">Mejor poco todos los días que mucho de vez en cuando: el repaso espaciado necesita constancia.</p>
-      <div class="opciones-lista">${METAS.map(([xp, t, d]) => `<button class="opcion fila ${ob.meta === xp ? "on" : ""}" data-ob="meta" data-v="${xp}"><span>${xp === 20 ? "🐢" : xp === 40 ? "🚶" : xp === 60 ? "🏃" : "🔥"}</span><div><b>${t}${xp === 40 ? " · recomendada" : ""}</b><small>${d} · ${xp} XP</small></div></button>`).join("")}</div>`,
+      <div class="opciones-lista">${METAS.map(([xp, t, d]) => opcion("meta", xp, xp === 20 ? "🐢" : xp === 40 ? "🚶" : xp === 60 ? "🏃" : "🔥", t + (xp === 40 ? " · recomendada" : ""), `${d} · ${xp} XP`)).join("")}</div>`,
     () => `<h2>¿Cuándo vas a estudiar?</h2><p class="muted">Decidir de antemano <b>cuándo y dónde</b> (una «intención de implementación») casi duplica las probabilidades de cumplir un hábito.</p>
-      <div class="opciones-grid">${MOMENTOS.map(([k, e, t]) => `<button class="opcion ${ob.momento === k ? "on" : ""}" data-ob="momento" data-v="${k}"><span>${e}</span>${t}</button>`).join("")}</div>
+      <div class="opciones-grid">${MOMENTOS.map(([k, e, t]) => opcion("momento", k, e, t)).join("")}</div>
       <label class="campo-ob">¿A qué hora, más o menos?<input id="obHora" type="time" value="${esc(ob.hora)}"></label>
-      ${ob.momento ? `<div class="plan-frase">«${esc(fraseIntencion(ob.momento, ob.hora, ob.meta))}»</div>` : ""}`,
+      ${ob.momento ? `<div class="plan-frase">${I("brillo")}<span>«${esc(fraseIntencion(ob.momento, ob.hora, ob.meta))}»</span></div>` : ""}`,
   ];
   const ultimo = ob.paso === pasos.length - 1;
   const puede = [ob.motivo, ob.nivel, ob.meta, ob.momento][ob.paso];
   app().innerHTML = `
     <div class="onb anim">
-      <div class="onb-puntos">${pasos.map((_, i) => `<i class="${i <= ob.paso ? "on" : ""}"></i>`).join("")}</div>
-      <div class="onb-cuerpo">${pasos[ob.paso]()}</div>
-      <div class="pie-fila onb-pie">
-        ${ob.paso ? `<button class="btn sec" data-obnav="-1">Atrás</button>` : ""}
-        <button class="btn primario" data-obnav="1" ${puede ? "" : "disabled"}>${ultimo ? "¡Empezar!" : "Siguiente"}</button>
+      <div class="onb-top">
+        ${ob.paso ? `<button class="circ-btn" data-obnav="-1" aria-label="Atrás">${I("atras")}</button>` : `<span class="circ-btn fantasma" aria-hidden="true"></span>`}
+        <div class="onb-puntos">${pasos.map((_, i) => `<i class="${i <= ob.paso ? "on" : ""}"></i>`).join("")}</div>
+        <span class="onb-n">${ob.paso + 1}/${pasos.length}</span>
       </div>
+      <div class="onb-cuerpo">${pasos[ob.paso]()}</div>
+      <div class="onb-pie"><button class="btn primario ancho" data-obnav="1" ${puede ? "" : "disabled"}>${ultimo ? "¡Empezar!" : "Siguiente"} ${I("flechaR")}</button></div>
     </div>`;
   const root = app();
   const nom = $("#obNombre"); if (nom) nom.oninput = () => { ob.nombre = nom.value.trim(); };
@@ -582,104 +598,138 @@ function fraseIntencion(momento, hora, meta) {
 
 /* ---------- Hoy ---------- */
 function saludo() { const h = new Date().getHours(); return h < 11 ? "Guten Morgen" : h < 18 ? "Guten Tag" : "Guten Abend"; }
-function anillo(pct, txt) {
-  const r = 34, c = 2 * Math.PI * r;
-  return `<svg class="anillo" viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="${r}" class="an-fondo"/><circle cx="40" cy="40" r="${r}" class="an-valor" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - Math.min(1, pct))}"/></svg><div class="anillo-txt">${txt}</div>`;
-}
 function palabraDelDia() {
   const pool = C.vocab.filter((v) => v.t !== "g" && v.ex);
   const n = M.hashStr(hoyISO() + (P().nombre || "")) % pool.length;
   return pool[n];
 }
+const fmtFecha = (dn, o = { day: "numeric", month: "short" }) => new Date(dn * M.DAY).toLocaleDateString("es-MX", { ...o, timeZone: "UTC" });
+function avatar() {
+  const u = S.user;
+  return u && u.photoURL ? `<img class="avatar" src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">` : `<span class="avatar">${esc((P().nombre || "?")[0].toUpperCase())}</span>`;
+}
+// Emojis de las palabras encimados en círculos (como las fotos de perfil de las referencias).
+function pilaEmojis(items, max = 3) {
+  const e = [...new Set(items.map((i) => i.emoji).filter(Boolean))];
+  if (!e.length) return "<span></span>";
+  return `<span class="pila">${e.slice(0, max).map((x) => `<i>${esc(x)}</i>`).join("")}${e.length > max ? `<b>+${e.length - max}</b>` : ""}</span>`;
+}
+// Gráfica de barras tipo píldora: una sola tinta, la barra actual resaltada y el valor arriba de cada una.
+function barrasPildora(datos, aria) {
+  const max = Math.max(1, ...datos.map((d) => d.v));
+  return `<div class="pildoras" role="img" aria-label="${esc(aria)}">${datos.map((d) => {
+    const h = d.v ? Math.max(24, Math.round((100 * d.v) / max)) : 0;
+    return `<div class="pild ${d.hoy ? "hoy" : ""}" data-tip="${esc(d.tip || "")}"><div class="pild-pista"><div class="pild-val" style="height:${h}%"><b class="pild-badge">${d.v}</b>${d.dentro && h >= 45 ? `<span>${esc(d.dentro)}</span>` : ""}</div></div><small>${esc(d.et)}</small></div>`;
+  }).join("")}</div>`;
+}
+const tituloNodo = (n) => (n.tipo === "lectura" ? (LECT[n.lectura] || {}).titulo || "Lectura" : n.titulo);
+const emojiNodo = (n) => (n.tipo === "gramatica" ? GRAM[n.tema].emoji : n.tipo === "lectura" ? "📖" : (n.items[0] || {}).emoji || n.unidad.emoji);
+const tipoNodo = (n) => (n.tipo === "gramatica" ? "Gramática" : n.tipo === "lectura" ? "Lectura" : "Lección");
+function progresoUnidad(u) { const ns = u.nodos.map((x) => NODO[x.id]); return ns.filter(nodoCompleto).length / ns.length; }
+function infoSiguiente() {
+  const n = nodoActual(); if (!n) return null;
+  return { emoji: emojiNodo(n), titulo: tituloNodo(n), sub: `${tipoNodo(n)} · Unidad ${n.unidad.i + 1}`, pastel: pastelNivel(n.unidad.nivel), prog: progresoUnidad(n.unidad) };
+}
+function tarjetaNodo(n) {
+  const u = n.unidad, pend = n.items.filter((it) => !aprendida(it.id));
+  const sub = n.tipo === "lectura" ? "Texto corto con audio y preguntas" : `${pend.length} ${n.tipo === "gramatica" ? "ejercicios" : pend.length === 1 ? "palabra nueva" : "palabras nuevas"} · ~${n.tipo === "gramatica" ? 4 : 5} min`;
+  return `<button class="leccion-card ${pastelNivel(u.nivel)}" data-a="continuar">
+    ${DECO}<span class="lc-marca" aria-hidden="true">${esc(u.emoji)}</span>
+    <div class="lc-top">${circ(esc(emojiNodo(n)))}<span class="chip-b">${I("estrella")} ${u.nivel}</span></div>
+    <span class="lc-cat">${tipoNodo(n)} · Unidad ${u.i + 1}: ${esc(u.titulo)}</span>
+    <b class="lc-tit">${esc(tituloNodo(n))}</b>
+    <span class="lc-sub">${esc(sub)}</span>
+    <div class="lc-pie">${n.tipo === "leccion" ? pilaEmojis(pend.length ? pend : n.items) : `<span class="lc-nota">${I("brillo")} ${n.tipo === "gramatica" ? "Explicación + práctica" : "Lee, escucha y responde"}</span>`}${flechaAnillo(progresoUnidad(u))}</div>
+  </button>`;
+}
+function tarjetaRepaso(lista) {
+  const due = lista.length, urg = due >= 5;
+  return `<button class="leccion-card ${urg ? "p-mantequilla" : "p-arena"}" data-a="repasar">
+    ${DECO}<span class="lc-marca" aria-hidden="true">🧠</span>
+    <div class="lc-top">${circ(I("repetir"))}<span class="chip-b">${I("reloj")} ${due}</span></div>
+    <span class="lc-cat">Repaso inteligente</span>
+    <b class="lc-tit">${due} ${due === 1 ? "palabra por repasar" : "palabras por repasar"}</b>
+    <span class="lc-sub">${urg ? "Empieza por aquí: se te están empezando a olvidar." : "Repaso rápido de lo que toca hoy."}</span>
+    <div class="lc-pie">${pilaEmojis(lista.map((r) => r.item).filter((x) => x.t !== "g"))}${flechaAnillo(null)}</div>
+  </button>`;
+}
 function vHoy() {
   const d = dia(), meta = A().meta, racha = rachaVisible(), estudio = P().racha.ultimo === hoy();
-  const due = repasosVencidos().length;
+  const vencidos = repasosVencidos(), due = vencidos.length;
   const n = nodoActual();
-  const res = M.resumen(S.cards, hoy());
-  const semana = [...Array(7).keys()].map((k) => hoy() - 6 + k).map((dn) => {
-    const iso = M.dayISO(dn), dd = P().dias[iso], f = new Date(dn * M.DAY);
-    const letra = ["D", "L", "M", "M", "J", "V", "S"][f.getUTCDay()];
-    return `<div class="dia-s ${dd && dd.ses ? "hecho" : ""} ${dn === hoy() ? "hoy" : ""}"><span>${letra}</span><i>${dd && dd.ses ? I("check") : ""}</i></div>`;
-  }).join("");
   const pal = palabraDelDia();
   const tip = CIENCIA[hoy() % CIENCIA.length];
-  const tarjetaRepaso = `<section class="card repaso ${due >= 5 ? "urgente" : ""}">
-      <div class="card-ico">${I("repetir")}</div>
-      <div class="card-txt"><b>${due} ${due === 1 ? "palabra por repasar" : "palabras por repasar"}</b><span>${due >= 5 ? "Empieza por aquí: se te están empezando a olvidar." : "Repaso rápido de lo que toca hoy."}</span></div>
-      <button class="btn ${due >= 5 ? "primario" : "sec"} chico" data-a="repasar">Repasar</button>
-    </section>`;
-  return `
-  <div class="wrap">
-    <header class="top">
-      <div><div class="saludo">${saludo()}${P().nombre ? "," : ""}</div><h1>${esc(P().nombre || "¡Hallo!")}</h1></div>
-      <div class="chips">
-        <span class="chip fuego ${estudio ? "on" : ""}" title="Racha">${I("fuego")}<b>${racha}</b></span>
-        ${P().racha.protectores ? `<span class="chip escudo" title="Protectores de racha">${I("escudo")}<b>${P().racha.protectores}</b></span>` : ""}
-      </div>
+  const semana = [...Array(7).keys()].map((k) => {
+    const dn = hoy() - 6 + k, xp = (P().dias[M.dayISO(dn)] || {}).xp || 0;
+    return { et: ["D", "L", "M", "M", "J", "V", "S"][new Date(dn * M.DAY).getUTCDay()], v: xp, hoy: dn === hoy(), tip: `${dn === hoy() ? "Hoy" : fmtFecha(dn, { weekday: "long", day: "numeric" })}: ${xp} XP` };
+  });
+  const xpSemana = semana.reduce((t, x) => t + x.v, 0), diasSemana = semana.filter((x) => x.v > 0).length;
+  const nombre = P().nombre;
+  return `<div class="wrap">
+    <header class="cab">
+      ${avatar()}
+      <div class="cab-txt"><b>${saludo()}${nombre ? ", " + esc(nombre) : ""}</b>
+        <span class="cab-meta" title="Meta de hoy">${I("libro")}<span class="cab-barra"><i style="width:${Math.min(100, (100 * d.xp) / meta)}%"></i></span><small>${d.xp}/${meta} XP</small></span></div>
+      <button class="circ-btn racha ${estudio ? "on" : ""}" data-go="#yo" aria-label="Racha de ${racha} días">${I("fuego")}<b>${racha}</b></button>
     </header>
-    <section class="card meta">
-      <div class="anillo-wrap">${anillo(d.xp / meta, `<b>${d.xp}</b><small>/${meta} XP</small>`)}</div>
-      <div class="meta-txt">
-        <b>${d.xp >= meta ? "¡Meta de hoy cumplida! 🎉" : estudio ? `Te faltan ${meta - d.xp} XP` : racha ? `¡No pierdas tu racha de ${racha} ${racha === 1 ? "día" : "días"}!` : "Empieza tu racha hoy"}</b>
-        <span>${P().plan.momento ? esc(fraseIntencion(P().plan.momento, P().plan.hora, meta)) : "Un poco cada día gana a mucho de vez en cuando."}</span>
-      </div>
-    </section>
-    ${due >= 5 ? tarjetaRepaso : ""}
-    ${n ? `<section class="card continuar nivel-${n.unidad.nivel}">
-      <div class="cont-cab"><span class="badge">${n.unidad.nivel}</span><span>Unidad ${n.unidad.i + 1} · ${esc(n.unidad.titulo)}</span></div>
-      <div class="cont-cuerpo">
-        <div class="cont-emoji">${n.tipo === "gramatica" ? esc(GRAM[n.tema].emoji) : n.tipo === "lectura" ? "📖" : esc((n.items[0] || {}).emoji || n.unidad.emoji)}</div>
-        <div><small>${n.tipo === "gramatica" ? "Gramática" : n.tipo === "lectura" ? "Lectura" : "Lección"}</small><h2>${esc(n.tipo === "lectura" ? (LECT[n.lectura] || {}).titulo || "Lectura" : n.titulo)}</h2>
-        <span class="muted">${n.tipo === "lectura" ? "Texto corto con audio y preguntas" : `${n.items.filter((it) => !aprendida(it.id)).length} ${n.tipo === "gramatica" ? "ejercicios" : "palabras nuevas"} · ~${n.tipo === "gramatica" ? 4 : 5} min`}</span></div>
-      </div>
-      <button class="btn primario ancho" data-a="continuar">${idxActual() === 0 && !res.total ? "Empezar mi primera lección" : "Continuar"} ${I("flecha")}</button>
-    </section>` : `<section class="card"><h2>¡Terminaste toda la ruta! 🏆</h2><p class="muted">Sigue con los repasos diarios para no olvidar nada.</p></section>`}
-    ${due && due < 5 ? tarjetaRepaso : ""}
-    <section class="semana">${semana}</section>
+    <div class="titulo-fila"><h1 class="titulo">Tu progreso<br>de hoy</h1><button class="circ-btn grande" data-go="#palabras" aria-label="Buscar palabras">${I("buscar")}</button></div>
+    ${due >= 5 ? tarjetaRepaso(vencidos) : ""}
+    ${n ? tarjetaNodo(n) : `<section class="leccion-card p-mantequilla">${DECO}<div class="lc-top">${circ("🏆")}</div><b class="lc-tit">¡Terminaste toda la ruta!</b><span class="lc-sub">Sigue con los repasos diarios para no olvidar nada.</span></section>`}
+    ${due && due < 5 ? tarjetaRepaso(vencidos) : ""}
     <div class="grid2">
-      <button class="card mini-card" data-go="#practicar">${I("practicar")}<b>Practicar</b><span>Escuchar, hablar, der·die·das…</span></button>
-      <button class="card mini-card" data-go="#lecturas">${I("libro")}<b>Lecturas</b><span>Textos cortos con audio</span></button>
+      <button class="tile p-mantequilla" data-go="#yo">${DECO}<span class="tile-top">${circ(I("fuego"))}<span>Racha</span></span><b class="tile-num">${racha}</b><span class="tile-sub">${racha === 1 ? "día de racha" : "días de racha"}</span>${flechaDiag()}</button>
+      <button class="tile p-cielo" data-go="#yo">${DECO}<span class="tile-top">${circ(I("rayo"))}<span>${d.xp >= meta ? "¡Meta lista!" : "Hoy"}</span></span><b class="tile-num">${d.xp}</b><span class="tile-sub">de ${meta} XP hoy</span>${flechaDiag()}</button>
     </div>
-    ${pal ? `<section class="card palabra-dia">
-      <div class="pd-cab"><small>Palabra del día</small>${botonAudio(M.conArticulo(pal))}</div>
-      <div class="pd-de">${esc(pal.emoji)} ${htmlPalabra(pal)}</div><div class="pd-es">${esc(pal.es)}</div>
+    <section class="bloque">
+      <div class="bloque-cab">${circ(I("grafica"), "sm")}<h2>Esta semana</h2><span class="bloque-dato">${xpSemana} XP · ${diasSemana}/7 días</span></div>
+      <div class="card pild-card">${barrasPildora(semana, "XP por día esta semana")}</div>
+    </section>
+    ${pal ? `<section class="card palabra-dia">${DECO}
+      <div class="lc-top">${circ(esc(pal.emoji), pastelGenero(pal))}<span class="chip-b suave">${I("brillo")} Palabra del día</span></div>
+      <div class="pd-de">${htmlPalabra(pal)} ${botonAudio(M.conArticulo(pal))}</div><div class="pd-es">${esc(pal.es)}</div>
       <button class="pd-ej" data-say="${esc(pal.ex)}"><b>${esc(pal.ex)}</b><i>${esc(pal.exEs)}</i></button>
     </section>` : ""}
+    <div class="grid2">
+      <button class="tile p-menta" data-go="#practicar">${DECO}<span class="tile-top">${circ(I("practicar"))}<span>Practicar</span></span><b class="tile-txt">Escuchar, hablar, der·die·das…</b>${flechaDiag()}</button>
+      <button class="tile p-rosa" data-go="#lecturas">${DECO}<span class="tile-top">${circ(I("libro"))}<span>Lecturas</span></span><b class="tile-txt">${LECTURAS.length} textos con audio</b>${flechaDiag()}</button>
+    </div>
     <section class="card ciencia-tip" data-go="#ciencia">
-      <small>¿Por qué funciona? ${I("ciencia")}</small>
-      <b>${esc(tip.emoji)} ${esc(tip.titulo)}</b>
-      <p>${esc(tip.idea)}</p>
+      <div class="lc-top">${circ(esc(tip.emoji), "p-arena")}<span class="chip-b suave">${I("ciencia")} ¿Por qué funciona?</span></div>
+      <b>${esc(tip.titulo)}</b><p>${esc(tip.idea)}</p>
     </section>
   </div>`;
 }
+montar.hoy = () => tooltips();
 
 /* ---------- Ruta ---------- */
 const OFFSETS = [0, 42, 64, 42, 0, -42, -64, -42];
 function vRuta() {
   const actual = idxActual();
   return `<div class="wrap ruta">
-    <header class="top"><div><div class="saludo">Tu camino</div><h1>Ruta</h1></div><span class="chip">${nivelUsuario().nivel}</span></header>
+    <div class="titulo-fila"><div><div class="saludo">Tu camino del A1 al B1</div><h1 class="titulo">Ruta</h1></div><span class="chip-b grande">${I("estrella")} ${nivelUsuario().nivel}</span></div>
     ${C.unidades.map((u) => {
       const nodos = u.nodos.map((n) => NODO[n.id]);
       const hechos = nodos.filter(nodoCompleto).length;
       const bloqueada = nodos[0].idx > actual;
       return `<section class="unidad ${bloqueada ? "bloq" : ""}" id="${u.id}">
-        <div class="u-cab nivel-${u.nivel}">
-          <span class="u-emoji">${esc(u.emoji)}</span>
-          <div class="u-txt"><small>Unidad ${u.i + 1} · ${u.nivel}</small><h2>${esc(u.titulo)}</h2><p>${esc(u.desc)}</p></div>
-          <div class="u-prog"><b>${hechos}</b>/${nodos.length}</div>
+        <div class="leccion-card u-card ${pastelNivel(u.nivel)}">
+          ${DECO}<span class="lc-marca" aria-hidden="true">${esc(u.emoji)}</span>
+          <div class="lc-top">${circ(esc(u.emoji))}<span class="chip-b">${bloqueada ? I("candado") : I("estrella")} ${u.nivel}</span></div>
+          <span class="lc-cat">Unidad ${u.i + 1}</span>
+          <b class="lc-tit">${esc(u.titulo)}</b>
+          <span class="lc-sub">${esc(u.desc)}</span>
+          <div class="u-prog-fila"><span class="u-barra"><i style="width:${(100 * hechos) / nodos.length}%"></i></span><b>${hechos}/${nodos.length}</b></div>
+          ${bloqueada ? `<button class="pill-btn" data-saltar="${u.id}">${I("rayo")} Examen para saltar aquí</button>` : ""}
         </div>
-        ${bloqueada ? `<button class="link saltar" data-saltar="${u.id}">¿Ya sabes esto? Haz el examen para saltar aquí</button>` : ""}
         <div class="camino">
           ${nodos.map((n, k) => {
             const est = nodoCompleto(n) ? "hecho" : n.idx === actual ? "actual" : n.idx < actual ? "hecho" : "bloq";
-            const ico = n.tipo === "gramatica" ? esc(GRAM[n.tema].emoji) : n.tipo === "lectura" ? "📖" : esc((n.items[0] || {}).emoji || "⭐");
             return `<div class="nodo-wrap" style="--x:${OFFSETS[k % OFFSETS.length]}px">
               ${est === "actual" ? `<div class="nodo-globo">¡Aquí vas!</div>` : ""}
-              <button class="nodo ${est} t-${n.tipo}" data-nodo="${n.id}" aria-label="${esc(n.titulo)}">
-                <span class="nodo-ico">${est === "bloq" ? I("candado") : ico}</span>${est === "hecho" ? `<span class="nodo-ok">${I("check")}</span>` : ""}
+              <button class="nodo ${est} t-${n.tipo}" data-nodo="${n.id}" aria-label="${esc(tituloNodo(n))}">
+                <span class="nodo-ico">${est === "bloq" ? I("candado") : esc(emojiNodo(n))}</span>${est === "hecho" ? `<span class="nodo-ok">${I("check")}</span>` : ""}
               </button>
-              <div class="nodo-tit">${esc(n.tipo === "lectura" ? (LECT[n.lectura] || {}).titulo || "Lectura" : n.titulo)}</div>
+              <div class="nodo-tit">${esc(tituloNodo(n))}</div>
             </div>`;
           }).join("")}
         </div>
@@ -715,26 +765,32 @@ function abrirNodo(id) {
 }
 
 /* ---------- Practicar ---------- */
+const COLOR_MODO = { errores: "p-rosa", escuchar: "p-cielo", hablar: "p-mantequilla", articulos: "p-menta", verbos: "p-cielo", escribir: "p-rosa", frases: "p-menta" };
 function vPracticar() {
   const due = repasosVencidos().length;
-  const nErr = aprendidas(MODOS.errores.filtro).length;
   const total = aprendidas().length;
-  const bloques = Object.entries(MODOS).filter(([k]) => k !== "hablar" || Oido.ok).map(([k, m]) => {
-    const n = k === "errores" ? nErr : aprendidas(m.filtro).length;
-    return `<button class="card modo" data-modo="${k}" ${n < (m.min || 3) ? "data-poco=1" : ""}><span class="modo-emoji">${m.emoji}</span><b>${esc(m.titulo)}</b><span>${esc(m.desc)}</span>${k === "errores" && n ? `<em>${n}</em>` : ""}</button>`;
+  const filas = Object.entries(MODOS).filter(([k]) => k !== "hablar" || Oido.ok).map(([k, m]) => {
+    const lista = aprendidas(m.filtro), n = lista.length, poco = n < (m.min || 3);
+    const fuerza = n ? lista.reduce((t, x) => t + x.R, 0) / n : 0;
+    return `<button class="modo-fila ${poco ? "poco" : ""}" data-modo="${k}" ${poco ? "data-poco=1" : ""}>
+      <span class="mf-ico ${COLOR_MODO[k]}">${m.emoji}</span>
+      <span class="mf-txt"><b>${esc(m.titulo)}</b><small>${poco ? (k === "errores" ? "Sin errores recientes 🎉" : "Aprende más palabras para desbloquear") : `${n} ${n === 1 ? "palabra" : "palabras"} · recuerdas ${Math.round(fuerza * 100)}%`}</small>
+        <span class="mf-barra"><i style="width:${Math.round(fuerza * 100)}%"></i></span></span>
+      <span class="flecha-negra">${poco ? I("candado") : I("flechaR")}</span>
+    </button>`;
   }).join("");
   return `<div class="wrap">
-    <header class="top"><div><div class="saludo">${total} palabras aprendidas</div><h1>Practicar</h1></div></header>
-    <section class="card repaso ${due ? "urgente" : ""}">
-      <div class="card-ico">${I("repetir")}</div>
-      <div class="card-txt"><b>Repaso inteligente</b><span>${due ? `${due} pendientes según tu curva del olvido` : "Al día. Practica las que más se te olvidan."}</span></div>
-      <button class="btn primario chico" data-a="repasar">Ir</button>
-    </section>
-    <div class="grid2">${bloques}</div>
-    <h3 class="sec-tit">Aprender más</h3>
+    <div class="titulo-fila"><div><div class="saludo">${total} ${total === 1 ? "palabra aprendida" : "palabras aprendidas"}</div><h1 class="titulo">Practicar</h1></div><button class="circ-btn grande" data-go="#palabras" aria-label="Palabras">${I("palabras")}</button></div>
+    <button class="banner" data-a="repasar">${DECO}
+      <span class="banner-txt"><small>${I("repetir")} Repaso inteligente</small><b>${due ? `${due} ${due === 1 ? "repaso pendiente" : "repasos pendientes"}` : "¡Estás al día!"}</b><span>${due ? "Según tu curva del olvido, estas son las que tocan hoy." : "Practica las que más se te están olvidando."}</span></span>
+      <span class="pill-oscuro">Empezar</span>
+    </button>
+    <div class="bloque-cab">${circ(I("diana"), "sm")}<h2>Entrena una habilidad</h2></div>
+    <div class="lista-modos">${filas}</div>
+    <div class="bloque-cab">${circ(I("libro"), "sm")}<h2>Aprender más</h2></div>
     <div class="grid2">
-      <button class="card mini-card" data-go="#gramatica">${I("gramatica")}<b>Gramática</b><span>30 temas explicados en español</span></button>
-      <button class="card mini-card" data-go="#lecturas">${I("libro")}<b>Lecturas</b><span>${LECTURAS.length} textos graduados</span></button>
+      <button class="tile p-cielo" data-go="#gramatica">${DECO}<span class="tile-top">${circ(I("gramatica"))}<span>Gramática</span></span><b class="tile-num">${Object.keys(GRAM).length}</b><span class="tile-sub">temas explicados</span>${flechaDiag()}</button>
+      <button class="tile p-rosa" data-go="#lecturas">${DECO}<span class="tile-top">${circ(I("libro"))}<span>Lecturas</span></span><b class="tile-num">${LECTURAS.length}</b><span class="tile-sub">textos con audio</span>${flechaDiag()}</button>
     </div>
   </div>`;
 }
@@ -884,13 +940,13 @@ function filaPalabra(it) {
   const c = S.cards[it.id];
   const R = c ? M.retencionActual(c) : 0;
   const est = !c ? `<span class="est nueva">Nueva</span>` : `<span class="ret" title="Recuerdo estimado hoy"><i style="width:${Math.round(R * 100)}%" class="${R < 0.8 ? "baja" : ""}"></i></span>`;
-  return `<button class="fila" data-palabra="${it.id}"><span class="f-emoji">${esc(it.emoji)}</span><span class="f-txt">${htmlPalabra(it)}<small>${esc(it.es)}</small></span>${est}</button>`;
+  return `<button class="fila" data-palabra="${it.id}"><span class="f-emoji ${pastelGenero(it)}">${esc(it.emoji)}</span><span class="f-txt">${htmlPalabra(it)}<small>${esc(it.es)}</small></span>${est}</button>`;
 }
 function vPalabras() {
   const lista = filtrarPalabras();
   const res = M.resumen(S.cards, hoy());
   return `<div class="wrap">
-    <header class="top"><div><div class="saludo">${res.total} de ${C.vocab.length} aprendidas</div><h1>Palabras</h1></div></header>
+    <div class="titulo-fila"><div><div class="saludo">${res.total} de ${C.vocab.length} aprendidas</div><h1 class="titulo">Palabras</h1></div><span class="chip-b grande">${I("palabras")} ${C.vocab.length}</span></div>
     <div class="buscador">${I("buscar")}<input id="busca" type="search" placeholder="Buscar en alemán o español…" value="${esc(S.busca)}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
     <div class="chips-fila">${FILTROS.map(([k, t]) => `<button class="fchip ${S.filtro === k ? "on" : ""} ${["der", "die", "das"].includes(k) ? "g-" + { der: "m", die: "f", das: "n" }[k] : ""}" data-filtro="${k}">${t}</button>`).join("")}</div>
     <div class="lista" id="listaPal">${lista.slice(0, 200).map(filaPalabra).join("") || `<p class="muted centro-txt">No hay palabras con ese filtro.</p>`}</div>
@@ -981,37 +1037,46 @@ function vYo() {
   const lv = nivelUsuario();
   const dias = Object.entries(P().dias);
   const ult30 = dias.filter(([k]) => M.isoDay(k) > hoy() - 30);
-  const rev = ult30.reduce((s, [, d]) => s + (d.rev || 0), 0), revOk = ult30.reduce((s, [, d]) => s + (d.revOk || 0), 0);
-  const ms = dias.reduce((s, [, d]) => s + (d.ms || 0), 0);
-  const horas = ms / 3600000;
+  const rev = ult30.reduce((t, [, d]) => t + (d.rev || 0), 0), revOk = ult30.reduce((t, [, d]) => t + (d.revOk || 0), 0);
+  const horas = dias.reduce((t, [, d]) => t + (d.ms || 0), 0) / 3600000;
   const tipos = Object.entries(P().tipos).filter(([, [, n]]) => n >= 3).map(([k, [ok, n]]) => ({ k, p: ok / n, n })).sort((a, b) => b.n - a.n).slice(0, 8);
   const dificiles = Object.entries(S.cards).filter(([, c]) => c.lapses > 0 || c.d >= 6).sort((a, b) => b[1].lapses - a[1].lapses || b[1].d - a[1].d).slice(0, 6).map(([id]) => C.porId.get(id)).filter((x) => x && x.t !== "g");
+  const semanas = [...Array(6).keys()].map((k) => {
+    const fin = hoy() - (5 - k) * 7;
+    let xp = 0;
+    for (let x = fin - 6; x <= fin; x++) xp += (P().dias[M.dayISO(x)] || {}).xp || 0;
+    return { et: k === 5 ? "Esta" : fmtFecha(fin - 6), v: xp, hoy: k === 5, dentro: "XP", tip: `${fmtFecha(fin - 6)} – ${fmtFecha(fin)}: ${xp} XP` };
+  });
   return `<div class="wrap">
-    <header class="top perfil-cab">
-      <div class="avatar">${esc((P().nombre || "?")[0].toUpperCase())}</div>
-      <div><h1>${esc(P().nombre || "Tú")}</h1><div class="saludo">${S.modo === "nube" ? `${I("nube")} ${esc((S.user && S.user.email) || "Cuenta")}` : "📱 Solo en este dispositivo"}</div></div>
-      <button class="atras" data-go="#ajustes" aria-label="Ajustes">${I("ajustes")}</button>
-    </header>
+    <header class="cab">${avatar()}<div class="cab-txt"><b>${esc(P().nombre || "Tú")}</b><small class="muted">${S.modo === "nube" ? esc((S.user && S.user.email) || "Cuenta") : "Solo en este dispositivo"}</small></div>
+      <button class="circ-btn" data-go="#ajustes" aria-label="Ajustes">${I("ajustes")}</button></header>
+    <div class="titulo-fila"><h1 class="titulo">Tu<br>aprendizaje</h1><span class="chip-b grande">${I("estrella")} ${lv.nivel}</span></div>
+    <div class="grid2">
+      <button class="tile p-menta" data-go="#palabras">${DECO}<span class="tile-top">${circ(I("palabras"))}<span>Palabras</span></span><b class="tile-num">${res.total}</b><span class="tile-sub">aprendidas</span>${flechaDiag()}</button>
+      <button class="tile p-mantequilla" data-go="#hoy">${DECO}<span class="tile-top">${circ(I("reloj"))}<span>${horas < 1 ? "Minutos" : "Horas"}</span></span><b class="tile-num">${horas < 1 ? Math.round(horas * 60) : horas.toFixed(1)}</b><span class="tile-sub">estudiando</span>${flechaDiag()}</button>
+    </div>
+    <div class="mini-stats">
+      <div class="ms">${circ(I("fuego"), "p-mantequilla")}<div><b>${rachaVisible()}</b><small>racha · máx. ${P().racha.max || 0}</small></div></div>
+      <div class="ms">${circ(I("rayo"), "p-cielo")}<div><b>${P().xp}</b><small>XP total</small></div></div>
+      <div class="ms">${circ(I("estrella"), "p-menta")}<div><b>${res.maduras}</b><small>dominadas</small></div></div>
+      <div class="ms">${circ(I("diana"), "p-rosa")}<div><b>${rev ? Math.round((100 * revOk) / rev) + "%" : "—"}</b><small>retención real</small></div></div>
+    </div>
+    <section class="bloque">
+      <div class="bloque-cab">${circ(I("grafica"), "sm")}<h2>Progreso</h2><span class="bloque-dato">XP por semana</span></div>
+      <div class="card pild-card">${barrasPildora(semanas, "XP por semana en las últimas 6 semanas")}</div>
+    </section>
     <section class="card nivel-card">
       <div class="nv-cab"><small>Tu nivel estimado</small><b>${lv.nivel}</b></div>
-      ${NIVELES.map((nv) => `<div class="nv-fila"><span>${nv}</span><div class="meta-barra"><i style="width:${(100 * lv.por[nv].hechas) / lv.por[nv].total}%"></i></div><small>${lv.por[nv].hechas}/${lv.por[nv].total}</small></div>`).join("")}
+      ${NIVELES.map((nv) => `<div class="nv-fila"><span class="chip-nv ${pastelNivel(nv)}">${nv}</span><div class="meta-barra"><i style="width:${(100 * lv.por[nv].hechas) / lv.por[nv].total}%"></i></div><small>${lv.por[nv].hechas}/${lv.por[nv].total}</small></div>`).join("")}
     </section>
-    <div class="stats">
-      <div class="stat"><span>${I("fuego")}</span><b>${rachaVisible()}</b><small>racha (máx. ${P().racha.max || 0})</small></div>
-      <div class="stat"><span>${I("rayo")}</span><b>${P().xp}</b><small>XP total</small></div>
-      <div class="stat"><span>${I("palabras")}</span><b>${res.total}</b><small>aprendidas</small></div>
-      <div class="stat"><span>${I("estrella")}</span><b>${res.maduras}</b><small>dominadas</small></div>
-      <div class="stat"><span>${I("diana")}</span><b>${rev ? Math.round((100 * revOk) / rev) + "%" : "—"}</b><small>retención real (30 días)</small></div>
-      <div class="stat"><span>${I("repetir")}</span><b>${horas < 1 ? Math.round(horas * 60) + " min" : horas.toFixed(1) + " h"}</b><small>estudiando</small></div>
-    </div>
-    <section class="card"><h3>Tu constancia</h3>${mapaCalor()}</section>
-    <section class="card"><h3>Repasos que vienen</h3><p class="muted chico">Así reparte la repetición espaciada tu trabajo en los próximos 14 días.</p>${graficaPronostico(res)}</section>
-    <section class="card"><h3>Tu memoria</h3>${barraEstados(res)}</section>
-    ${tipos.length ? `<section class="card"><h3>Aciertos por tipo de ejercicio</h3><div class="tipos">${tipos.map((t) => `<div class="tipo-fila"><span>${esc(M.NOMBRES_TIPO[t.k] || t.k)}</span><div class="meta-barra"><i style="width:${Math.round(t.p * 100)}%"></i></div><b>${Math.round(t.p * 100)}%</b></div>`).join("")}</div></section>` : ""}
-    ${dificiles.length ? `<section class="card"><h3>Tus palabras más difíciles</h3><div class="lista">${dificiles.map(filaPalabra).join("")}</div><button class="btn sec ancho" data-modo="errores">Practicar mis errores</button></section>` : ""}
+    <section class="card"><div class="bloque-cab dentro">${circ(I("fuego"), "sm p-mantequilla")}<h3>Tu constancia</h3></div>${mapaCalor()}</section>
+    <section class="card"><div class="bloque-cab dentro">${circ(I("repetir"), "sm p-cielo")}<h3>Repasos que vienen</h3></div><p class="muted chico">Así reparte la repetición espaciada tu trabajo en los próximos 14 días.</p>${graficaPronostico(res)}</section>
+    <section class="card"><div class="bloque-cab dentro">${circ(I("estrella"), "sm p-menta")}<h3>Tu memoria</h3></div>${barraEstados(res)}</section>
+    ${tipos.length ? `<section class="card"><div class="bloque-cab dentro">${circ(I("diana"), "sm p-rosa")}<h3>Aciertos por tipo de ejercicio</h3></div><div class="tipos">${tipos.map((t) => `<div class="tipo-fila"><span>${esc(M.NOMBRES_TIPO[t.k] || t.k)}</span><div class="meta-barra"><i style="width:${Math.round(t.p * 100)}%"></i></div><b>${Math.round(t.p * 100)}%</b></div>`).join("")}</div></section>` : ""}
+    ${dificiles.length ? `<section class="card"><div class="bloque-cab dentro">${circ("🩹", "sm p-rosa")}<h3>Tus palabras más difíciles</h3></div><div class="lista">${dificiles.map(filaPalabra).join("")}</div><button class="btn sec ancho" data-modo="errores">Practicar mis errores</button></section>` : ""}
     <div class="lista">
-      <button class="fila" data-go="#ciencia"><span class="f-emoji">🧪</span><span class="f-txt"><b>La ciencia detrás de la app</b><small>Por qué cada cosa está hecha así</small></span>${I("flecha")}</button>
-      <button class="fila" data-go="#ajustes"><span class="f-emoji">⚙️</span><span class="f-txt"><b>Ajustes</b><small>Meta, voz, avisos, tema y cuenta</small></span>${I("flecha")}</button>
+      <button class="fila" data-go="#ciencia"><span class="f-emoji p-rosa">🧪</span><span class="f-txt"><b>La ciencia detrás de la app</b><small>Por qué cada cosa está hecha así</small></span><span class="flecha-negra">${I("flechaR")}</span></button>
+      <button class="fila" data-go="#ajustes"><span class="f-emoji p-cielo">⚙️</span><span class="f-txt"><b>Ajustes</b><small>Meta, voz, avisos, tema y cuenta</small></span><span class="flecha-negra">${I("flechaR")}</span></button>
     </div>
   </div>`;
 }
@@ -1054,16 +1119,18 @@ function seg(nombre, val, ops) {
 function interruptor(nombre, on, titulo, sub, deshab) {
   return `<label class="toggle ${deshab ? "deshab" : ""}"><span><b>${titulo}</b>${sub ? `<small>${sub}</small>` : ""}</span><input type="checkbox" data-tog="${nombre}" ${on ? "checked" : ""} ${deshab ? "disabled" : ""}><i></i></label>`;
 }
+const ajCab = (ico, t, sub) => `<div class="aj-cab"><span class="aj-ico">${I(ico)}</span><div><h3>${t}</h3>${sub ? `<small>${sub}</small>` : ""}</div></div>`;
 function vAjustes() {
   const a = A(), pl = P().plan, tema = ls.get("aleman.tema", "auto") || "auto";
   const avisosTxt = S.modo !== "nube" ? "Necesitan una cuenta (Google o correo)" : !("Notification" in window) ? (/iPhone|iPad/.test(navigator.userAgent) ? "En iPhone: agrega la app a tu pantalla de inicio y ábrela desde ahí" : "Este navegador no permite avisos") : pl.avisos && Notification.permission === "granted" ? `Activados · te aviso a las ${pl.hora} si no has estudiado` : Notification.permission === "denied" ? "Bloqueados en los ajustes del cel" : "Te aviso si no has estudiado";
   return `<div class="wrap ajustes">
-    <header class="top"><button class="atras" data-go="#yo">${I("atras")}</button><div><div class="saludo">Hazla tuya</div><h1>Ajustes</h1></div></header>
-    <section class="card"><h3>Meta diaria</h3>${seg("meta", a.meta, METAS.map(([x, t]) => [x, t, x + " XP"]))}</section>
-    <section class="card"><h3>Palabras nuevas por día</h3><p class="muted chico">Más palabras nuevas = más repasos los días siguientes.</p>${seg("nuevas", a.nuevas, [[5, "5"], [10, "10"], [15, "15"], [25, "25"]])}</section>
-    <section class="card"><h3>Qué tanto quieres recordar</h3><p class="muted chico">Es la probabilidad de recordar cada palabra cuando te toca repasarla. Más alto = repasos más seguidos.</p>
+    <header class="top"><button class="atras" data-go="#yo" aria-label="Atrás">${I("atras")}</button><div><div class="saludo">Hazla tuya</div><h1>Ajustes</h1></div></header>
+    <div class="banner estatico">${DECO}<span class="banner-txt"><small>${I("brillo")} Tu plan</small><b>${esc(pl.momento ? fraseIntencion(pl.momento, pl.hora, a.meta) : "Elige cuándo vas a estudiar")}</b><span>${pl.avisos ? "Con recordatorio diario" : "Sin recordatorio todavía"}</span></span></div>
+    <section class="card">${ajCab("diana", "Meta diaria")}${seg("meta", a.meta, METAS.map(([x, t]) => [x, t, x + " XP"]))}</section>
+    <section class="card">${ajCab("estrella", "Palabras nuevas por día", "Más palabras nuevas = más repasos los días siguientes.")}${seg("nuevas", a.nuevas, [[5, "5"], [10, "10"], [15, "15"], [25, "25"]])}</section>
+    <section class="card">${ajCab("ciencia", "Qué tanto quieres recordar", "Probabilidad de recordar cada palabra cuando te toca repasarla. Más alto = repasos más seguidos.")}
       ${seg("retencion", a.retencion, [[0.85, "85%", "menos repasos"], [0.9, "90%", "equilibrado"], [0.95, "95%", "más repasos"]])}</section>
-    <section class="card"><h3>Voz y audio</h3>
+    <section class="card">${ajCab("audio", "Voz y audio")}
       ${seg("vel", a.vel, [[0.75, "Lenta"], [0.9, "Normal"], [1.05, "Rápida"]])}
       <button class="btn sec ancho" data-a="probarVoz">${I("audio")} Probar voz${Voz.nombre ? " · " + esc(Voz.nombre) : ""}</button>
       ${!Voz.ok ? `<p class="aviso">Este navegador no tiene voz en alemán.</p>` : !Voz.voz ? `<p class="muted chico">No encontré una voz alemana instalada. Instala «Deutsch» en las voces de tu sistema para que suene mejor.</p>` : ""}
@@ -1072,19 +1139,19 @@ function vAjustes() {
       ${interruptor("hablar", a.hablar && Oido.ok, "Ejercicios de hablar", Oido.ok ? "Usa el micrófono" : "Tu navegador no tiene reconocimiento de voz", !Oido.ok)}
       ${interruptor("sonidos", a.sonidos, "Sonidos", "Al acertar y fallar")}
     </section>
-    <section class="card"><h3>Tu plan y avisos</h3>
+    <section class="card">${ajCab("campana", "Tu plan y avisos")}
       <div class="chips-fila">${MOMENTOS.map(([k, e, t]) => `<button class="fchip ${pl.momento === k ? "on" : ""}" data-momento="${k}">${e} ${t}</button>`).join("")}</div>
       <label class="campo-ob">Hora<input type="time" id="ajHora" value="${esc(pl.hora || "20:00")}"></label>
-      <button class="toggle-btn" data-a="avisos">${I("campana")}<span><b>Recordatorio diario</b><small>${esc(avisosTxt)}</small></span></button>
+      <button class="toggle-btn" data-a="avisos"><span class="aj-ico">${I("campana")}</span><span><b>Recordatorio diario</b><small>${esc(avisosTxt)}</small></span><span class="flecha-negra">${I("flechaR")}</span></button>
     </section>
-    <section class="card"><h3>Tema</h3>${seg("tema", tema, [["auto", "Auto"], ["claro", "Claro"], ["oscuro", "Oscuro"]])}</section>
-    <section class="card"><h3>Cuenta y datos</h3>
+    <section class="card">${ajCab("luna", "Tema")}${seg("tema", tema, [["auto", "Auto"], ["claro", "Claro"], ["oscuro", "Oscuro"]])}</section>
+    <section class="card">${ajCab("yo", "Cuenta y datos")}
       ${S.modo === "local" ? `<p class="muted chico">Estás usando la app sin cuenta: tu progreso solo está en este dispositivo.</p><button class="btn primario ancho" data-a="crearCuenta">${I("nube")} Guardar mi progreso en una cuenta</button>` : `<p class="muted chico">Conectado como ${esc((S.user && S.user.email) || "")}. Tu progreso se sincroniza entre dispositivos.</p>`}
       <button class="btn sec ancho" data-a="exportar">${I("descargar")} Descargar mi progreso</button>
       <button class="btn sec ancho" data-a="salir">${I("salir")} ${S.modo === "nube" ? "Cerrar sesión" : "Salir"}</button>
       <button class="btn peligro ancho" data-a="borrar">${I("basura")} Borrar todo mi progreso</button>
     </section>
-    <p class="mini centro-txt">Täglich · ${C.vocab.length} palabras · ${Object.values(GRAM).reduce((s, g) => s + g.items.length, 0)} ejercicios de gramática · ${LECTURAS.length} lecturas</p>
+    <p class="mini centro-txt">Täglich · ${C.vocab.length} palabras · ${Object.values(GRAM).reduce((t, g) => t + g.items.length, 0)} ejercicios de gramática · ${LECTURAS.length} lecturas</p>
   </div>`;
 }
 montar.ajustes = () => {
