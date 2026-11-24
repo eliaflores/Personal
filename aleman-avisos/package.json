@@ -1,0 +1,8 @@
+{
+  "name": "aleman-avisos",
+  "private": true,
+  "description": "Manda el recordatorio diario de Täglich (alemán) a quien todavía no ha estudiado hoy",
+  "dependencies": {
+    "firebase-admin": "12.1.0"
+  }
+}

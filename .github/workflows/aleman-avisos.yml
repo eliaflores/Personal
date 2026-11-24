@@ -1,0 +1,25 @@
+name: Täglich - recordatorio diario de alemán
+
+on:
+  schedule:
+    - cron: "7 * * * *"   # cada hora; a cada quien le llega a la hora que eligió en la app
+  workflow_dispatch:
+
+concurrency:
+  group: aleman-avisos
+  cancel-in-progress: false
+
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node aleman-avisos/pruebas.js
+      - run: npm install --prefix aleman-avisos --no-audit --no-fund
+      - run: node aleman-avisos/avisos.js
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
