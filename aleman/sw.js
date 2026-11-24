@@ -1,7 +1,7 @@
 // Service worker de Täglich: la app funciona sin internet (guarda sus archivos) y recibe el recordatorio diario.
 // Archivos de la app: primero internet (siempre la versión nueva) y si no hay, la copia guardada.
 // Librerías de Firebase y letras: primero la copia guardada (no cambian).
-const CACHE = "taeglich-v2";
+const CACHE = "taeglich-v3";
 const APP = ["./", "index.html", "estilos.css", "app.js", "motor.js", "sesion.js", "servicios.js", "vocab-a1.js", "vocab-a2.js", "vocab-b1.js", "gramatica.js", "lecturas.js", "ciencia.js", "manifest.json", "icon-192.png", "icon-512.png", "icon-180.png"];
 
 self.addEventListener("install", (e) => {
