@@ -1,6 +1,6 @@
 // Täglich · pantalla de la sesión: presenta palabras, muestra ejercicios, revisa y da retroalimentación.
 import { crearEjercicio, revisar, conArticulo, reglaGenero, presente, PRONOMBRES, perfektDe, shuffle, norm, dist, sinUmlaut } from "./motor.js";
-import { $, $$, esc, Voz, Oido, Sonido, confeti, I } from "./servicios.js";
+import { $, $$, esc, Voz, Oido, Sonido, confeti, I, DECO, circ, pastelGenero, flechaAnillo, onda } from "./servicios.js";
 
 const BIEN = ["¡Bien!", "¡Perfecto!", "¡Genial!", "Sehr gut!", "¡Toll!", "¡Exacto!", "Super!", "Prima!", "Wunderbar!"];
 const UMLAUTS = ["ä", "ö", "ü", "ß"];
@@ -51,7 +51,13 @@ export function correr(root, opts) {
   const cuerpo = $("#sesCuerpo"), pie = $("#sesPie");
 
   const audioOn = () => ctx.audio !== false && Voz.ok && Date.now() > R.sinAudioHasta;
-  const decir = (t, lento) => { if (Voz.ok) Voz.hablar(t, { lento }); };
+  // Mientras suena el audio, las ondas del ejercicio de escuchar se mueven.
+  const decir = (t, lento) => {
+    if (!Voz.ok) return;
+    const e = $(".escucha:not(.voz)", cuerpo);
+    if (e) e.classList.add("hablando");
+    Voz.hablar(t, { lento, fin: () => { const x = $(".escucha:not(.voz)", cuerpo); if (x) x.classList.remove("hablando"); } });
+  };
 
   function barra() {
     $("#sesBarra").style.width = Math.round(sesion.progreso * 100) + "%";
@@ -87,14 +93,18 @@ export function correr(root, opts) {
   /* ---------- Presentar una palabra nueva ---------- */
   function pintarIntro(it) {
     const regla = reglaGenero(it);
+    const extra = it.t === "n" ? (it.pl ? `Plural: <b class="g-pl">die ${esc(it.pl)}</b>` : it.g === "pl" ? "Solo en plural" : "Sin plural") : "";
     cuerpo.innerHTML = `
       <div class="intro anim">
-        <div class="intro-tag">Palabra nueva</div>
-        <div class="intro-emoji">${esc(it.emoji || "✨")}</div>
-        <div class="intro-de">${htmlPalabra(it)} ${botonAudio(conArticulo(it), "grande")}</div>
-        <div class="intro-es">${esc(it.es)}${it.esAlt && it.esAlt.length ? `<small> · ${esc(it.esAlt.join(" · "))}</small>` : ""}</div>
-        ${it.t === "n" ? `<div class="intro-extra">${it.pl ? `Plural: <b class="g-pl">die ${esc(it.pl)}</b>` : it.g === "pl" ? "Solo se usa en plural" : "Sin plural"}</div>` : ""}
-        ${it.t === "v" ? `<div class="intro-extra">${esc(formasVerbo(it))}</div>` : ""}
+        <div class="intro-card ${pastelGenero(it)}">
+          ${DECO}
+          <span class="intro-tag">${I("brillo")} Palabra nueva</span>
+          <div class="intro-emoji">${esc(it.emoji || "✨")}</div>
+          <div class="intro-de">${htmlPalabra(it)}</div>
+          <div class="intro-es">${esc(it.es)}${it.esAlt && it.esAlt.length ? `<small>${esc(it.esAlt.join(" · "))}</small>` : ""}</div>
+          <div class="intro-chips">${botonAudio(conArticulo(it), "grande")}${botonLento(conArticulo(it))}${extra ? `<span class="chip-b">${extra}</span>` : ""}</div>
+        </div>
+        ${it.t === "v" ? `<div class="intro-formas">${formasVerbo(it).split(" · ").map((f) => `<span>${esc(f)}</span>`).join("")}</div>` : ""}
         ${it.ex ? `<button class="intro-ej" data-say="${esc(it.ex)}">${I("audio")}<span><b>${esc(it.ex)}</b><i>${esc(it.exEs)}</i></span></button>` : ""}
         ${it.nota ? `<div class="tip">💡 ${esc(it.nota)}</div>` : ""}
         ${regla ? `<div class="tip genero g-${it.g}">🎨 ${esc(regla)}</div>` : ""}
@@ -165,8 +175,8 @@ export function correr(root, opts) {
       if (ex.sub) h += `<div class="ex-sub">${esc(ex.sub)}</div>`;
       if (ex.pista) h += `<button class="link pista" data-a="pista">Ver pista</button><div class="pista-txt" id="pistaTxt" hidden>${esc(ex.pista)}</div>`;
     } else if (ex.mostrar == null) {
-      h += `<div class="escucha">
-        <button class="parlante" data-a="oir" aria-label="Escuchar">${I("audio")}</button>
+      h += `<div class="escucha"><div class="aura" aria-hidden="true"></div>
+        <button class="parlante" data-a="oir" aria-label="Escuchar">${onda()}</button>
         <button class="parlante chico" data-a="oirlento" aria-label="Escuchar lento">${I("tortuga")}</button>
       </div>
       <button class="link" data-a="sinaudio">No puedo escuchar ahora</button>`;
@@ -190,7 +200,8 @@ export function correr(root, opts) {
     } else if (ex.entrada === "fichas") {
       h += `<div class="f-resp" id="fResp"></div><div class="f-banco" id="fBanco"></div>`;
     } else if (ex.entrada === "voz") {
-      h += `<button class="mic" data-a="mic">${I("mic")}<span>Toca y habla</span></button><div class="oido" id="oido"></div>
+      h += `<div class="escucha voz"><div class="aura" aria-hidden="true"></div>${onda(13)}</div>
+        <button class="mic" data-a="mic">${I("mic")}<span>Toca y habla</span></button><div class="oido" id="oido"></div>
         <button class="link" data-a="sinvoz">No puedo hablar ahora</button>`;
     }
     h += `</div>`;
@@ -307,10 +318,13 @@ export function correr(root, opts) {
   /* ---------- Hablar ---------- */
   async function microfono() {
     const ex = R.ex, out = $("#oido"), mic = $(".mic", cuerpo);
+    const zona = $(".escucha.voz", cuerpo);
     mic.classList.add("escuchando"); mic.querySelector("span").textContent = "Te escucho…";
+    if (zona) zona.classList.add("hablando");
     out.textContent = "";
     try {
       const alts = await Oido.escuchar();
+      if (zona) zona.classList.remove("hablando");
       mic.classList.remove("escuchando"); mic.querySelector("span").textContent = "Toca y habla";
       if (!alts.length) { out.textContent = "No te escuché. Intenta otra vez."; return; }
       const obj = sinUmlaut(norm(ex.respuesta));
@@ -318,6 +332,7 @@ export function correr(root, opts) {
       out.textContent = "«" + mejor + "»";
       comprobar({ valor: mejor });
     } catch (e) {
+      if (zona) zona.classList.remove("hablando");
       mic.classList.remove("escuchando"); mic.querySelector("span").textContent = "Toca y habla";
       if (e.message === "not-allowed" || e.message === "service-not-allowed") { out.textContent = "Permite el micrófono para practicar la pronunciación."; }
       else out.textContent = "No se pudo usar el micrófono. Intenta otra vez o salta este ejercicio.";
@@ -333,23 +348,26 @@ export function correr(root, opts) {
     const r = await opts.onFin(sesion.stats, { parcial });
     if (!r) return opts.onCerrar();
     const pct = r.total ? Math.round((100 * r.ok) / r.total) : 100;
-    const mins = Math.max(1, Math.round(r.ms / 60000));
+    const seg = Math.max(1, Math.round(r.ms / 1000)), mm = Math.floor(seg / 60), ss = seg % 60;
     const metaPct = Math.min(100, Math.round((100 * r.xpHoy) / Math.max(1, r.meta)));
+    const sig = r.siguiente;
     root.innerHTML = `
       <div class="fin anim">
-        <div class="fin-emoji">${parcial ? "👍" : r.perfecto ? "🏆" : pct >= 85 ? "🎉" : "💪"}</div>
-        <h1>${parcial ? "¡Buen avance!" : r.perfecto ? "¡Sesión perfecta!" : "¡Sesión completa!"}</h1>
+        <div class="fin-hero">${DECO}<span class="fin-emoji">${parcial ? "👍" : r.perfecto ? "🏆" : pct >= 85 ? "🎉" : "💪"}</span></div>
+        <h1>${parcial ? "¡Buen avance!" : r.perfecto ? "¡Perfecto! Sesión sin errores" : "¡Excelente! Sesión completada"}</h1>
         <p class="fin-sub">${esc(r.mensaje || "")}</p>
-        <div class="fin-stats">
-          <div class="fstat xp"><b>+${r.xp}</b><span>XP</span></div>
-          <div class="fstat"><b>${pct}%</b><span>aciertos</span></div>
-          <div class="fstat"><b>${mins}</b><span>min</span></div>
+        <div class="fin-lista">
+          <div><span>Respuestas correctas</span><b class="c-flame">${r.ok} de ${r.total}</b></div>
+          <div><span>Tiempo</span><b class="c-gold">${mm ? mm + " min " : ""}${ss} s</b></div>
+          <div><span>XP ganados</span><b class="c-ok">+${r.xp}</b></div>
+          ${r.nuevas ? `<div><span>Palabras nuevas</span><b>${r.nuevas}</b></div>` : ""}
+          ${r.repasos ? `<div><span>Repasadas</span><b>${r.repasos}</b></div>` : ""}
         </div>
-        ${r.nuevas ? `<div class="fin-linea">${I("estrella")} <span><b>${r.nuevas}</b> ${r.nuevas === 1 ? "palabra nueva" : "palabras nuevas"} · <b>${r.repasos}</b> repasadas</span></div>` : r.repasos ? `<div class="fin-linea">${I("repetir")} <span><b>${r.repasos}</b> repasadas</span></div>` : ""}
-        <div class="fin-racha ${r.rachaSube ? "sube" : ""}">${I("fuego")}<div><b>${r.racha} ${r.racha === 1 ? "día" : "días"} de racha</b><span>${r.rachaSube ? (r.protectorUsado ? "Usaste un protector de racha 🛡️" : "¡Sumaste un día más!") : "Ya estudiaste hoy"}</span></div></div>
+        <div class="fin-racha ${r.rachaSube ? "sube" : ""}">${circ(I("fuego"))}<div><b>${r.racha} ${r.racha === 1 ? "día" : "días"} de racha</b><span>${r.rachaSube ? (r.protectorUsado ? "Usaste un protector de racha 🛡️" : "¡Sumaste un día más!") : "Ya estudiaste hoy"}</span></div></div>
         <div class="fin-meta"><div class="fin-meta-t"><span>Meta de hoy</span><b>${r.xpHoy} / ${r.meta} XP</b></div><div class="meta-barra"><i style="width:${metaPct}%"></i></div></div>
         ${r.manana ? `<p class="fin-sci">🧠 Mañana te tocan <b>${r.manana}</b> repasos. Recuperarlas justo cuando empiezan a olvidarse es lo que las fija.</p>` : ""}
-        <button class="btn primario ancho" data-a="cerrar">Continuar</button>
+        ${sig && !parcial ? `<div class="fin-sig"><small>Sigue con</small><button class="sig-card ${sig.pastel}" data-a="siguiente">${circ(esc(sig.emoji))}<span><b>${esc(sig.titulo)}</b><small>${esc(sig.sub)}</small></span>${flechaAnillo(sig.prog)}</button></div>` : ""}
+        <button class="btn primario ancho" data-a="cerrar">Listo por ahora</button>
       </div>`;
     if (!parcial) Sonido.fin();
     if (!parcial && (r.perfecto || r.metaRecienCumplida)) confeti();
@@ -403,6 +421,7 @@ export function correr(root, opts) {
     else if (acc === "mic") microfono();
     else if (acc === "pista") { R.pista = true; $("#pistaTxt").hidden = false; a.remove(); }
     else if (acc === "cerrar") opts.onCerrar();
+    else if (acc === "siguiente") opts.onCerrar(true);
   };
   function tecla(e) {
     if (R.cerrada || $(".confirma", root)) return;
