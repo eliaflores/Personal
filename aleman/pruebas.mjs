@@ -5,6 +5,7 @@ import { A2 } from "./vocab-a2.js";
 import { B1 } from "./vocab-b1.js";
 import { TEMAS } from "./gramatica.js";
 import { LECTURAS } from "./lecturas.js";
+import { SERIES } from "./series.js";
 
 let fallas = 0, pasadas = 0;
 const ok = (cond, msg) => { if (cond) pasadas++; else { fallas++; console.log("✗", msg); } };
@@ -34,6 +35,22 @@ for (const g of Object.values(G)) {
   }
 }
 for (const l of LECTURAS) for (const p of l.preguntas) ok(p.a >= 0 && p.a < p.opts.length, `${l.id}: respuesta válida`);
+
+/* ---------- Aprende viendo ---------- */
+const unidadesIds = new Set(C.unidades.map((u) => u.id));
+const idsCap = new Set();
+for (const sr of SERIES) {
+  ok(["A1", "A2", "B1", "B2"].includes(sr.nivel), `${sr.id}: nivel válido`);
+  ok(sr.donde.length > 0 && sr.donde.every((d) => d.tipo !== "web" || /^https:\/\//.test(d.url)), `${sr.id}: dónde verla con enlaces válidos`);
+  ok(sr.capitulos.length > 0, `${sr.id}: tiene capítulos`);
+  for (const c of sr.capitulos) {
+    ok(!idsCap.has(c.id), `${c.id}: id único`); idsCap.add(c.id);
+    ok(c.foco && c.antes && c.durante && c.despues && c.min > 0, `${c.id}: objetivo, pasos y duración`);
+    if (c.unidad) ok(unidadesIds.has(c.unidad), `${c.id}: la unidad ${c.unidad} existe`);
+    if (c.nivel) ok(["A1", "A2", "B1", "B2"].includes(c.nivel), `${c.id}: nivel válido`);
+    if (sr.donde.some((d) => d.tipo === "youtube")) ok(!!c.busca, `${c.id}: búsqueda de YouTube`);
+  }
+}
 
 /* ---------- Conjugación ---------- */
 const v = (s) => M.parseLinea(s);

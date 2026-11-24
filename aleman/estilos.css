@@ -666,3 +666,30 @@ body.sin-nav #toastRoot { bottom: calc(110px + env(safe-area-inset-bottom)); }
 .ex-emoji.p-cielo, .fp-emoji.p-cielo, .pp-ico.p-cielo { background: var(--a2); }
 .ex-emoji.p-rosa, .fp-emoji.p-rosa, .pp-ico.p-rosa { background: var(--b1); }
 .ex-emoji.p-mantequilla, .fp-emoji.p-mantequilla, .pp-ico.p-mantequilla { background: var(--gold-soft); }
+
+/* ---------- Aprende viendo ---------- */
+.banner.ver { background: radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--die) 55%, transparent) 0%, transparent 55%), linear-gradient(135deg, var(--der) 0%, color-mix(in srgb, var(--der) 55%, var(--das)) 100%); color: #fff; }
+.banner.ver .pill-oscuro { background: #fff; color: #1B1A17; }
+.banner.ver .deco { fill: rgba(255,255,255,.3); }
+.link-dato { font-weight: 800; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; font-size: 14px; }
+.lista-donde { display: flex; flex-direction: column; gap: 8px; }
+.donde { display: flex; align-items: center; gap: 12px; background: var(--card); border-radius: 20px; padding: 12px 14px; color: var(--ink); text-decoration: none; box-shadow: var(--shadow); }
+.sheet .donde { background: var(--soft); box-shadow: none; }
+.sheet .donde .aj-ico { background: var(--card); }
+.donde > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.donde small { color: var(--muted); font-size: 13px; font-weight: 600; }
+.donde > .ico { color: var(--muted); width: 18px; height: 18px; }
+.cap-foco, .cap-unidad { display: flex; gap: 10px; align-items: center; background: var(--gold-soft); color: var(--gold-ink); border-radius: 18px; padding: 12px 14px; font-weight: 600; font-size: 14.5px; }
+.cap-foco > .ico { width: 20px; height: 20px; flex: none; }
+.cap-unidad { background: var(--soft); color: var(--ink-2); }
+.cap-pasos { display: flex; flex-direction: column; gap: 12px; }
+.cap-pasos > div { display: flex; gap: 12px; align-items: flex-start; }
+.paso-n { width: 30px; height: 30px; border-radius: 50%; background: var(--ink); color: var(--on-ink); display: grid; place-items: center; font-weight: 800; font-size: 14px; flex: none; }
+.cap-pasos p { margin: 2px 0 0; color: var(--ink-2); font-size: 14.5px; }
+.cap-n { width: 50px; height: 50px; border-radius: 16px; background: var(--soft); display: grid; place-items: center; font-weight: 800; font-size: 18px; flex: none; }
+.cap-n .ico { width: 22px; height: 22px; stroke-width: 3; }
+.cap-fila.visto .cap-n { background: var(--ok); color: #fff; }
+.serie-desc { margin: 14px 0 4px; color: var(--ink-2); font-size: 15px; }
+.leccion-card .tip { background: color-mix(in srgb, var(--card) 70%, transparent); color: var(--ink-2); }
+.como { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; color: var(--ink-2); font-size: 15px; }
+.como b { color: var(--ink); }

@@ -72,4 +72,10 @@ export const CIENCIA = [
     app: "Las palabras nuevas tienen un límite diario y la primera revisión llega al día siguiente o al otro: justo después de una noche de sueño.",
     ref: "Diekelmann y Born (2010), Nature Reviews Neuroscience.",
   },
+  {
+    icono: "tele", titulo: "Ver series con subtítulos en alemán",
+    idea: "Ver video en el idioma que aprendes, con subtítulos en ese mismo idioma, mejora la comprensión auditiva y el vocabulario más que verlo con subtítulos en tu idioma o sin ellos.",
+    app: "En «Aprende viendo» cada capítulo de una serie es una lección con objetivo, tareas antes, durante y después (incluyendo repetir frases en voz alta) y te dice dónde verlo. Se recomienda según tu nivel.",
+    ref: "Montero Perez, Van Den Noortgate y Desmet (2013), System; Peters y Webb (2018), Studies in Second Language Acquisition.",
+  },
 ];
