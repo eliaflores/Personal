@@ -6,6 +6,7 @@ import { B1 } from "./vocab-b1.js";
 import { TEMAS } from "./gramatica.js";
 import { LECTURAS } from "./lecturas.js";
 import { CIENCIA } from "./ciencia.js";
+import { SERIES, CIENCIA_VER } from "./series.js";
 import { $, $$, esc, ls, toast, openSheet, closeSheet, sheetAbierta, Voz, Oido, Sonido, confeti, I, DECO, circ, pastelNivel, pastelGenero, flechaAnillo, flechaDiag, iconoUnidad, iconoItem, nota } from "./servicios.js";
 import { correr, htmlPalabra, formasVerbo, botonAudio, botonLento } from "./sesion.js";
 
@@ -60,13 +61,13 @@ function perfilNuevo(nombre = "") {
     ajustes: { meta: 40, nuevas: 10, retencion: 0.9, vel: 0.9, autoAudio: true, sonidos: true, escuchar: true, hablar: true },
     plan: { motivo: "", momento: "", hora: "20:00", avisos: false, tz: zona() },
     xp: 0, racha: { n: 0, max: 0, ultimo: null, protectores: 1 },
-    dias: {}, nodos: {}, tipos: {}, pron: {}, ultimoDia: null,
+    dias: {}, nodos: {}, tipos: {}, pron: {}, vistos: {}, ultimoDia: null,
   };
 }
 const zona = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Mexico_City"; } catch (e) { return "America/Mexico_City"; } };
 function normalizarPerfil(p) {
   const base = perfilNuevo(p.nombre || "");
-  return { ...base, ...p, ajustes: { ...base.ajustes, ...(p.ajustes || {}) }, plan: { ...base.plan, ...(p.plan || {}) }, racha: { ...base.racha, ...(p.racha || {}) }, dias: p.dias || {}, nodos: p.nodos || {}, tipos: p.tipos || {} };
+  return { ...base, ...p, ajustes: { ...base.ajustes, ...(p.ajustes || {}) }, plan: { ...base.plan, ...(p.plan || {}) }, racha: { ...base.racha, ...(p.racha || {}) }, dias: p.dias || {}, nodos: p.nodos || {}, tipos: p.tipos || {}, vistos: p.vistos || {} };
 }
 function dia(iso = hoyISO()) {
   const d = P().dias;
@@ -241,7 +242,7 @@ function iniciar(sesion, { examen = null } = {}) {
   // La explicación de gramática solo se muestra la primera vez.
   sesion.pasos = sesion.pasos.filter((p) => p.tipo !== "gintro" || !GRAM[p.item.tema].items.some((d) => aprendida(d.id)));
   S.enSesion = true; S.examen = examen; S.sesionActual = sesion;
-  closeSheet();
+  closeSheet(); ocultarTip();
   document.body.classList.add("sin-nav", "en-sesion");
   corredor = correr($("#app"), {
     sesion, ctx: ctxEjercicios(), temas: GRAM, ajustes: A(),
@@ -410,12 +411,13 @@ function render() {
   if (!S.perfil) return;
   if (!P().onboarding) return pintarOnboarding();
   conNav(true);
+  ocultarTip();
   app().onclick = null;
   const r = ruta();
-  const vistas = { hoy: vHoy, ruta: vRuta, practicar: vPracticar, palabras: vPalabras, yo: vYo, ajustes: vAjustes, ciencia: vCiencia, gramatica: vGramatica, lecturas: vLecturas, lectura: vLectura };
+  const vistas = { hoy: vHoy, ruta: vRuta, practicar: vPracticar, palabras: vPalabras, yo: vYo, ajustes: vAjustes, ciencia: vCiencia, gramatica: vGramatica, lecturas: vLecturas, lectura: vLectura, ver: vVer };
   const fn = vistas[r.v] || vHoy;
   app().innerHTML = fn(r.arg);
-  const tab = { ajustes: "yo", ciencia: "yo", gramatica: "practicar", lecturas: "practicar", lectura: "practicar" }[r.v] || r.v;
+  const tab = { ajustes: "yo", ciencia: "yo", gramatica: "practicar", lecturas: "practicar", lectura: "practicar", ver: "practicar" }[r.v] || r.v;
   $$("#nav [data-nav]").forEach((b) => b.classList.toggle("on", b.dataset.nav === tab));
   if (montar[r.v]) montar[r.v](r.arg);
 }
@@ -663,6 +665,7 @@ function vHoy() {
   const n = nodoActual();
   const pal = palabraDelDia();
   const tip = CIENCIA[hoy() % CIENCIA.length];
+  const recVer = capsRecomendados(1)[0];
   const semana = [...Array(7).keys()].map((k) => {
     const dn = hoy() - 6 + k, xp = (P().dias[M.dayISO(dn)] || {}).xp || 0;
     return { et: ["D", "L", "M", "M", "J", "V", "S"][new Date(dn * M.DAY).getUTCDay()], v: xp, hoy: dn === hoy(), tip: `${dn === hoy() ? "Hoy" : fmtFecha(dn, { weekday: "long", day: "numeric" })}: ${xp} XP` };
@@ -698,6 +701,7 @@ function vHoy() {
       <button class="tile p-menta" data-go="#practicar">${DECO}<span class="tile-top">${circ(I("practicar"))}<span>Practicar</span></span><b class="tile-txt">Escuchar, hablar, der·die·das…</b>${flechaDiag()}</button>
       <button class="tile p-rosa" data-go="#lecturas">${DECO}<span class="tile-top">${circ(I("libro"))}<span>Lecturas</span></span><b class="tile-txt">${LECTURAS.length} textos con audio</b>${flechaDiag()}</button>
     </div>
+    ${recVer ? `<div class="bloque-cab">${circ(I("tele"), "sm")}<h2>Aprende viendo</h2><button class="link-dato" data-go="#ver">Ver todo</button></div>${tarjetaCap(recVer)}` : ""}
     <section class="card ciencia-tip" data-go="#ciencia">
       <div class="lc-top">${circ(I(tip.icono), "p-arena")}<span class="chip-b suave">${I("ciencia")} ¿Por qué funciona?</span></div>
       <b>${esc(tip.titulo)}</b><p>${esc(tip.idea)}</p>
@@ -793,11 +797,129 @@ function vPracticar() {
     <div class="bloque-cab">${circ(I("diana"), "sm")}<h2>Entrena una habilidad</h2></div>
     <div class="lista-modos">${filas}</div>
     <div class="bloque-cab">${circ(I("libro"), "sm")}<h2>Aprender más</h2></div>
+    <button class="banner ver" data-go="#ver">${DECO}
+      <span class="banner-txt"><small>${I("tele")} Aprende viendo</small><b>Series y canales en alemán</b><span>${CAPS.length} capítulos como lecciones, por nivel y con dónde verlos.</span></span>
+      <span class="pill-oscuro">Ver</span>
+    </button>
     <div class="grid2">
       <button class="tile p-cielo" data-go="#gramatica">${DECO}<span class="tile-top">${circ(I("gramatica"))}<span>Gramática</span></span><b class="tile-num">${Object.keys(GRAM).length}</b><span class="tile-sub">temas explicados</span>${flechaDiag()}</button>
       <button class="tile p-rosa" data-go="#lecturas">${DECO}<span class="tile-top">${circ(I("libro"))}<span>Lecturas</span></span><b class="tile-num">${LECTURAS.length}</b><span class="tile-sub">textos con audio</span>${flechaDiag()}</button>
     </div>
   </div>`;
+}
+
+/* ---------- Aprende viendo ---------- */
+// Series y canales en alemán: cada capítulo es una lección. No es parte de la ruta; se recomienda según tu nivel.
+const ORDEN_NV = { A1: 0, A2: 1, B1: 2, B2: 3 };
+const CAPS = SERIES.flatMap((serie) => serie.capitulos.map((c, k) => ({ ...c, serie, nivel: c.nivel || serie.nivel, k })));
+const CAP = Object.fromEntries(CAPS.map((c) => [c.id, c]));
+const visto = (id) => !!(P().vistos || {})[id];
+const pastelVer = (nv) => (nv === "B2" ? "p-mantequilla" : pastelNivel(nv));
+const nivelObjetivo = () => { const n = nodoActual(); return n ? n.unidad.nivel : "B2"; };
+function capsRecomendados(n = 2) {
+  const obj = ORDEN_NV[nivelObjetivo()], uAct = nodoActual() ? nodoActual().unidad.i : 99;
+  const idxU = (id) => (C.unidades.find((u) => u.id === id) || { i: 0 }).i;
+  const cands = CAPS.filter((c) => !visto(c.id))
+    .map((c) => ({ c, p: Math.abs(ORDEN_NV[c.nivel] - obj) * 10 + (c.unidad && idxU(c.unidad) > uAct + 1 ? 4 : 0) + c.k * 0.5 + (c.serie.gratis ? 0 : 1) }))
+    .sort((a, b) => a.p - b.p);
+  const out = [], usadas = new Set();
+  for (const { c } of cands) { if (usadas.has(c.serie.id)) continue; usadas.add(c.serie.id); out.push(c); if (out.length >= n) break; }
+  return out;
+}
+const busquedaYT = (q) => "https://www.youtube.com/results?search_query=" + encodeURIComponent(q);
+const busquedaNetflix = (q) => "https://www.netflix.com/search?q=" + encodeURIComponent(q);
+const plataformas = (serie) => [...new Set(serie.donde.map((d) => (d.tipo === "netflix" ? "Netflix" : d.tipo === "youtube" ? "YouTube" : d.nombre.split(" ·")[0])))].join(" · ");
+function enlacesDonde(serie, cap) {
+  return serie.donde.map((d) => {
+    const url = d.tipo === "youtube" ? busquedaYT((cap && cap.busca) || serie.titulo) : d.tipo === "netflix" ? busquedaNetflix(serie.titulo) : d.url;
+    const ico = d.tipo === "youtube" ? "play" : d.tipo === "netflix" ? "tele" : "globo";
+    return `<a class="donde" href="${esc(url)}" target="_blank" rel="noopener"><span class="aj-ico">${I(ico)}</span><span><b>${esc(d.nombre)}</b><small>${esc(d.nota || "")}</small></span>${I("externo")}</a>`;
+  }).join("");
+}
+function tarjetaCap(c) {
+  return `<button class="leccion-card ${pastelVer(c.nivel)}" data-cap="${c.id}">
+    ${DECO}<span class="lc-marca" aria-hidden="true">${I("tele")}</span>
+    <div class="lc-top">${circ(I(c.serie.gratis ? "play" : "tele"))}<span class="chip-b">${c.serie.gratis ? "Gratis" : esc(plataformas(c.serie))} · ${c.nivel}</span></div>
+    <span class="lc-cat">${esc(c.serie.titulo)} · ${esc(c.serie.tipo)}</span>
+    <b class="lc-tit">${esc(c.titulo)}</b>
+    <span class="lc-sub">${esc(c.foco)}</span>
+    <div class="lc-pie"><span class="lc-nota">${I("reloj")} ${c.min} min · ${esc(plataformas(c.serie))}</span>${flechaAnillo(null)}</div>
+  </button>`;
+}
+function vVer(id) {
+  const serie = SERIES.find((x) => x.id === id);
+  if (serie) return vSerie(serie);
+  const f = S.filtroVer || "todas";
+  const lista = SERIES.filter((x) => f === "todas" || (f === "gratis" ? x.gratis : x.nivel === f));
+  const rec = capsRecomendados(2);
+  const vistos = CAPS.filter((c) => visto(c.id)).length;
+  return `<div class="wrap">
+    <header class="top"><button class="atras" data-go="#practicar" aria-label="Atrás">${I("atras")}</button><div><div class="saludo">${vistos} de ${CAPS.length} capítulos vistos</div><h1>Aprende viendo</h1></div></header>
+    <p class="muted">Series y canales en alemán ordenados por nivel. Cada capítulo es una lección: un objetivo, qué hacer antes, mientras y después de verlo, y dónde encontrarlo.</p>
+    ${rec.length ? `<div class="bloque-cab">${circ(I("brillo"), "sm")}<h2>Para ti ahora</h2><span class="bloque-dato">Nivel ${nivelObjetivo()}</span></div>${rec.map(tarjetaCap).join("")}` : ""}
+    <div class="bloque-cab">${circ(I("tele"), "sm")}<h2>Series y canales</h2></div>
+    <div class="chips-fila">${[["todas", "Todas"], ["A1", "A1"], ["A2", "A2"], ["B1", "B1"], ["B2", "B2"], ["gratis", "Gratis"]].map(([k, t]) => `<button class="fchip ${f === k ? "on" : ""}" data-fver="${k}">${t}</button>`).join("")}</div>
+    <div class="lista-modos">${lista.map((x) => {
+      const vs = x.capitulos.filter((c) => visto(c.id)).length;
+      return `<button class="modo-fila" data-go="#ver/${x.id}"><span class="mf-ico ${pastelVer(x.nivel)}">${I(x.gratis ? "play" : "tele")}</span>
+        <span class="mf-txt"><b>${esc(x.titulo)}</b><small>${esc(x.tipo)} · ${x.niveles} · ${x.gratis ? "Gratis" : esc(plataformas(x))}</small><span class="mf-barra"><i style="width:${(100 * vs) / x.capitulos.length}%"></i></span></span>
+        <span class="flecha-negra">${I("flechaR")}</span></button>`;
+    }).join("") || `<p class="muted centro-txt">No hay series con ese filtro.</p>`}</div>
+    <section class="card ciencia-tip" data-go="#ciencia">
+      <div class="lc-top">${circ(I("subtitulos"), "p-arena")}<span class="chip-b suave">${I("ciencia")} ¿Por qué funciona?</span></div>
+      <b>Subtítulos en alemán, no en español</b><p>${esc(CIENCIA_VER)}</p>
+    </section>
+    <p class="mini">Lo que hay en cada plataforma cambia según el país y con el tiempo. Si no lo encuentras, busca el título dentro de la plataforma.</p>
+  </div>`;
+}
+function vSerie(serie) {
+  const vs = serie.capitulos.filter((c) => visto(c.id)).length;
+  return `<div class="wrap">
+    <header class="top"><button class="atras" data-go="#ver" aria-label="Atrás">${I("atras")}</button><div><div class="saludo">${esc(serie.tipo)} · ${serie.niveles}</div><h1>${esc(serie.titulo)}</h1></div></header>
+    <section class="leccion-card ${pastelVer(serie.nivel)}">${DECO}<span class="lc-marca" aria-hidden="true">${I("tele")}</span>
+      <div class="lc-top">${circ(I(serie.gratis ? "play" : "tele"))}<span class="chip-b">${serie.gratis ? "Gratis" : esc(plataformas(serie))} · ${serie.nivel}</span></div>
+      <p class="serie-desc">${esc(serie.desc)}</p>
+      ${nota("bombilla", esc(serie.porque))}
+      <div class="u-prog-fila"><span class="u-barra"><i style="width:${(100 * vs) / serie.capitulos.length}%"></i></span><b>${vs}/${serie.capitulos.length}</b></div>
+    </section>
+    <div class="bloque-cab">${circ(I("externo"), "sm")}<h2>Dónde verla</h2></div>
+    <div class="lista-donde">${enlacesDonde(serie, serie.capitulos[0])}</div>
+    <div class="bloque-cab">${circ(I("subtitulos"), "sm")}<h2>Cómo verla</h2></div>
+    <section class="card"><ol class="como">
+      <li><b>Audio y subtítulos en alemán.</b> Con subtítulos en español terminas leyendo en lugar de escuchar.</li>
+      <li><b>Un capítulo a la vez.</b> Mejor uno bien visto que tres de fondo.</li>
+      <li><b>Repite en voz alta</b> 2 o 3 frases justo después del personaje (shadowing).</li>
+      <li><b>Vuelve a ver</b> el minuto que no entendiste en lugar de seguir de largo.</li>
+    </ol></section>
+    <div class="bloque-cab">${circ(I("play"), "sm")}<h2>Capítulos</h2></div>
+    <div class="lista-modos">${serie.capitulos.map((c, k) => `<button class="modo-fila cap-fila ${visto(c.id) ? "visto" : ""}" data-cap="${c.id}"><span class="cap-n">${visto(c.id) ? I("check") : k + 1}</span><span class="mf-txt"><b>${esc(c.titulo)}</b><small>${esc(c.foco)} · ${c.min} min</small></span><span class="flecha-negra">${I("flechaR")}</span></button>`).join("")}</div>
+  </div>`;
+}
+function abrirCapitulo(id) {
+  const c = CAP[id]; if (!c) return;
+  const u = c.unidad ? C.unidades.find((x) => x.id === c.unidad) : null;
+  const ya = visto(c.id);
+  openSheet(`
+    <div class="hoja-cab"><small>${esc(c.serie.titulo)} · ${c.nivel} · ${c.min} min</small><h3>${esc(c.titulo)}</h3></div>
+    <div class="cap-foco">${I("diana")}<span><b>Objetivo:</b> ${esc(c.foco)}</span></div>
+    ${u ? `<div class="cap-unidad">${circ(I(iconoUnidad(u.id)), "sm " + pastelNivel(u.nivel))}<span>Va con el vocabulario de la unidad ${u.i + 1}: <b>${esc(u.titulo)}</b></span></div>` : ""}
+    <div class="cap-pasos">
+      <div><span class="paso-n">1</span><div><b>Antes</b><p>${esc(c.antes)}</p></div></div>
+      <div><span class="paso-n">2</span><div><b>Mientras lo ves</b><p>${esc(c.durante)}</p></div></div>
+      <div><span class="paso-n">3</span><div><b>Después</b><p>${esc(c.despues)}</p></div></div>
+    </div>
+    <small class="muted">Dónde verlo</small>
+    <div class="lista-donde">${enlacesDonde(c.serie, c)}</div>
+    <button class="btn ${ya ? "sec" : "primario"} ancho" data-visto ${ya ? "disabled" : ""}>${ya ? I("check") + " Ya lo viste" : "Ya lo vi · +15 XP"}</button>`, (sh) => {
+    const b = sh.querySelector("[data-visto]");
+    if (b) b.onclick = () => {
+      if (visto(c.id)) return;
+      P().vistos[c.id] = Date.now();
+      const r = sumarActividad(15, c.min * 60000);
+      closeSheet(); render();
+      toast(r.sube ? "+15 XP · ¡tu racha sumó un día!" : "+15 XP · ¡bien visto!");
+    };
+  });
 }
 
 /* ---------- Gramática ---------- */
@@ -1086,22 +1208,27 @@ function vYo() {
   </div>`;
 }
 montar.yo = () => tooltips();
+// Globito de las gráficas: con mouse aparece al pasar encima; en el cel solo al tocar, y se quita solo.
+let tipT = null;
+function ocultarTip() { clearTimeout(tipT); const t = $("#tip"); if (t) t.classList.toggle("on", false); }
 function tooltips() {
   let tip = $("#tip");
-  if (!tip) { tip = document.createElement("div"); tip.id = "tip"; tip.className = "tooltip"; document.body.appendChild(tip); }
+  if (!tip) { tip = document.createElement("div"); tip.id = "tip"; tip.className = "tooltip"; tip.setAttribute("role", "status"); document.body.appendChild(tip); }
   const mostrar = (el) => {
     const t = el.dataset.tip; if (!t) return;
-    tip.textContent = t; tip.classList.add("on");
+    tip.textContent = t; tip.classList.toggle("on", true);
     const r = el.getBoundingClientRect(), w = tip.offsetWidth;
     tip.style.left = Math.min(innerWidth - w - 8, Math.max(8, r.left + r.width / 2 - w / 2)) + "px";
     tip.style.top = (r.top + scrollY - tip.offsetHeight - 8) + "px";
   };
   $$("[data-tip]").forEach((el) => {
-    el.addEventListener("pointerenter", () => mostrar(el));
-    el.addEventListener("pointerleave", () => tip.classList.remove("on"));
-    el.addEventListener("click", () => { mostrar(el); setTimeout(() => tip.classList.remove("on"), 1800); });
+    el.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") mostrar(el); });
+    el.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") ocultarTip(); });
+    el.addEventListener("click", () => { mostrar(el); clearTimeout(tipT); tipT = setTimeout(ocultarTip, 1800); });
   });
 }
+addEventListener("scroll", ocultarTip, { passive: true });
+document.addEventListener("pointerdown", (e) => { if (!e.target.closest("[data-tip]")) ocultarTip(); }, { passive: true });
 
 /* ---------- Ciencia ---------- */
 function vCiencia() {
@@ -1239,6 +1366,8 @@ document.addEventListener("click", (e) => {
     return;
   }
   const pal = e.target.closest("[data-palabra]"); if (pal) return abrirPalabra(pal.dataset.palabra);
+  const cap = e.target.closest("[data-cap]"); if (cap) return abrirCapitulo(cap.dataset.cap);
+  const fv = e.target.closest("[data-fver]"); if (fv) { S.filtroVer = fv.dataset.fver; render(); return; }
   const modo = e.target.closest("[data-modo]");
   if (modo) { if (modo.dataset.poco) { toast(MODOS[modo.dataset.modo].vacio || "Aprende algunas palabras más en la Ruta para desbloquear esta práctica."); return; } return empezarPractica(modo.dataset.modo); }
   const pg = e.target.closest("[data-practgram]"); if (pg) return practicarGramatica(pg.dataset.practgram);
