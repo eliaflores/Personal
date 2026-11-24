@@ -1,6 +1,6 @@
 // Täglich · pantalla de la sesión: presenta palabras, muestra ejercicios, revisa y da retroalimentación.
 import { crearEjercicio, revisar, conArticulo, reglaGenero, presente, PRONOMBRES, perfektDe, shuffle, norm, dist, sinUmlaut } from "./motor.js";
-import { $, $$, esc, Voz, Oido, Sonido, confeti, I, DECO, circ, pastelGenero, flechaAnillo, onda } from "./servicios.js";
+import { $, $$, esc, Voz, Oido, Sonido, confeti, I, DECO, circ, pastelGenero, flechaAnillo, onda, iconoItem, nota } from "./servicios.js";
 
 const BIEN = ["¡Bien!", "¡Perfecto!", "¡Genial!", "Sehr gut!", "¡Toll!", "¡Exacto!", "Super!", "Prima!", "Wunderbar!"];
 const UMLAUTS = ["ä", "ö", "ü", "ß"];
@@ -99,15 +99,15 @@ export function correr(root, opts) {
         <div class="intro-card ${pastelGenero(it)}">
           ${DECO}
           <span class="intro-tag">${I("brillo")} Palabra nueva</span>
-          <div class="intro-emoji">${esc(it.emoji || "✨")}</div>
+          <div class="intro-emoji">${I(iconoItem(it))}</div>
           <div class="intro-de">${htmlPalabra(it)}</div>
           <div class="intro-es">${esc(it.es)}${it.esAlt && it.esAlt.length ? `<small>${esc(it.esAlt.join(" · "))}</small>` : ""}</div>
           <div class="intro-chips">${botonAudio(conArticulo(it), "grande")}${botonLento(conArticulo(it))}${extra ? `<span class="chip-b">${extra}</span>` : ""}</div>
         </div>
         ${it.t === "v" ? `<div class="intro-formas">${formasVerbo(it).split(" · ").map((f) => `<span>${esc(f)}</span>`).join("")}</div>` : ""}
         ${it.ex ? `<button class="intro-ej" data-say="${esc(it.ex)}">${I("audio")}<span><b>${esc(it.ex)}</b><i>${esc(it.exEs)}</i></span></button>` : ""}
-        ${it.nota ? `<div class="tip">💡 ${esc(it.nota)}</div>` : ""}
-        ${regla ? `<div class="tip genero g-${it.g}">🎨 ${esc(regla)}</div>` : ""}
+        ${it.nota ? nota("bombilla", esc(it.nota)) : ""}
+        ${regla ? `<div class="tip genero g-${it.g}">${I("paleta")}<span>${esc(regla)}</span></div>` : ""}
       </div>`;
     pie.innerHTML = `<div class="pie-fila"><button class="btn sec" data-a="sabida">Ya me la sé</button><button class="btn primario" data-a="continuar" autofocus>Continuar</button></div>`;
     if (audioOn() && ajustes.autoAudio) setTimeout(() => decir(conArticulo(it)), 250);
@@ -118,7 +118,7 @@ export function correr(root, opts) {
     cuerpo.innerHTML = `
       <div class="gintro anim">
         <div class="intro-tag">Gramática · ${esc(tema.nivel)}</div>
-        <h2>${esc(tema.emoji)} ${esc(tema.titulo)}</h2>
+        <h2>${esc(tema.titulo)}</h2>
         <div class="gram">${tema.html}</div>
       </div>`;
     pie.innerHTML = `<button class="btn primario ancho" data-a="continuar">¡Entendido, a practicar!</button>`;
@@ -165,7 +165,7 @@ export function correr(root, opts) {
   function pintarEjercicio() {
     const ex = R.ex, it = ex.item;
     let h = `<div class="ex anim"><div class="ex-instr">${esc(ex.instr)}</div>`;
-    const conEmoji = !["mc_de", "listen_mc", "listen_type", "dictation", "listen_order"].includes(ex.kind) && it.emoji && it.t !== "g";
+    const conEmoji = !["mc_de", "listen_mc", "listen_type", "dictation", "listen_order"].includes(ex.kind) && it.t !== "g";
     const enLinea = ex.entrada === "texto" && ex.hueco;
     if (ex.hueco) {
       const hueco = enLinea
@@ -181,7 +181,7 @@ export function correr(root, opts) {
       </div>
       <button class="link" data-a="sinaudio">No puedo escuchar ahora</button>`;
     } else {
-      if (conEmoji) h += `<div class="ex-emoji">${esc(it.emoji)}</div>`;
+      if (conEmoji) h += `<div class="ex-emoji ${pastelGenero(it)}">${I(iconoItem(it))}</div>`;
       if (ex.idioma === "de") {
         const txt = ex.kind === "article" ? `<span class="pal"><span class="art">___</span> ${esc(it.de)}</span>` : ex.kind === "mc_de" ? htmlPalabra(it) : `<span class="pal">${esc(ex.mostrar)}</span>`;
         h += `<div class="ex-prompt de">${txt}${ex.kind !== "article" && ex.tts && !ex.ttsDespues ? botonAudio(ex.tts) : ""}</div>`;
@@ -277,15 +277,14 @@ export function correr(root, opts) {
     const respTxt = it.t === "g" ? (ex.respuestas || [ex.respuesta])[0] : res.objetivo || ex.respuesta;
     const decirTxt = ex.ttsTexto || (ex.hueco ? ex.tts : it.t === "g" ? null : ["conj", "perfekt"].includes(ex.kind) ? `${PRONOMBRES[ex.persona].split("/")[0]} ${ex.respuesta}` : ex.kind === "plural" ? `die ${it.pl}` : ["dictation", "speak", "order", "listen_order"].includes(ex.kind) ? ex.respuesta : conArticulo(it));
     const combo = sesion.stats.racha + (res.ok ? 1 : 0);
-    let titulo = res.ok ? (res.typo ? "Casi perfecto" : combo >= 5 && combo % 5 === 0 ? `¡${combo} seguidas! 🔥` : BIEN[Math.floor(Math.random() * BIEN.length)]) : res.nose ? "La respuesta es:" : "Respuesta correcta:";
-    const notas = [];
-    if (res.nota) notas.push(res.nota);
-    if (!res.ok && it.t === "n" && (res.articulo || ex.kind === "article")) { const r = reglaGenero(it); if (r) notas.push("🎨 " + r); }
-    if (ex.explicacion && (!res.ok || res.typo)) notas.push("💡 " + ex.explicacion);
-    else if (ex.explicacion && res.ok && it.t === "g") notas.push(ex.explicacion);
-    if (!res.ok && it.t === "v" && ["conj", "perfekt", "type_de", "cloze_type"].includes(ex.kind)) notas.push(formasVerbo(it));
-    if (!res.ok && it.nota && it.t !== "g") notas.push("💡 " + it.nota);
-    if (res.oido && res.oido.length) notas.push(`Escuché: «${res.oido}»`);
+    let titulo = res.ok ? (res.typo ? "Casi perfecto" : combo >= 5 && combo % 5 === 0 ? `¡${combo} seguidas!` : BIEN[Math.floor(Math.random() * BIEN.length)]) : res.nose ? "La respuesta es:" : "Respuesta correcta:";
+    const notas = [];   // [ícono, texto]
+    if (res.nota) notas.push(["info", res.nota]);
+    if (!res.ok && it.t === "n" && (res.articulo || ex.kind === "article")) { const r = reglaGenero(it); if (r) notas.push(["paleta", r]); }
+    if (ex.explicacion && (!res.ok || res.typo || it.t === "g")) notas.push(["bombilla", ex.explicacion]);
+    if (!res.ok && it.t === "v" && ["conj", "perfekt", "type_de", "cloze_type"].includes(ex.kind)) notas.push(["repetir", formasVerbo(it)]);
+    if (!res.ok && it.nota && it.t !== "g") notas.push(["bombilla", it.nota]);
+    if (res.oido && res.oido.length) notas.push(["mic", `Escuché: «${res.oido}»`]);
     const muestraResp = !res.ok || res.typo || ex.mostrar == null || ex.kind === "speak";
     const signif = it.t !== "g" && ex.idioma !== "es" && !["mc_de", "listen_mc"].includes(ex.kind) && ex.mostrar == null ? (ex.kind === "dictation" || ex.kind === "listen_order" ? it.exEs : it.es) : null;
     const ejemplo = it.t !== "g" && ex.ejemplo && !["dictation", "cloze_mc", "cloze_type", "listen_order"].includes(ex.kind) && !(ex.kind === "order" && ex.respuesta === it.ex) ? ex.ejemplo : null;
@@ -294,7 +293,7 @@ export function correr(root, opts) {
         <div class="fb-cab"><span class="fb-ico">${res.ok ? I("check") : I("x")}</span><b>${esc(titulo)}</b>${decirTxt ? botonAudio(decirTxt) : ""}</div>
         ${muestraResp ? `<div class="fb-resp">${it.t === "n" && !["cloze_type", "cloze_mc", "plural", "dictation", "order", "listen_order", "speak"].includes(ex.kind) ? htmlPalabra(it) : esc(respTxt)}</div>` : ""}
         ${signif ? `<div class="fb-sig">= ${esc(signif)}</div>` : ""}
-        ${notas.map((n) => `<div class="fb-nota">${esc(n)}</div>`).join("")}
+        ${notas.map(([ico, n]) => `<div class="fb-nota">${I(ico)}<span>${esc(n)}</span></div>`).join("")}
         ${ejemplo ? `<button class="fb-ej" data-say="${esc(ejemplo[0])}">${I("audio")}<span>${esc(ejemplo[0])} <i>${esc(ejemplo[1])}</i></span></button>` : ""}
         <div class="pie-fila">
           ${!res.ok && !res.nose && ex.entrada !== "mc" && ex.entrada !== "articulo" ? `<button class="link" data-a="razon">Lo tenía bien</button>` : ""}
@@ -353,7 +352,7 @@ export function correr(root, opts) {
     const sig = r.siguiente;
     root.innerHTML = `
       <div class="fin anim">
-        <div class="fin-hero">${DECO}<span class="fin-emoji">${parcial ? "👍" : r.perfecto ? "🏆" : pct >= 85 ? "🎉" : "💪"}</span></div>
+        <div class="fin-hero">${DECO}<span class="fin-emoji">${I(parcial ? "pulgar" : r.perfecto ? "trofeo" : pct >= 85 ? "fiesta" : "pesa")}</span></div>
         <h1>${parcial ? "¡Buen avance!" : r.perfecto ? "¡Perfecto! Sesión sin errores" : "¡Excelente! Sesión completada"}</h1>
         <p class="fin-sub">${esc(r.mensaje || "")}</p>
         <div class="fin-lista">
@@ -363,10 +362,10 @@ export function correr(root, opts) {
           ${r.nuevas ? `<div><span>Palabras nuevas</span><b>${r.nuevas}</b></div>` : ""}
           ${r.repasos ? `<div><span>Repasadas</span><b>${r.repasos}</b></div>` : ""}
         </div>
-        <div class="fin-racha ${r.rachaSube ? "sube" : ""}">${circ(I("fuego"))}<div><b>${r.racha} ${r.racha === 1 ? "día" : "días"} de racha</b><span>${r.rachaSube ? (r.protectorUsado ? "Usaste un protector de racha 🛡️" : "¡Sumaste un día más!") : "Ya estudiaste hoy"}</span></div></div>
+        <div class="fin-racha ${r.rachaSube ? "sube" : ""}">${circ(I("fuego"))}<div><b>${r.racha} ${r.racha === 1 ? "día" : "días"} de racha</b><span>${r.rachaSube ? (r.protectorUsado ? "Usaste un protector de racha" : "¡Sumaste un día más!") : "Ya estudiaste hoy"}</span></div></div>
         <div class="fin-meta"><div class="fin-meta-t"><span>Meta de hoy</span><b>${r.xpHoy} / ${r.meta} XP</b></div><div class="meta-barra"><i style="width:${metaPct}%"></i></div></div>
-        ${r.manana ? `<p class="fin-sci">🧠 Mañana te tocan <b>${r.manana}</b> repasos. Recuperarlas justo cuando empiezan a olvidarse es lo que las fija.</p>` : ""}
-        ${sig && !parcial ? `<div class="fin-sig"><small>Sigue con</small><button class="sig-card ${sig.pastel}" data-a="siguiente">${circ(esc(sig.emoji))}<span><b>${esc(sig.titulo)}</b><small>${esc(sig.sub)}</small></span>${flechaAnillo(sig.prog)}</button></div>` : ""}
+        ${r.manana ? `<p class="fin-sci">${I("bombilla")}<span>Mañana te tocan <b>${r.manana}</b> repasos. Recuperarlas justo cuando empiezan a olvidarse es lo que las fija.</span></p>` : ""}
+        ${sig && !parcial ? `<div class="fin-sig"><small>Sigue con</small><button class="sig-card ${sig.pastel}" data-a="siguiente">${circ(I(sig.icono))}<span><b>${esc(sig.titulo)}</b><small>${esc(sig.sub)}</small></span>${flechaAnillo(sig.prog)}</button></div>` : ""}
         <button class="btn primario ancho" data-a="cerrar">Listo por ahora</button>
       </div>`;
     if (!parcial) Sonido.fin();
