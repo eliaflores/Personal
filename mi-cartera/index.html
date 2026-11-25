@@ -1533,7 +1533,7 @@ function saveConfig(){
   const fundStop=!!s.fundStop||(saveAccs.length>0&&saveAccs.every(a=>a.noMore));
   const invStop=!!s.invStop||(invAccs.length>0&&invAccs.every(a=>a.noMore));
   const ps=priOf(saveAccs), pi=priOf(invAccs);
-  return {spendAuto,spendManual:+s.dailyMonthly>0,bigCut,priSave:ps.on,priSaveMin:ps.min,priInv:pi.on,priInvMin:pi.min,fundStop,invStop,goals,goalPct:(s.goalPct??5)/100,invTarget,invYield,fundAuto:!(+s.fundGoal>0),mode:s.saveMode||"auto",savePct:(s.savePct??s.savingsPct??10)/100,invPct:(s.invPct??5)/100,spendMonthly,fixedMonthly,fundNow,invNow,fundTarget,monthlyNeed,saveAcc:best(saveAccs),invAcc:best(invAccs)};
+  return {priPct:(s.priPct??10)/100,spendAuto,spendManual:+s.dailyMonthly>0,bigCut,priSave:ps.on,priSaveMin:ps.min,priInv:pi.on,priInvMin:pi.min,fundStop,invStop,goals,goalPct:(s.goalPct??5)/100,invTarget,invYield,fundAuto:!(+s.fundGoal>0),mode:s.saveMode||"auto",savePct:(s.savePct??s.savingsPct??10)/100,invPct:(s.invPct??5)/100,spendMonthly,fixedMonthly,fundNow,invNow,fundTarget,monthlyNeed,saveAcc:best(saveAccs),invAcc:best(invAccs)};
 }
 function cashState(){
   const st=settings(); const captured=+st.cash||0; const date=st.cashDate||""; const setAt=+st.cashSetAt||0;
@@ -1622,21 +1622,21 @@ function buildPlan(opts={}){
       const pk0=ds(per.start); const priT=[];
       const takeP=want=>{ const a=r2(Math.max(0,Math.min(avail,want))); avail=r2(avail-a); return a; };
       if(!opts.noFutures&&(per.inc||0)>0){
-        const floor=x=>r2(+x>0?+x:Math.max(15,Math.round((per.inc||0)*0.01)));
-        if(sv.priSave&&!sv.fundStop&&!done[pk0+"|ahorro"]) priT.push({k:"save",want:floor(sv.priSaveMin)});
-        if(sv.priInv&&!sv.invStop&&!done[pk0+"|inversion"]) priT.push({k:"inv",want:floor(sv.priInvMin)});
-        sv.goals.filter(x=>x.prio&&!done[pk0+"|meta:"+x.g.id]).forEach(x=>{ const room=r2(x.remaining-(goalSim[x.g.id]||0)); if(room>0.009) priT.push({k:"goal",x,want:Math.min(room,floor(x.priMin))}); });
-        // lo mínimo ($15 o menos si así lo pusiste) se aparta aunque tus pagos queden cortos
-        let fromInc=per.inc||0; priT.forEach(q=>{ const a=r2(Math.min(15,q.want)); if(fromInc>=a){ q.got=a; fromInc=r2(fromInc-a); avail=r2(avail-a); } else q.got=0; });
+        const minOf=x=>r2(+x>0?+x:15);
+        if(sv.priSave&&!sv.fundStop&&!done[pk0+"|ahorro"]) priT.push({k:"save",min:minOf(sv.priSaveMin)});
+        if(sv.priInv&&!sv.invStop&&!done[pk0+"|inversion"]) priT.push({k:"inv",min:minOf(sv.priInvMin)});
+        sv.goals.filter(x=>x.prio&&!done[pk0+"|meta:"+x.g.id]).forEach(x=>{ const room=r2(x.remaining-(goalSim[x.g.id]||0)); if(room>0.009) priT.push({k:"goal",x,cap:room,min:Math.min(room,minOf(x.priMin))}); });
+        // se busca apartar el % que elegiste (10% si no dices otro), repartido entre lo que marcaste; nunca menos del mínimo de cada uno
+        const share=priT.length?r2((per.inc||0)*sv.priPct/priT.length):0;
+        priT.forEach(q=>{ q.want=r2(Math.max(q.min,share)); if(q.cap!=null) q.want=Math.min(q.want,q.cap); });
+        // el mínimo se aparta primero, aunque tus pagos queden cortos
+        let fromInc=per.inc||0; priT.forEach(q=>{ const a=r2(Math.min(q.min,q.want)); if(fromInc>=a){ q.got=a; fromInc=r2(fromInc-a); avail=r2(avail-a); } else q.got=0; });
       }
       for(const o0 of [...carried,...per.obl.slice().sort((a,b)=>a.date-b.date)]){ let o=o0;
         if(o.kind==="prestamo"&&!o.carried&&(loanCredit[o.loanId]||0)>0.009){ const red=Math.min(loanCredit[o.loanId],o.amount); loanCredit[o.loanId]=r2(loanCredit[o.loanId]-red); o={...o,amount:r2(o.amount-red),must:r2(o.must-red),covered:r2(red)}; }
         const take=Math.max(0,Math.min(avail,o.must)); avail=r2(avail-take); if(o.kind==="prestamo") loanPaidSim[o.loanId]=r2((loanPaidSim[o.loanId]||0)+take);
         lines.push({o,pay:take,shortMust:r2(o.must-take),completions:[]}); }
-      // después de tus pagos, completa lo de prioridad hasta su mínimo de cada pago (si alcanza)
-      priT.forEach(q=>{ q.got=r2(q.got+takeP(q.want-q.got)); });
-      const pri={save:0,inv:0,goals:[]};
-      priT.forEach(q=>{ if(!(q.got>0.009)) return; if(q.k==="save") pri.save=q.got; else if(q.k==="inv") pri.inv=q.got; else { goalSim[q.x.g.id]=r2((goalSim[q.x.g.id]||0)+q.got); pri.goals.push({g:q.x.g,acc:q.x.acc,amt:q.got}); } });
+
       for(const l of lines.filter(l=>l.o.kind==="tarjeta").sort((a,b)=>(b.o.rate-a.o.rate)||(a.o.date-b.o.date))){ const need=r2(l.o.amount-l.pay); const take=Math.max(0,Math.min(avail,need)); l.pay=r2(l.pay+take); avail=r2(avail-take); }
       const next=periods[idx+1];
       lines.forEach(l=>{ l.short=r2(l.o.amount-l.pay);
@@ -1647,6 +1647,12 @@ function buildPlan(opts={}){
           else totalShort=r2(totalShort+l.short);
         } });
       const nextNeed = next ? next.obl.reduce((s,o)=>s+o.amount,0) - next.income : 0;
+      // prioridad: ya que tus pagos están cubiertos (y lo que vas a necesitar para el siguiente periodo), se completa hasta el % que buscas; si no alcanza, lo que se pueda
+      if(priT.length){ const need=priT.map(q=>Math.max(0,r2(q.want-q.got))); const N=r2(need.reduce((a,b)=>a+b,0)); const room=Math.max(0,r2(avail-Math.max(0,nextNeed)));
+        if(N>0.009&&room>0.009){ const f=Math.min(1,room/N); priT.forEach((q,i)=>{ const add=r2(Math.floor(need[i]*f*100)/100); q.got=r2(q.got+add); avail=r2(avail-add); }); } }
+      const pri={save:0,inv:0,goals:[]};
+      priT.forEach(q=>{ if(!(q.got>0.009)) return; if(q.k==="save") pri.save=q.got; else if(q.k==="inv") pri.inv=q.got; else { goalSim[q.x.g.id]=r2((goalSim[q.x.g.id]||0)+q.got); pri.goals.push({g:q.x.g,acc:q.x.acc,amt:q.got}); } });
+      per.priWant=r2(priT.reduce((a,q)=>a+q.want,0)); per.priGot=r2(priT.reduce((a,q)=>a+q.got,0));
       // ¿te alcanza para pagar lo que te gustaría a tus créditos? después de tus pagos, de lo que necesitas para el siguiente periodo,
       // de tus gastos del día a día y de un mínimo de ahorro; si no alcanza todo, paga lo que se pueda y eso se adelanta al siguiente pago
       const wl=lines.filter(l=>l.o.kind==="prestamo"&&!l.o.carried&&(+(get(l.o.loanId)||{}).want||0)>0);
@@ -2370,14 +2376,15 @@ function dailyForm(){
 // prioridad en cada pago: elegir en un solo lugar
 function priForm(){
   const accs=all("account").filter(a=>["ahorro","inversion"].includes(accPurpose(a))); const goals=all("goal");
-  const row=(kind,o,sub)=>`<label class="small" style="display:flex;flex-wrap:nowrap;align-items:center;gap:10px;font-weight:600;padding:6px 0"><input type="checkbox" class="prIn" data-kind="${kind}" data-id="${o.id}" ${o.prio?"checked":""} style="flex:0 0 auto;width:20px;height:20px;margin:0"><span style="flex:1;min-width:0">${esc(o.name)}<span class="muted" style="font-weight:500"> · ${sub}</span></span><input type="number" class="prMin" data-id="${o.id}" step="1" inputmode="decimal" value="${+o.priMin||""}" placeholder="mín." style="max-width:84px;padding:7px 9px"></label>`;
+  const row=(kind,o,sub)=>`<label class="small" style="display:flex;flex-wrap:nowrap;align-items:center;gap:10px;font-weight:600;padding:6px 0"><input type="checkbox" class="prIn" data-kind="${kind}" data-id="${o.id}" ${o.prio?"checked":""} style="flex:0 0 auto;width:20px;height:20px;margin:0"><span style="flex:1;min-width:0">${esc(o.name)}<span class="muted" style="font-weight:500"> · ${sub}</span></span><input type="number" class="prMin" data-id="${o.id}" step="1" inputmode="decimal" value="${+o.priMin||""}" placeholder="mín. $15" style="max-width:96px;padding:7px 9px"></label>`;
   openDialog("Prioridad en cada pago",`
-    <div class="note small">Marca a qué le quieres apartar <b>algo en cada pago, aunque sea poco</b>: al menos $15 aunque no alcance para todo, y si hay espacio $15 o el 1% de tu ingreso (o el mínimo que escribas).</div>
+    <div class="note small">Marca a qué le quieres apartar algo <b>en cada pago</b>. El plan trata de apartar el porcentaje de abajo de cada ingreso, repartido entre lo que marques; si no alcanza, aparta lo que se pueda, pero <b>nunca menos del mínimo</b> de cada uno ($15 si no escribes otro).</div>
+    <label class="f">Tratar de apartar en cada pago<div class="row" style="gap:8px;flex-wrap:nowrap"><input type="number" id="prPct" min="0" max="100" step="1" inputmode="decimal" value="${settings().priPct??10}" style="max-width:90px"><span class="small muted">% de tu ingreso, repartido entre lo que marques</span></div></label>
     ${accs.length?`<div class="small muted" style="font-weight:700;margin-top:4px">Apartados</div>${accs.map(a=>row("acc",a,`${purposeLabel(a)}${a.noMore?" · marcado como completo":""}`)).join("")}`:""}
     ${goals.length?`<div class="small muted" style="font-weight:700;margin-top:8px">Metas de ahorro</div>${goals.map(g=>row("goal",g,`${money(goalSaved(g))} de ${money(+g.target||0)}${g.noMore?" · en pausa":""}`)).join("")}`:""}
     ${!accs.length&&!goals.length?`<p class="muted small">Aún no tienes apartados de ahorro o inversión ni metas.</p>`:""}`,
     `<span></span><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="prSave">Guardar</button></div>`);
-  $("#prSave").onclick=async()=>{ let n=0;
+  $("#prSave").onclick=async()=>{ let n=0; const pct=Math.min(100,Math.max(0,+$("#prPct").value||0)); if(pct!==(settings().priPct??10)) await put({...settings(),id:"settings",kind:"settings",priPct:pct});
     for(const cb of $$(".prIn")){ const o=get(cb.dataset.id); if(!o) continue; const mn=r2(+($(`.prMin[data-id="${o.id}"]`).value)||0); const on=cb.checked;
       if(!!o.prio!==on||(+o.priMin||0)!==mn){ await put({...o,prio:on,priMin:mn}); } if(on) n++; }
     closeDialog(); toast(n?`Listo: en cada pago se aparta algo para ${n===1?"1 fondo o meta":n+" fondos o metas"}`:"Sin prioridad"); };
@@ -2421,7 +2428,7 @@ function vPlan(){
   ${!plan.hasIncome?`<div class="note warn">Agrega tu sueldo con el botón ＋ para que el plan cuente con él.</div>`:""}
   ${(()=>{ const pr=[...all("account").filter(a=>a.prio&&!a.noMore&&["ahorro","inversion"].includes(accPurpose(a))),...all("goal").filter(g=>g.prio&&!g.noMore)];
     const any=all("account").some(a=>["ahorro","inversion"].includes(accPurpose(a)))||all("goal").length;
-    if(pr.length) return `<div class="small muted" style="margin:-4px 0 4px">Prioridad en cada pago: <b>${pr.map(x=>esc(x.name)).join(", ")}</b> · <a href="#" data-act="priForm">cambiar</a></div>`;
+    if(pr.length) return `<div class="small muted" style="margin:-4px 0 4px">Prioridad en cada pago: <b>${pr.map(x=>esc(x.name)).join(", ")}</b> · trata de apartar el ${settings().priPct??10}% de cada ingreso, nunca menos del mínimo · <a href="#" data-act="priForm">cambiar</a></div>`;
     return any?`<div class="note acc small">¿Quieres que en cada pago se aparte algo para un fondo o meta (por ejemplo IVV o tu Fondo de emergencia), aunque sea poco? <a href="#" data-act="priForm">Elegir prioridad</a></div>`:""; })()}
   ${dupIncomes().map(([a,b])=>`<div class="note warn"><b>Tu ingreso "${esc(a.name)}" parece estar dos veces</b> (${money(+a.amount||0)} y ${money(+b.amount||0)}, los mismos días). Por eso el plan suma los dos y parece que te sobra más. ¿Con cuál te quedas?
     <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn sm" data-act="keepInc" data-id="${a.id}" data-drop="${b.id}">Quedarme con el de ${money(+a.amount||0)}${(+a.amount||0)===(+b.amount||0)?" (el primero)":""}</button><button type="button" class="btn sm" data-act="keepInc" data-id="${b.id}" data-drop="${a.id}">Quedarme con el de ${money(+b.amount||0)}${(+a.amount||0)===(+b.amount||0)?" (el segundo)":""}</button><button type="button" class="btn sm" data-act="planSettings">Ver mis ingresos</button></div></div>`).join("")}
@@ -2451,6 +2458,7 @@ function vPlan(){
       ${fundLine(p,"ahorro",plan.sv)}
       ${fundLine(p,"inversion",plan.sv)}
       ${!p.isCash&&!p.save&&!p.inv&&p.lines.some(l=>l.short>0.009)?`<div class="small muted">Este periodo no alcanza para ahorrar: primero tus pagos.</div>`:""}
+      ${p.priWant>0.009&&p.priGot<p.priWant-0.009?`<div class="small muted">Prioridad: querías apartar ${money(p.priWant)} (${settings().priPct??10}% de tu ingreso); con tus pagos de este periodo alcanzó ${money(p.priGot)}.</div>`:""}
       <div class="pline" style="border-top:1px solid var(--line);padding-top:8px"><span class="muted small">Te queda para gastos del día a día${p.dia>0.009?`<br><span style="font-size:11.5px">${p.left<p.dia-0.009?`<b style="color:var(--warn)">Ojo:</b> sueles gastar unos ${money(p.dia)} en estos ${p.days} días`:`sueles gastar unos ${money(p.dia)} en estos ${p.days} días`} (<a href="#" data-act="dailyForm">cambiar</a>)${p.left-p.spend>0.009?`; lo que no gastes (${money(r2(p.left-p.spend))}) pasa al siguiente periodo`:"; no pasa nada al siguiente periodo"}</span>`:""}</span><b class="num">${money(p.left)}</b></div>
     </div></div>`).join("")}
   </div>
