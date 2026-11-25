@@ -1505,10 +1505,16 @@ const goalSaved=g=>{ const ac=goalAccounts(g); return ac.length?r2(ac.reduce((x,
 function saveConfig(){
   const s=settings(); const t=today();
   const since=ds(addDays(t,-90));
-  const regular=all("exp").filter(e=>e.date>=since&&e.date<=ds(t)&&!(+e.msi>1)&&!e.subId&&!e.flowId&&!isVales(get(e.cardId)));
+  // compras planeadas (ya están en tu plan) y compras grandes no son gasto del día a día
+  const futExp=new Set(all("future").flatMap(f=>[f.expId,...(f.parts||[]).map(x=>x.expId)]).filter(Boolean));
+  const regular0=all("exp").filter(e=>e.date>=since&&e.date<=ds(t)&&!(+e.msi>1)&&!e.subId&&!e.flowId&&!e.futId&&!futExp.has(e.id)&&!isVales(get(e.cardId)));
+  const amts=regular0.map(e=>+e.amount||0).sort((a,b)=>a-b); const med=amts.length?amts[Math.floor(amts.length/2)]:0;
+  const bigCut=Math.max(1500,r2(med*6));
+  const regular=regular0.filter(e=>(+e.amount||0)<=bigCut);
   const firstDate=regular.reduce((m,e)=>e.date<m?e.date:m,ds(t));
   const span=Math.max(30,daysBetween(pd(firstDate),t));
-  const spendMonthly=regular.length?r2(regular.reduce((x,e)=>x+(+e.amount||0),0)/span*30):null;
+  const spendAuto=regular.length?r2(regular.reduce((x,e)=>x+(+e.amount||0),0)/span*30):null;
+  const spendMonthly=+s.dailyMonthly>0?r2(+s.dailyMonthly):spendAuto;
   const fixedMonthly=fixedPayments().monthly;
   const goals=all("goal").map(g=>{ const saved=goalSaved(g), target=+g.target||0, remaining=Math.max(0,r2(target-saved));
     const months=g.deadline?Math.max(1,(pd(g.deadline).getFullYear()-t.getFullYear())*12+pd(g.deadline).getMonth()-t.getMonth()):6;
@@ -1527,7 +1533,7 @@ function saveConfig(){
   const fundStop=!!s.fundStop||(saveAccs.length>0&&saveAccs.every(a=>a.noMore));
   const invStop=!!s.invStop||(invAccs.length>0&&invAccs.every(a=>a.noMore));
   const ps=priOf(saveAccs), pi=priOf(invAccs);
-  return {priSave:ps.on,priSaveMin:ps.min,priInv:pi.on,priInvMin:pi.min,fundStop,invStop,goals,goalPct:(s.goalPct??5)/100,invTarget,invYield,fundAuto:!(+s.fundGoal>0),mode:s.saveMode||"auto",savePct:(s.savePct??s.savingsPct??10)/100,invPct:(s.invPct??5)/100,spendMonthly,fixedMonthly,fundNow,invNow,fundTarget,monthlyNeed,saveAcc:best(saveAccs),invAcc:best(invAccs)};
+  return {spendAuto,spendManual:+s.dailyMonthly>0,bigCut,priSave:ps.on,priSaveMin:ps.min,priInv:pi.on,priInvMin:pi.min,fundStop,invStop,goals,goalPct:(s.goalPct??5)/100,invTarget,invYield,fundAuto:!(+s.fundGoal>0),mode:s.saveMode||"auto",savePct:(s.savePct??s.savingsPct??10)/100,invPct:(s.invPct??5)/100,spendMonthly,fixedMonthly,fundNow,invNow,fundTarget,monthlyNeed,saveAcc:best(saveAccs),invAcc:best(invAccs)};
 }
 function cashState(){
   const st=settings(); const captured=+st.cash||0; const date=st.cashDate||""; const setAt=+st.cashSetAt||0;
@@ -1621,17 +1627,17 @@ function buildPlan(opts={}){
         if(sv.priInv&&!sv.invStop&&!done[pk0+"|inversion"]) priT.push({k:"inv",want:floor(sv.priInvMin)});
         sv.goals.filter(x=>x.prio&&!done[pk0+"|meta:"+x.g.id]).forEach(x=>{ const room=r2(x.remaining-(goalSim[x.g.id]||0)); if(room>0.009) priT.push({k:"goal",x,want:Math.min(room,floor(x.priMin))}); });
         // lo mínimo ($15 o menos si así lo pusiste) se aparta aunque tus pagos queden cortos
-        priT.forEach(q=>{ q.got=takeP(Math.min(15,q.want)); });
+        let fromInc=per.inc||0; priT.forEach(q=>{ const a=r2(Math.min(15,q.want)); if(fromInc>=a){ q.got=a; fromInc=r2(fromInc-a); avail=r2(avail-a); } else q.got=0; });
       }
       for(const o0 of [...carried,...per.obl.slice().sort((a,b)=>a.date-b.date)]){ let o=o0;
         if(o.kind==="prestamo"&&!o.carried&&(loanCredit[o.loanId]||0)>0.009){ const red=Math.min(loanCredit[o.loanId],o.amount); loanCredit[o.loanId]=r2(loanCredit[o.loanId]-red); o={...o,amount:r2(o.amount-red),must:r2(o.must-red),covered:r2(red)}; }
-        const take=Math.min(avail,o.must); avail=r2(avail-take); if(o.kind==="prestamo") loanPaidSim[o.loanId]=r2((loanPaidSim[o.loanId]||0)+take);
+        const take=Math.max(0,Math.min(avail,o.must)); avail=r2(avail-take); if(o.kind==="prestamo") loanPaidSim[o.loanId]=r2((loanPaidSim[o.loanId]||0)+take);
         lines.push({o,pay:take,shortMust:r2(o.must-take),completions:[]}); }
       // después de tus pagos, completa lo de prioridad hasta su mínimo de cada pago (si alcanza)
       priT.forEach(q=>{ q.got=r2(q.got+takeP(q.want-q.got)); });
       const pri={save:0,inv:0,goals:[]};
       priT.forEach(q=>{ if(!(q.got>0.009)) return; if(q.k==="save") pri.save=q.got; else if(q.k==="inv") pri.inv=q.got; else { goalSim[q.x.g.id]=r2((goalSim[q.x.g.id]||0)+q.got); pri.goals.push({g:q.x.g,acc:q.x.acc,amt:q.got}); } });
-      for(const l of lines.filter(l=>l.o.kind==="tarjeta").sort((a,b)=>(b.o.rate-a.o.rate)||(a.o.date-b.o.date))){ const need=r2(l.o.amount-l.pay); const take=Math.min(avail,need); l.pay=r2(l.pay+take); avail=r2(avail-take); }
+      for(const l of lines.filter(l=>l.o.kind==="tarjeta").sort((a,b)=>(b.o.rate-a.o.rate)||(a.o.date-b.o.date))){ const need=r2(l.o.amount-l.pay); const take=Math.max(0,Math.min(avail,need)); l.pay=r2(l.pay+take); avail=r2(avail-take); }
       const next=periods[idx+1];
       lines.forEach(l=>{ l.short=r2(l.o.amount-l.pay);
         if(l.o.carried&&l.pay>0.009) l.o.originLine.completions.push({date:per.start,label:per.label,amt:l.pay});
@@ -2351,6 +2357,31 @@ async function keepIncome(keepId,dropId){ const k=get(keepId), d=get(dropId); if
   await put({...k,paid:[...new Set([...(k.paid||[]),...(d.paid||[])])].sort().slice(-60)});
   for(const x of all("pay").filter(x=>x.flowId===dropId)) await put({...x,flowId:keepId});
   await del(dropId); }
+function dailyForm(){
+  const sv=saveConfig(); const st=settings();
+  openDialog("Tu gasto del día a día",`
+    <div class="note small">Es lo que se te va normalmente en súper, comida, transporte, gasolina, salidas… sin contar tus pagos fijos, suscripciones, créditos, tarjetas ni compras planeadas (esas ya están en tu plan). El plan lo usa para no contar ese dinero como si te sobrara.</div>
+    <div class="small muted">Según tus gastos de los últimos 3 meses: <b>${sv.spendAuto!=null?money(sv.spendAuto)+" al mes":"aún no hay suficientes gastos"}</b> (sin contar compras de más de ${money(sv.bigCut)}).</div>
+    <label class="f">¿Cuánto gastas al mes en el día a día?<input type="number" id="dmAmt" step="100" inputmode="decimal" value="${+st.dailyMonthly||""}" placeholder="Automático: ${sv.spendAuto!=null?money(sv.spendAuto):"según tus gastos"}"></label>
+    <div class="small muted">Déjalo vacío para que lo calcule la app con tus gastos.</div>`,
+    `<span></span><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="dmSave">Guardar</button></div>`);
+  $("#dmSave").onclick=async()=>{ const v=r2(+$("#dmAmt").value||0); await put({...settings(),id:"settings",kind:"settings",dailyMonthly:v>0?v:0}); closeDialog(); toast(v>0?`Listo: el plan cuenta ${money(v)} al mes para tu día a día`:"Listo: se calcula con tus gastos"); };
+}
+// prioridad en cada pago: elegir en un solo lugar
+function priForm(){
+  const accs=all("account").filter(a=>["ahorro","inversion"].includes(accPurpose(a))); const goals=all("goal");
+  const row=(kind,o,sub)=>`<label class="small" style="display:flex;flex-wrap:nowrap;align-items:center;gap:10px;font-weight:600;padding:6px 0"><input type="checkbox" class="prIn" data-kind="${kind}" data-id="${o.id}" ${o.prio?"checked":""} style="flex:0 0 auto;width:20px;height:20px;margin:0"><span style="flex:1;min-width:0">${esc(o.name)}<span class="muted" style="font-weight:500"> · ${sub}</span></span><input type="number" class="prMin" data-id="${o.id}" step="1" inputmode="decimal" value="${+o.priMin||""}" placeholder="mín." style="max-width:84px;padding:7px 9px"></label>`;
+  openDialog("Prioridad en cada pago",`
+    <div class="note small">Marca a qué le quieres apartar <b>algo en cada pago, aunque sea poco</b>: al menos $15 aunque no alcance para todo, y si hay espacio $15 o el 1% de tu ingreso (o el mínimo que escribas).</div>
+    ${accs.length?`<div class="small muted" style="font-weight:700;margin-top:4px">Apartados</div>${accs.map(a=>row("acc",a,`${purposeLabel(a)}${a.noMore?" · marcado como completo":""}`)).join("")}`:""}
+    ${goals.length?`<div class="small muted" style="font-weight:700;margin-top:8px">Metas de ahorro</div>${goals.map(g=>row("goal",g,`${money(goalSaved(g))} de ${money(+g.target||0)}${g.noMore?" · en pausa":""}`)).join("")}`:""}
+    ${!accs.length&&!goals.length?`<p class="muted small">Aún no tienes apartados de ahorro o inversión ni metas.</p>`:""}`,
+    `<span></span><div class="row"><button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="prSave">Guardar</button></div>`);
+  $("#prSave").onclick=async()=>{ let n=0;
+    for(const cb of $$(".prIn")){ const o=get(cb.dataset.id); if(!o) continue; const mn=r2(+($(`.prMin[data-id="${o.id}"]`).value)||0); const on=cb.checked;
+      if(!!o.prio!==on||(+o.priMin||0)!==mn){ await put({...o,prio:on,priMin:mn}); } if(on) n++; }
+    closeDialog(); toast(n?`Listo: en cada pago se aparta algo para ${n===1?"1 fondo o meta":n+" fondos o metas"}`:"Sin prioridad"); };
+}
 function moneyNowForm(){
   const cs=all("card").filter(CASH_TYPES); const accs=all("account").filter(a=>accUsable(a)&&accAvailable(a,today())); const em=earmarks().byAcc;
   const row=(key,name,sub,val)=>`<div class="spread" style="gap:10px"><div style="min-width:0"><b>${esc(name)}</b><div class="small muted">${sub}</div></div><input type="number" step="0.01" inputmode="decimal" class="mnIn" data-k="${key}" value="${r2(val)}" style="max-width:150px"></div>`;
@@ -2388,6 +2419,10 @@ function vPlan(){
     ${chip("Planeando",`hasta ${fDateS(ds(plan.end))}`,"planSettings")}
   </div>
   ${!plan.hasIncome?`<div class="note warn">Agrega tu sueldo con el botón ＋ para que el plan cuente con él.</div>`:""}
+  ${(()=>{ const pr=[...all("account").filter(a=>a.prio&&!a.noMore&&["ahorro","inversion"].includes(accPurpose(a))),...all("goal").filter(g=>g.prio&&!g.noMore)];
+    const any=all("account").some(a=>["ahorro","inversion"].includes(accPurpose(a)))||all("goal").length;
+    if(pr.length) return `<div class="small muted" style="margin:-4px 0 4px">Prioridad en cada pago: <b>${pr.map(x=>esc(x.name)).join(", ")}</b> · <a href="#" data-act="priForm">cambiar</a></div>`;
+    return any?`<div class="note acc small">¿Quieres que en cada pago se aparte algo para un fondo o meta (por ejemplo IVV o tu Fondo de emergencia), aunque sea poco? <a href="#" data-act="priForm">Elegir prioridad</a></div>`:""; })()}
   ${dupIncomes().map(([a,b])=>`<div class="note warn"><b>Tu ingreso "${esc(a.name)}" parece estar dos veces</b> (${money(+a.amount||0)} y ${money(+b.amount||0)}, los mismos días). Por eso el plan suma los dos y parece que te sobra más. ¿Con cuál te quedas?
     <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn sm" data-act="keepInc" data-id="${a.id}" data-drop="${b.id}">Quedarme con el de ${money(+a.amount||0)}${(+a.amount||0)===(+b.amount||0)?" (el primero)":""}</button><button type="button" class="btn sm" data-act="keepInc" data-id="${b.id}" data-drop="${a.id}">Quedarme con el de ${money(+b.amount||0)}${(+a.amount||0)===(+b.amount||0)?" (el segundo)":""}</button><button type="button" class="btn sm" data-act="planSettings">Ver mis ingresos</button></div></div>`).join("")}
   ${plan.totalShort>0?`<div class="note bad"><b>Al final del plan aún faltarían ${money(plan.totalShort)}.</b> Lo que no alcanzas a pagar completo se pasa a tu siguiente ingreso.${plan.totalInt>0?` Intereses estimados por pagar tarde las tarjetas: <b class="num">${money(plan.totalInt)}</b> (con IVA).`:""}</div>`
@@ -2416,7 +2451,7 @@ function vPlan(){
       ${fundLine(p,"ahorro",plan.sv)}
       ${fundLine(p,"inversion",plan.sv)}
       ${!p.isCash&&!p.save&&!p.inv&&p.lines.some(l=>l.short>0.009)?`<div class="small muted">Este periodo no alcanza para ahorrar: primero tus pagos.</div>`:""}
-      <div class="pline" style="border-top:1px solid var(--line);padding-top:8px"><span class="muted small">Te queda para gastos del día a día${p.dia>0.009?`<br><span style="font-size:11.5px">${p.left<p.dia-0.009?`<b style="color:var(--warn)">Ojo:</b> sueles gastar unos ${money(p.dia)} en estos ${p.days} días`:`sueles gastar unos ${money(p.dia)} en estos ${p.days} días`}${p.left-p.spend>0.009?`; lo que no gastes (${money(r2(p.left-p.spend))}) pasa al siguiente periodo`:"; no pasa nada al siguiente periodo"}</span>`:""}</span><b class="num">${money(p.left)}</b></div>
+      <div class="pline" style="border-top:1px solid var(--line);padding-top:8px"><span class="muted small">Te queda para gastos del día a día${p.dia>0.009?`<br><span style="font-size:11.5px">${p.left<p.dia-0.009?`<b style="color:var(--warn)">Ojo:</b> sueles gastar unos ${money(p.dia)} en estos ${p.days} días`:`sueles gastar unos ${money(p.dia)} en estos ${p.days} días`} (<a href="#" data-act="dailyForm">cambiar</a>)${p.left-p.spend>0.009?`; lo que no gastes (${money(r2(p.left-p.spend))}) pasa al siguiente periodo`:"; no pasa nada al siguiente periodo"}</span>`:""}</span><b class="num">${money(p.left)}</b></div>
     </div></div>`).join("")}
   </div>
   <div class="panel"><div class="panel-h"><h3>Saldo proyectado</h3><span class="small muted">siguiendo el plan</span></div>
@@ -3352,6 +3387,8 @@ document.addEventListener("click",async ev=>{
     case "newIncome": flowForm({type:"ingreso",name:"",freq:"mensual",date:todayS(),active:true},"ingreso"); break;
     case "keepInc": { if(!t.dataset.sure){ t.dataset.sure="1"; t.textContent="¿Seguro? Toca otra vez"; break; } await keepIncome(id,t.dataset.drop); toast("Listo: quité el ingreso repetido"); break; }
     case "moneyNow": moneyNowForm(); break;
+    case "dailyForm": dailyForm(); break;
+    case "priForm": priForm(); break;
     case "editFlow": flowForm(get(id)); break;
     case "newGoal": goalForm(); break;
     case "newLoan": loanForm(); break;
