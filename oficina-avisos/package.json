@@ -1,0 +1,8 @@
+{
+  "name": "oficina-avisos",
+  "private": true,
+  "description": "Mi Oficina: avisos al cel, resumen del día, calendarios de Apple/Google, Notion y calendario para suscribirse desde Apple",
+  "dependencies": {
+    "firebase-admin": "12.1.0"
+  }
+}
