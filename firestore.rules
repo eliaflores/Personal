@@ -69,6 +69,16 @@ service cloud.firestore {
       }
     }
 
+    // Mi Oficina: cada quien solo lee y escribe lo suyo (no toca nada de las otras apps).
+    // oficina/{uid} = perfil y ajustes · eventos, pendientes, requis = lo que anotas · externos = calendarios de Apple/Google/Notion
+    // (los trae el Action) · borrados = eventos borrados que falta archivar en Notion · avisos = cels con avisos.
+    match /oficina/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+      match /{rest=**} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+
     // Nuestros Planes: un espacio compartido por dos personas (no toca nada de Mi Cartera ni de Regalos).
     match /planes/{coupleId} {
       function pSignedIn() { return request.auth != null; }
