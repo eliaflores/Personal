@@ -693,3 +693,27 @@ body.sin-nav #toastRoot { bottom: calc(110px + env(safe-area-inset-bottom)); }
 .leccion-card .tip { background: color-mix(in srgb, var(--card) 70%, transparent); color: var(--ink-2); }
 .como { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; color: var(--ink-2); font-size: 15px; }
 .como b { color: var(--ink); }
+
+/* ---------- Test de aprendizaje ---------- */
+.test-intro { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
+.test-intro .tip { text-align: left; }
+.test-ico { width: 84px; height: 84px; border-radius: 50%; background: var(--gold-soft); color: var(--gold-ink); display: grid; place-items: center; margin-top: 6px; }
+.test-ico .ico { width: 40px; height: 40px; stroke-width: 1.8; }
+.pruebas { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.prueba { display: flex; align-items: center; gap: 12px; background: var(--card); border-radius: 20px; padding: 12px 14px; box-shadow: var(--shadow); }
+.prueba > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.prueba small { color: var(--muted); font-size: 13.5px; }
+.prueba em { font-style: normal; font-weight: 800; } .prueba em.ok { color: var(--ok); } .prueba em.mal { color: var(--bad); }
+.perfil-lista { display: flex; flex-direction: column; gap: 10px; }
+.perfil-lista > div { display: flex; align-items: center; gap: 12px; background: var(--card); border-radius: 18px; padding: 10px 12px; box-shadow: var(--shadow); font-weight: 600; font-size: 14.5px; color: var(--ink-2); }
+.card .perfil-lista > div { box-shadow: none; background: var(--soft); }
+.perfil-card { display: flex; flex-direction: column; gap: 12px; }
+.chips-fila.envuelve { flex-wrap: wrap; }
+.perfil-card .fchip { box-shadow: none; background: var(--soft); font-size: 13.5px; padding: 6px 12px; }
+.perfil-card .fchip.on { background: var(--ink); color: var(--on-ink); }
+.habs { display: flex; flex-direction: column; gap: 10px; }
+.hab-fila { display: grid; grid-template-columns: minmax(120px, 42%) 1fr 44px; align-items: center; gap: 10px; font-weight: 700; font-size: 14.5px; }
+.hab-fila em { font-style: normal; font-size: 11.5px; font-weight: 800; color: var(--flame); background: color-mix(in srgb, var(--flame) 14%, transparent); border-radius: 99px; padding: 1px 7px; }
+.hab-fila b { text-align: right; }
+.perfil-det summary { cursor: pointer; font-weight: 800; color: var(--ink-2); padding: 4px 0; }
+.perfil-det .perfil-lista { margin-top: 10px; }
