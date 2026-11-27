@@ -19,7 +19,9 @@ else {
 const db = admin.firestore();
 const DEL = admin.firestore.FieldValue.delete();
 const APP_URL = process.env.APP_URL || "https://eliaflores.github.io/Personal/oficina/";
-const notion = process.env.NOTION_TOKEN ? N.makeNotion(process.env.NOTION_TOKEN) : null;
+// Llave propia de Mi Oficina (NOTION_TOKEN_OFICINA); si no está, usa la de Nuestros Planes (NOTION_TOKEN).
+const NOTION_KEY = process.env.NOTION_TOKEN_OFICINA || process.env.NOTION_TOKEN || "";
+const notion = NOTION_KEY ? N.makeNotion(NOTION_KEY) : null;
 const GIST_TOKEN = process.env.GIST_TOKEN || "";
 const CORREOS = (process.env.OFICINA_CORREOS || "").split(/[,;\s]+/).map((s) => s.trim().toLowerCase()).filter(Boolean);
 
@@ -141,7 +143,7 @@ const same = (a, b) => JSON.stringify(a || null) === JSON.stringify(b || null);
         S.notionErr++;
       }
     } else if (notionOn && !notion && !(prof.notionStatus && prof.notionStatus.error)) {
-      upd.notionStatus = { at: now, ok: false, error: "Falta el secreto NOTION_TOKEN en GitHub (Settings → Secrets → Actions)." };
+      upd.notionStatus = { at: now, ok: false, error: "Falta el secreto NOTION_TOKEN_OFICINA en GitHub (Settings → Secrets → Actions)." };
     }
 
     // 3. Calendario para suscribirse desde Apple

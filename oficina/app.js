@@ -78,6 +78,9 @@ const COLUMNS = [
   { k: "autorizada", l: "Autorizadas", has: ["autorizada"] }, { k: "recibida", l: "Recibidas", has: ["recibida"] },
 ];
 const NOTION_COLOR = "#D9CFC4";
+// Colores por palabra: si el nombre de un evento dice alguna de estas palabras, sale de ese color.
+const DEFAULT_REGLAS = [{ k: "r1", w: "comida, actividad", c: "#FFAE70" }];
+const REGLA_COLORS = ["#FFAE70", "#F4A39A", "#C9A6F5", "#7FD1C1", "#F7D154", "#8EC1F7", "#F2A7D3", "#B9B0A3"];
 
 /* ---------- Utilidades ---------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -177,6 +180,15 @@ function extMeta(k) {
 }
 
 /* ---------- Qué hay cada día ---------- */
+const plain = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const reglas = () => (Array.isArray(S.prof?.reglas) ? S.prof.reglas : DEFAULT_REGLAS).filter((r) => r && r.k && r.w && okHex(r.c));
+const palabras = (r) => String(r.w).split(",").map((x) => plain(x).trim()).filter(Boolean);
+// Color de la primera regla cuyas palabras aparezcan en el nombre (sin importar mayúsculas ni acentos).
+function wordColor(title) {
+  const t = plain(title);
+  for (const r of reglas()) if (palabras(r).some((w) => t.includes(w))) return r.c;
+  return null;
+}
 const byTime = (a, b) => (a.allDay === b.allDay ? (toMin(a.time) ?? -1) - (toMin(b.time) ?? -1) || String(a.title).localeCompare(String(b.title)) : a.allDay ? -1 : 1);
 function dayItems(iso, { all = false, only = null } = {}) {
   const hidden = (k) => !all && S.hide.has(k);
@@ -185,7 +197,7 @@ function dayItems(iso, { all = false, only = null } = {}) {
   if (want("ev") && !hidden("app")) for (const e of S.events) if (occursOn(e, iso)) {
     const multi = (e.repeat || "no") === "no" && e.endDate && e.endDate > e.date;
     const timed = !e.allDay && toMin(e.time) != null && !multi;
-    out.push({ kind: "ev", id: e.id, title: e.title || "Evento", time: timed ? e.time : "", endTime: timed ? e.endTime : "", allDay: !timed, color: areaColor(e.area), place: e.place, link: e.link, src: "Mi Oficina", repeat: e.repeat });
+    out.push({ kind: "ev", id: e.id, title: e.title || "Evento", time: timed ? e.time : "", endTime: timed ? e.endTime : "", allDay: !timed, color: wordColor(e.title) || areaColor(e.area), place: e.place, link: e.link, src: "Mi Oficina", repeat: e.repeat });
   }
   if (want("ext")) for (const [k, x] of Object.entries(S.ext)) {
     const meta = extMeta(k);
@@ -193,7 +205,7 @@ function dayItems(iso, { all = false, only = null } = {}) {
     for (const v of x.events || []) {
       if (!(v.date === iso || (v.endDate && v.date <= iso && iso <= v.endDate))) continue;
       const first = v.date === iso;
-      out.push({ kind: "ext", src: k, id: v.id, title: v.title, time: !v.allDay && first ? v.time : "", endTime: !v.allDay && first && !v.endDate ? v.endTime : "", allDay: !!v.allDay || !first, color: meta.color, place: v.place, srcName: meta.name, srcKind: meta.kind });
+      out.push({ kind: "ext", src: k, id: v.id, title: v.title, time: !v.allDay && first ? v.time : "", endTime: !v.allDay && first && !v.endDate ? v.endTime : "", allDay: !!v.allDay || !first, color: wordColor(v.title) || meta.color, place: v.place, srcName: meta.name, srcKind: meta.kind });
     }
   }
   if (want("todo") && !hidden("todo")) for (const t of S.todos) if (!t.done && t.due === iso) out.push({ kind: "todo", id: t.id, title: t.t, time: t.time || "", allDay: !t.time, color: todoColor(t) });
@@ -729,7 +741,7 @@ function viewAjustes() {
       <div class="field"><span class="fl">Link de la base de datos</span><div style="display:flex;gap:8px"><input class="input" id="setNotion" value="${esc(p.notion?.db || "")}" placeholder="https://www.notion.so/…"><button class="btn btn-ink" data-act="notion-save">Guardar</button></div></div>
       <details class="how"><summary>Cómo conectarla</summary><ol>
         <li>En Notion crea una base de datos (por ejemplo “Mi Oficina”) o usa una que ya tengas con una columna de fecha.</li>
-        <li>En esa base toca <b>•••</b> → <i>Conexiones</i> → agrega tu integración (la misma de “Nuestros Planes” sirve).</li>
+        <li>En esa base toca <b>•••</b> → <i>Conexiones</i> → agrega la integración “Mi Oficina” (o la de “Nuestros Planes”, si no creaste una aparte).</li>
         <li>Toca <b>•••</b> → <i>Copiar enlace</i> y pégalo aquí arriba.</li>
         <li>Listo: en máx. 15 min se copian tus eventos. Si a la base le faltan columnas (ID app, Lugar, Notas, Área), se agregan solas.</li>
       </ol>Lo que creas en la app se edita en la app; lo que creas en Notion se edita en Notion.</details>
@@ -752,6 +764,12 @@ function viewAjustes() {
       <h2>${I("tag")}Áreas</h2>
       <p>Para separar tus pendientes, requisiciones y eventos (y darles color).</p>
       <div class="chips">${areas().map((a) => `<button class="chip" data-act="area-edit" data-k="${esc(a.k)}"><span class="dot" style="background:${a.c}"></span>${esc(a.l)}</button>`).join("")}<button class="chip" data-act="area-add">${I("plus")}Nueva</button></div>
+    </section>
+
+    <section class="paper card pinned" style="--pinc:#E0A21A">
+      <h2>${I("palette")}Colores por palabra</h2>
+      <p>Si el nombre de un evento dice alguna de estas palabras, sale de ese color en el calendario (también los de Notion y Apple).</p>
+      <div class="chips">${reglas().map((r) => `<button class="chip" data-act="regla-edit" data-k="${esc(r.k)}"><span class="dot" style="background:${r.c}"></span>${esc(r.w)}</button>`).join("")}<button class="chip" data-act="regla-add">${I("plus")}Nueva</button></div>
     </section>
 
     <section class="paper card pinned" style="--pinc:#2E9E5B">
@@ -1043,6 +1061,28 @@ function openArea(k) {
   });
 }
 
+function openRegla(k) {
+  const r = k ? reglas().find((x) => x.k === k) : null;
+  const v = r ? { ...r } : { w: "", c: REGLA_COLORS[reglas().length % REGLA_COLORS.length] };
+  openSheet(`<h2>${r ? "Color por palabra" : "Nuevo color por palabra"}</h2>
+    <p class="sub">Separa las palabras con comas. No importan mayúsculas ni acentos.</p>
+    <label class="field"><span class="fl">Palabras</span><input class="input" id="rgW" maxlength="120" value="${esc(v.w)}" placeholder="Ej. comida, actividad" autofocus></label>
+    <div class="field"><span class="fl">Color</span><div class="colors">${REGLA_COLORS.map((x) => `<button type="button" data-col data-v="${x}" style="background:${x}" aria-label="Color" aria-pressed="${x.toLowerCase() === String(v.c).toLowerCase()}"></button>`).join("")}</div></div>
+    <div class="acts">${r ? `<button class="btn del" id="rgDel">${I("trash")}Borrar</button>` : ""}<button class="btn" data-close>Cancelar</button><button class="btn btn-ink" id="rgOk">${I("check")}Guardar</button></div>`,
+  (root) => {
+    wireChips(root, "[data-col]");
+    $("#rgOk", root).addEventListener("click", () => {
+      const w = $("#rgW", root).value.split(",").map((x) => x.trim()).filter(Boolean).join(", ");
+      if (!w) { $("#rgW", root).focus(); return; }
+      const c = pressed(root, "[data-col]")[0] || v.c;
+      const list = reglas();
+      putProf({ reglas: r ? list.map((x) => (x.k === r.k ? { ...x, w, c } : x)) : [...list, { k: "r" + newId().slice(0, 7), w, c }].slice(0, 20) });
+      closeSheet(); toast("Color guardado");
+    });
+    wireDelete($("#rgDel", root), () => { putProf({ reglas: reglas().filter((x) => x.k !== r.k) }); closeSheet(); toast("Color quitado"); });
+  });
+}
+
 /* ---------- Avisos (push) ---------- */
 function pushStateText() {
   if (S.demo) return "En la demo no se mandan avisos. Entra con Google para activarlos.";
@@ -1115,6 +1155,8 @@ document.addEventListener("click", (ev) => {
     case "cal-edit": openCal(d.id); break;
     case "area-add": openArea(); break;
     case "area-edit": openArea(d.k); break;
+    case "regla-add": openRegla(); break;
+    case "regla-edit": openRegla(d.k); break;
     case "notion-save": { const v = $("#setNotion").value.trim(); if (v && !/[0-9a-f]{32}/i.test(v.replace(/-/g, ""))) { toast("Ese link no parece de una base de Notion"); return; } putProf({ notion: { db: v, on: !!v } }); toast(v ? "Guardado. En unos minutos se conecta" : "Notion desconectado"); break; }
     case "notion-off": putProf({ notion: { db: "", on: false } }); toast("Notion desconectado"); break;
     case "copy": navigator.clipboard?.writeText(d.v).then(() => toast("Link copiado"), () => toast("No se pudo copiar")); break;

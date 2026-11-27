@@ -113,6 +113,7 @@ App aparte (carpeta [`oficina/`](oficina/)) para el trabajo, pensada para el cel
 - **Pendientes:** post-its de colores con fecha, hora (te avisa 30 min antes), urgente, área y notas. Filtros por *Para hoy*, *Esta semana*, *Sin fecha* y *Hechos*, y por área. Se tachan con el círculo.
 - **Requisiciones:** qué se pide, cantidad, proveedor, monto, área o centro de costos, para cuándo hay que meterla, link (cotización o sistema) y notas. Pasan por *Por meter → Metida (con folio) → Autorizada → Recibida* con un botón, y cada paso pone su sello; las rechazadas regresan a *Por meter*. En la compu se ven en cuatro bandejas.
 - **Áreas:** en *Ajustes* se crean las tuyas (nombre y color) para separar pendientes, requisiciones y eventos.
+- **Colores por palabra:** los eventos cuyo nombre diga “comida” o “actividad” salen en naranja (también los de Notion y Apple). En *Ajustes → Colores por palabra* se cambian las palabras y el color, o se agregan más.
 - **Atajos:** en Android, al dejar presionado el ícono salen *Nuevo pendiente*, *Nuevo evento* y *Nueva requisición* (también sirven los links `oficina/?nuevo=pendiente`, `?nuevo=evento` y `?nuevo=requisicion`).
 - **Demo:** en la pantalla de entrada, *Ver la demo sin cuenta* la muestra con datos de ejemplo (se guardan solo en ese dispositivo).
 - **Para agregar más secciones:** en [`oficina/app.js`](oficina/app.js) se suma una entrada a `TABS` con su función de vista.
@@ -125,7 +126,7 @@ Lo hace el Action [`Mi Oficina - avisos, calendarios y Notion`](.github/workflow
 
 - **Avisos:** resumen del día a la hora y en los días que elijas (por omisión 8:00 de lunes a viernes: “3 eventos (el primero a las 9:30 am: Junta) · 2 pendientes para hoy, 1 vencido · 1 requisición por meter hoy”), los avisos de cada evento, los pendientes con hora y las requisiciones un día antes de su fecha. Todo se apaga o prende en *Ajustes → Avisos al cel*.
 - **Calendarios de Apple / Google / Outlook → la app:** en *Ajustes* pegas el link del calendario (el *Calendario público* de iCloud, la *dirección secreta en formato iCal* de Google o el ICS de Outlook). El Action lo lee, entiende las repeticiones, excepciones y zonas horarias, y guarda de 30 días atrás a 6 meses adelante en `oficina/{uid}/externos`.
-- **Notion ↔ la app:** en *Ajustes* pegas el link de una base de datos de Notion. Lo que agendas en la app se copia a esa base (y se actualiza o se archiva si lo cambias o lo borras), y lo que agregues con fecha directo en la base aparece en el calendario de la app. Si a la base le faltan columnas, el Action las agrega (*ID app*, *Lugar*, *Notas*, *Área*, *Abrir en la app*). Usa el mismo secreto `NOTION_TOKEN` de Nuestros Planes.
+- **Notion ↔ la app:** en *Ajustes* pegas el link de una base de datos de Notion. Lo que agendas en la app se copia a esa base (y se actualiza o se archiva si lo cambias o lo borras), y lo que agregues con fecha directo en la base aparece en el calendario de la app. Si a la base le faltan columnas, el Action las agrega (*ID app*, *Lugar*, *Notas*, *Área*, *Abrir en la app*). Usa su propia llave, el secreto `NOTION_TOKEN_OFICINA`; si no existe, usa la de Nuestros Planes (`NOTION_TOKEN`). Cada app solo lee y escribe en su propia base, aunque compartan llave.
 - **La app → Apple Calendar (opcional):** con *Ajustes → Ver Mi Oficina en Apple Calendar* se publica un calendario con tus eventos, pendientes y requisiciones con fecha, como un gist secreto de GitHub, y te da el link `webcal://` para suscribirte desde el iPhone, la Mac o Google. Se actualiza cuando algo cambia. Si lo apagas, el gist se borra.
 
 ### Configuración
@@ -133,7 +134,10 @@ Lo hace el Action [`Mi Oficina - avisos, calendarios y Notion`](.github/workflow
 1. **Firestore Database → Rules**: pega todo el contenido de [`firestore.rules`](firestore.rules) (ahora también trae las reglas de `oficina`) y publica.
 2. Abre `https://eliaflores.github.io/Personal/oficina/` y entra con Google. Para tenerla como app en el cel: en Safari, Compartir → Agregar a inicio; en Chrome, menú → Instalar app.
 3. En cada dispositivo: *Ajustes → Avisos al cel → Activar* (en iPhone, desde la app agregada a inicio).
-4. **Notion** (opcional): en Notion crea una base (o usa una que tenga columna de fecha), toca **•••** → **Conexiones** → agrega la integración (la de “Nuestros Planes” sirve), copia el link de la base y pégalo en *Ajustes → Notion*.
+4. **Notion** (opcional):
+   1. En [notion.so/profile/integrations](https://www.notion.so/profile/integrations) crea una integración **interna** llamada “Mi Oficina” y copia su **Internal Integration Secret**.
+   2. En GitHub: Settings → Secrets and variables → Actions → **New repository secret**, nombre `NOTION_TOKEN_OFICINA`, y pega el secreto.
+   3. En Notion abre la base **Mi Oficina**, toca **•••** → **Conexiones** → agrega **Mi Oficina**. Copia el link de la base (**•••** → *Copiar enlace*) y pégalo en la app, en *Ajustes → Notion*.
 5. **Calendario para Apple** (opcional):
    1. En GitHub → Settings → Developer settings → Personal access tokens → **Fine-grained tokens** → *Generate new token*, con **Account permissions → Gists: Read and write** (nada más).
    2. En este repo: Settings → Secrets and variables → Actions → **New repository secret**: `GIST_TOKEN` con ese token, y `OFICINA_CORREOS` con tu correo de Google (así nadie más puede crear calendarios con tu cuenta).
