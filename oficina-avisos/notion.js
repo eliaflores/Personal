@@ -39,7 +39,7 @@ function makeNotion(token, fetchImpl = fetch) {
 }
 
 const friendly = (e) => {
-  if (e.status === 401) return "El token de Notion no es válido (revisa el secreto NOTION_TOKEN en GitHub).";
+  if (e.status === 401) return "El token de Notion no es válido (revisa el secreto NOTION_TOKEN_OFICINA en GitHub).";
   if (e.status === 404 || e.code === "object_not_found") return "Notion no encuentra la base. Ábrela en Notion → ••• → Conexiones y agrega tu integración.";
   if (e.code === "validation_error") return "Notion no aceptó los datos (revisa que la base tenga una columna de fecha).";
   return "No se pudo hablar con Notion. Se intenta otra vez en 15 min.";

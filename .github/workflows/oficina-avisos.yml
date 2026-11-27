@@ -23,6 +23,7 @@ jobs:
       - run: node oficina-avisos/avisos.js
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          NOTION_TOKEN_OFICINA: ${{ secrets.NOTION_TOKEN_OFICINA }}
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
           OFICINA_CORREOS: ${{ secrets.OFICINA_CORREOS }}

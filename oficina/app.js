@@ -729,7 +729,7 @@ function viewAjustes() {
       <div class="field"><span class="fl">Link de la base de datos</span><div style="display:flex;gap:8px"><input class="input" id="setNotion" value="${esc(p.notion?.db || "")}" placeholder="https://www.notion.so/…"><button class="btn btn-ink" data-act="notion-save">Guardar</button></div></div>
       <details class="how"><summary>Cómo conectarla</summary><ol>
         <li>En Notion crea una base de datos (por ejemplo “Mi Oficina”) o usa una que ya tengas con una columna de fecha.</li>
-        <li>En esa base toca <b>•••</b> → <i>Conexiones</i> → agrega tu integración (la misma de “Nuestros Planes” sirve).</li>
+        <li>En esa base toca <b>•••</b> → <i>Conexiones</i> → agrega la integración “Mi Oficina” (o la de “Nuestros Planes”, si no creaste una aparte).</li>
         <li>Toca <b>•••</b> → <i>Copiar enlace</i> y pégalo aquí arriba.</li>
         <li>Listo: en máx. 15 min se copian tus eventos. Si a la base le faltan columnas (ID app, Lugar, Notas, Área), se agregan solas.</li>
       </ol>Lo que creas en la app se edita en la app; lo que creas en Notion se edita en Notion.</details>
