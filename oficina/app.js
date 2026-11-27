@@ -79,7 +79,7 @@ const COLUMNS = [
 ];
 const NOTION_COLOR = "#D9CFC4";
 // Colores por palabra: si el nombre de un evento dice alguna de estas palabras, sale de ese color.
-const DEFAULT_REGLAS = [{ k: "r1", w: "comida, actividad", c: "#FFAE70" }];
+const DEFAULT_REGLAS = [{ k: "r1", w: "comida", c: "#FFAE70" }, { k: "r2", w: "actividad", c: "#C9A6F5" }];
 const REGLA_COLORS = ["#FFAE70", "#F4A39A", "#C9A6F5", "#7FD1C1", "#F7D154", "#8EC1F7", "#F2A7D3", "#B9B0A3"];
 
 /* ---------- Utilidades ---------- */
@@ -1066,7 +1066,7 @@ function openRegla(k) {
   const v = r ? { ...r } : { w: "", c: REGLA_COLORS[reglas().length % REGLA_COLORS.length] };
   openSheet(`<h2>${r ? "Color por palabra" : "Nuevo color por palabra"}</h2>
     <p class="sub">Separa las palabras con comas. No importan mayúsculas ni acentos.</p>
-    <label class="field"><span class="fl">Palabras</span><input class="input" id="rgW" maxlength="120" value="${esc(v.w)}" placeholder="Ej. comida, actividad" autofocus></label>
+    <label class="field"><span class="fl">Palabras</span><input class="input" id="rgW" maxlength="120" value="${esc(v.w)}" placeholder="Ej. cliente, visita" autofocus></label>
     <div class="field"><span class="fl">Color</span><div class="colors">${REGLA_COLORS.map((x) => `<button type="button" data-col data-v="${x}" style="background:${x}" aria-label="Color" aria-pressed="${x.toLowerCase() === String(v.c).toLowerCase()}"></button>`).join("")}</div></div>
     <div class="acts">${r ? `<button class="btn del" id="rgDel">${I("trash")}Borrar</button>` : ""}<button class="btn" data-close>Cancelar</button><button class="btn btn-ink" id="rgOk">${I("check")}Guardar</button></div>`,
   (root) => {

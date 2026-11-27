@@ -112,7 +112,7 @@ App aparte (carpeta [`oficina/`](oficina/)) para el trabajo, pensada para el cel
 - **Pendientes:** post-its de colores con fecha, hora (te avisa 30 min antes), urgente, área y notas. Filtros por *Para hoy*, *Esta semana*, *Sin fecha* y *Hechos*, y por área. Se tachan con el círculo.
 - **Requisiciones:** qué se pide, cantidad, proveedor, monto, área o centro de costos, para cuándo hay que meterla, link (cotización o sistema) y notas. Pasan por *Por meter → Metida (con folio) → Autorizada → Recibida* con un botón, y cada paso pone su sello; las rechazadas regresan a *Por meter*. En la compu se ven en cuatro bandejas.
 - **Áreas:** en *Ajustes* se crean las tuyas (nombre y color) para separar pendientes, requisiciones y eventos.
-- **Colores por palabra:** los eventos cuyo nombre diga “comida” o “actividad” salen en naranja (también los de Notion y Apple). En *Ajustes → Colores por palabra* se cambian las palabras y el color, o se agregan más.
+- **Colores por palabra:** los eventos cuyo nombre diga “comida” salen en naranja y los que digan “actividad”, en morado (también los de Notion y Apple). En *Ajustes → Colores por palabra* se cambian las palabras y el color, o se agregan más.
 - **Atajos:** en Android, al dejar presionado el ícono salen *Nuevo pendiente*, *Nuevo evento* y *Nueva requisición* (también sirven los links `oficina/?nuevo=pendiente`, `?nuevo=evento` y `?nuevo=requisicion`).
 - **Demo:** en la pantalla de entrada, *Ver la demo sin cuenta* la muestra con datos de ejemplo (se guardan solo en ese dispositivo).
 - **Para agregar más secciones:** en [`oficina/app.js`](oficina/app.js) se suma una entrada a `TABS` con su función de vista.
