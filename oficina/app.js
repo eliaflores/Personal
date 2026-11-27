@@ -414,7 +414,7 @@ function shell(tab, content) {
     <header class="top">
       <a class="brand" href="#inicio">${LOGO}<span>Mi Oficina</span></a>
       <div class="grow"></div>
-      <span class="today">${esc(cap(fLong(t)))}</span>
+      <span class="today"><span class="long">${esc(cap(fLong(t)))}</span><span class="short">${esc(cap(fMed(t)))}</span></span>
       <button class="avatar" data-go="ajustes" aria-label="Ajustes">${avatarHtml()}</button>
     </header>
     <nav class="tabs" aria-label="Secciones">${nav("tabs")}</nav>
