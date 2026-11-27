@@ -78,4 +78,10 @@ export const CIENCIA = [
     app: "En «Aprende viendo» cada capítulo de una serie es una lección con objetivo, tareas antes, durante y después (incluyendo repetir frases en voz alta) y te dice dónde verlo. Se recomienda según tu nivel.",
     ref: "Montero Perez, Van Den Noortgate y Desmet (2013), System; Peters y Webb (2018), Studies in Second Language Acquisition.",
   },
+  {
+    icono: "usuarios", titulo: "¿Estilos de aprendizaje? Mejor tu perfil real",
+    idea: "La idea de que cada quien aprende mejor si le enseñan en «su» estilo (visual, auditivo, kinestésico) no se sostiene: cuando se ha probado, enseñar según el estilo no mejora los resultados. Lo que sí cambia de persona a persona es la meta, el contexto, la motivación y en qué habilidad falla más.",
+    app: "El test inicial ajusta los ejercicios a tu meta (conversar, entender, leer, escribir o un examen), a dónde estudias (con o sin audio y micrófono), a lo que disfrutas, a la duración de tus sesiones, a cómo prefieres la gramática y al reto. Luego mide tus aciertos por habilidad y te da más práctica en la que vaya más baja.",
+    ref: "Pashler, McDaniel, Rohrer y Bjork (2008), Psychological Science in the Public Interest; Rogowsky, Calhoun y Tallal (2015), Journal of Educational Psychology; Norris y Ortega (2000), Language Learning.",
+  },
 ];

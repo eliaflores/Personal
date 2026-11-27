@@ -75,7 +75,7 @@ export function correr(root, opts) {
     Object.assign(R, { paso, res: null, pista: false, elegidas: [], ex: null });
     cuerpo.scrollTop = 0;
     if (paso.tipo === "intro") return pintarIntro(paso.item);
-    if (paso.tipo === "gintro") return pintarGIntro(paso.item);
+    if (paso.tipo === "gintro") return pintarGIntro(paso.item, paso);
     if (paso.tipo === "match") return pintarMatch(paso.items);
     const nivel = sesion.nivel(paso);
     const audio = audioOn(), voz = ctx.voz !== false && Oido.ok && !R.sinVoz;
@@ -113,11 +113,11 @@ export function correr(root, opts) {
     if (audioOn() && ajustes.autoAudio) setTimeout(() => decir(conArticulo(it)), 250);
   }
 
-  function pintarGIntro(it) {
+  function pintarGIntro(it, paso = {}) {
     const tema = temas[it.tema];
     cuerpo.innerHTML = `
       <div class="gintro anim">
-        <div class="intro-tag">Gramática · ${esc(tema.nivel)}</div>
+        <div class="intro-tag">${paso.inductivo ? "Ya viste ejemplos · ahora la regla" : "Gramática · " + esc(tema.nivel)}</div>
         <h2>${esc(tema.titulo)}</h2>
         <div class="gram">${tema.html}</div>
       </div>`;

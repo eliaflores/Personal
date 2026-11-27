@@ -67,7 +67,7 @@ function perfilNuevo(nombre = "") {
 const zona = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Mexico_City"; } catch (e) { return "America/Mexico_City"; } };
 function normalizarPerfil(p) {
   const base = perfilNuevo(p.nombre || "");
-  return { ...base, ...p, ajustes: { ...base.ajustes, ...(p.ajustes || {}) }, plan: { ...base.plan, ...(p.plan || {}) }, racha: { ...base.racha, ...(p.racha || {}) }, dias: p.dias || {}, nodos: p.nodos || {}, tipos: p.tipos || {}, vistos: p.vistos || {} };
+  return { ...base, ...p, ajustes: { ...base.ajustes, ...(p.ajustes || {}) }, plan: { ...base.plan, ...(p.plan || {}) }, racha: { ...base.racha, ...(p.racha || {}) }, dias: p.dias || {}, nodos: p.nodos || {}, tipos: p.tipos || {}, vistos: p.vistos || {}, aprendizaje: p.aprendizaje || null };
 }
 function dia(iso = hoyISO()) {
   const d = P().dias;
@@ -223,8 +223,11 @@ function nivelUsuario() {
 
 /* ============================ Sesiones ============================ */
 let corredor = null;
+// Perfil de aprendizaje (test inicial): meta, gustos, lugar, duración, gramática y reto.
+const apr = () => (S.perfil && S.perfil.aprendizaje) || {};
+const largoSesion = () => apr().sesion || "normal";
 function ctxEjercicios() {
-  return { pool: C.vocab, lexico: LEX, audio: A().escuchar !== false, voz: A().hablar !== false && Oido.ok };
+  return { pool: C.vocab, lexico: LEX, audio: A().escuchar !== false, voz: A().hablar !== false && Oido.ok, pesos: M.pesosAprendizaje(apr(), P().tipos) };
 }
 function aplicar(cals) {
   if (S.examen) return;
@@ -241,6 +244,17 @@ function iniciar(sesion, { examen = null } = {}) {
   if (!sesion.pasos.length) { toast("No hay nada que practicar aquí por ahora."); return; }
   // La explicación de gramática solo se muestra la primera vez.
   sesion.pasos = sesion.pasos.filter((p) => p.tipo !== "gintro" || !GRAM[p.item.tema].items.some((d) => aprendida(d.id)));
+  // Gramática «primero ejemplos»: la explicación aparece después de practicar dos ejercicios del tema.
+  if (apr().gramatica === "implicita") {
+    for (const g of sesion.pasos.filter((p) => p.tipo === "gintro")) {
+      const recs = sesion.pasos.filter((p) => p.tipo === "rec" && p.item.tema === g.item.tema);
+      if (recs.length < 3) continue;
+      sesion.pasos.splice(sesion.pasos.indexOf(g), 1);
+      g.inductivo = true;
+      sesion.pasos.splice(sesion.pasos.indexOf(recs[1]) + 1, 0, g);
+    }
+  }
+  sesion.umbrales = M.UMBRALES[apr().reto] || M.UMBRALES.normal;
   S.enSesion = true; S.examen = examen; S.sesionActual = sesion;
   closeSheet(); ocultarTip();
   document.body.classList.add("sin-nav", "en-sesion");
@@ -287,12 +301,13 @@ function sumarActividad(xp, ms) {
 
 function sesionDeNodo(n, { repasar = false } = {}) {
   const pend = n.items.filter((it) => !aprendida(it.id));
-  const tope = n.tipo === "gramatica" ? 8 : 7;
-  // Si sobrarían 3 o menos para otra sesión, se hacen todas de una vez.
-  const nuevos = repasar ? [] : pend.length <= tope + 3 ? pend : pend.slice(0, tope);
+  const L = largoSesion();
+  const tope = n.tipo === "gramatica" ? (L === "corta" ? 5 : 8) : L === "corta" ? 4 : 7;
+  // Si sobrarían pocas para otra sesión, se hacen todas de una vez.
+  const nuevos = repasar ? [] : pend.length <= tope + (L === "corta" ? 1 : 3) ? pend : pend.slice(0, tope);
   let repasos = repasosVencidos();
   if (nuevos.length) {
-    repasos = repasos.slice(0, 6);
+    repasos = repasos.slice(0, L === "corta" ? 3 : L === "larga" ? 10 : 6);
     // Sesiones muy cortas se completan con repasos de la misma unidad (lo que menos recuerdas).
     if (nuevos.length + repasos.length < 6) {
       const ya = new Set(repasos.map((r) => r.item.id));
@@ -306,7 +321,7 @@ function sesionDeNodo(n, { repasar = false } = {}) {
     const propias = n.items.filter((it) => aprendida(it.id)).map((it) => ({ item: it, card: S.cards[it.id], R: M.retencionActual(S.cards[it.id]) })).sort((a, b) => a.R - b.R).slice(0, 12);
     repasos = propias.map(({ item, card }) => ({ item, card }));
   }
-  return new M.Sesion({ nuevos, repasos, perf: S.perf });
+  return new M.Sesion({ nuevos, repasos, perf: S.perf, cadaMatch: (apr().gustos || []).includes("juegos") ? 2 : 4 });
 }
 function empezarNodo(n, opciones = {}) {
   if (n.tipo === "lectura") { location.hash = "#lectura/" + n.lectura; return; }
@@ -324,7 +339,7 @@ function empezarNodo(n, opciones = {}) {
   }
   iniciar(sesionDeNodo(n, opciones));
 }
-function empezarRepaso(limite = 20) {
+function empezarRepaso(limite = { corta: 10, normal: 20, larga: 30 }[largoSesion()] || 20) {
   const due = repasosVencidos();
   if (!due.length) {
     const flojas = Object.entries(S.cards).filter(([, c]) => c.last).map(([id, c]) => ({ item: C.porId.get(id), card: c, R: M.retencionActual(c) })).filter((x) => x.item).sort((a, b) => a.R - b.R).slice(0, 12);
@@ -409,7 +424,7 @@ function conNav(on) { document.body.classList.toggle("sin-nav", !on); }
 function render() {
   if (S.enSesion) return;
   if (!S.perfil) return;
-  if (!P().onboarding) return pintarOnboarding();
+  if (!P().onboarding || S.enTest) return pintarOnboarding();
   conNav(true);
   ocultarTip();
   app().onclick = null;
@@ -531,68 +546,182 @@ async function olvideContrasena() {
 }
 
 /* ---------- Primeros pasos ---------- */
-const MOTIVOS = [["viajar", "avion", "Viajar"], ["trabajo", "maletin", "Trabajo"], ["estudiar", "birrete", "Estudiar"], ["vivir", "casa", "Vivir allá"], ["familia", "corazon", "Pareja o familia"], ["gusto", "bombilla", "Por gusto"]];
 const METAS = [[20, "Relajada", "5 min al día"], [40, "Normal", "10 min al día"], [60, "Seria", "15 min al día"], [100, "Intensa", "20+ min al día"]];
 const MOMENTOS = [["despertar", "sol", "Al despertar"], ["cafe", "cafe", "Con el café"], ["transporte", "tren", "En el transporte"], ["comida", "cubiertos", "A la hora de comer"], ["trabajo", "salir", "Al salir del trabajo"], ["dormir", "luna", "Antes de dormir"]];
 const NIVEL_INICIO = [["cero", "brote", "Desde cero", "No sé nada de alemán", null], ["basico", "sonrisa", "Sé lo básico", "Saludos, números, presentarme", "u04"], ["a1", "burbuja", "Ya me defiendo", "Terminé un curso A1", "u11"], ["a2", "cohete", "Nivel intermedio", "Tengo un A2", "u19"]];
+// Preguntas del test de aprendizaje: [valor, ícono, título, detalle]
+const T_METAS = [["conversar", "burbuja", "Conversar", "Hablar con gente"], ["entender", "audifonos", "Entender al oído", "Series, música, gente"], ["leer", "libro", "Leer", "Textos, noticias, mensajes"], ["escribir", "lapiz", "Escribir", "Correos, trabajo, escuela"], ["examen", "birrete", "Aprobar un examen", "Goethe, telc, ÖSD"]];
+const T_GUSTOS = [["escuchar", "audio", "Escuchar"], ["leer", "libro", "Leer"], ["video", "tele", "Ver video"], ["hablar", "mic", "Hablar en voz alta"], ["escribir", "lapiz", "Escribir"], ["juegos", "diana", "Retos y juegos"], ["reglas", "gramatica", "Entender las reglas"]];
+const T_LUGARES = [["casa", "casa", "En casa", "Puedo escuchar y hablar"], ["transporte", "tren", "En el transporte", "Con audífonos, sin hablar"], ["trabajo", "maletin", "En el trabajo o la escuela", "Sin sonido"], ["varia", "mezclar", "Depende del día", "De todo un poco"]];
+const T_SESIONES = [["corta", "reloj", "Cortitas", "3 a 5 min, varias veces al día"], ["normal", "huellas", "Normales", "Unos 10 minutos"], ["larga", "fuego", "Largas", "20 minutos o más"]];
+const T_GRAMATICA = [["explicita", "gramatica", "Primero la regla", "Me explican y luego practico"], ["implicita", "lupa", "Primero ejemplos", "Practico y descubro la regla"], ["mezcla", "mezclar", "Me da igual", "Una mezcla"]];
+const T_RETO = [["reto", "rayo", "Retos difíciles", "Aprendo más si me cuesta"], ["normal", "diana", "Equilibrado", "Ni muy fácil ni muy difícil"], ["seguro", "escudo", "Ir seguro", "Prefiero acertar casi siempre"]];
+const META_DE_SESION = { corta: 20, normal: 40, larga: 60 }, NUEVAS_DE_SESION = { corta: 5, normal: 10, larga: 15 };
+
+function nuevoTest(modo) {
+  const a = apr();
+  return { modo, paso: 0, nombre: P().nombre || "", metas: [...(a.metas || [])], gustos: [...(a.gustos || [])], lugar: a.lugar || "", sesion: a.sesion || "",
+    gramatica: a.gramatica || "", reto: a.reto || "", nivel: "cero", momento: P().plan.momento || "", hora: P().plan.hora || "20:00", audioOk: a.audioOk == null ? null : a.audioOk, micOk: a.micOk == null ? null : a.micOk };
+}
+function abrirTest() { S.ob = nuevoTest("test"); S.enTest = true; closeSheet(); pintarOnboarding(); window.scrollTo(0, 0); }
+
+// Lo que la app va a hacer distinto con tus respuestas (se muestra al final del test y en «Yo»).
+function explicarPerfil(a) {
+  const out = [];
+  const m = a.metas || [], g = a.gustos || [];
+  if (m.includes("conversar")) out.push(["mic", "Más ejercicios de hablar y de escuchar, porque quieres conversar."]);
+  if (m.includes("entender")) out.push(["audifonos", "Más dictados y comprensión auditiva para entrenar el oído."]);
+  if (m.includes("leer")) out.push(["libro", "Más frases para completar y reconocer palabras en contexto."]);
+  if (m.includes("escribir")) out.push(["lapiz", "Más ejercicios de escribir, plural y conjugación."]);
+  if (m.includes("examen")) out.push(["birrete", "Práctica de todas las habilidades, con más escritura y comprensión auditiva."]);
+  if (g.includes("video")) out.push(["tele", "Te recomendamos capítulos de series en «Aprende viendo»."]);
+  if (g.includes("juegos")) out.push(["diana", "Más ejercicios de parejas con tus palabras nuevas."]);
+  if (a.lugar === "transporte") out.push(["tren", "Sin ejercicios de hablar mientras estudias en el transporte."]);
+  if (a.lugar === "trabajo") out.push(["maletin", "Sin audio ni micrófono: todo se puede hacer en silencio."]);
+  if (a.micOk === false && a.lugar !== "trabajo" && a.lugar !== "transporte") out.push(["mic", "El micrófono no funcionó: los ejercicios de hablar quedan apagados."]);
+  if (a.audioOk === false && a.lugar !== "trabajo") out.push(["audio", "No se oyó la voz: los ejercicios de escuchar quedan apagados hasta que los actives."]);
+  if (a.sesion) out.push(["reloj", `Sesiones ${a.sesion === "corta" ? "cortitas de unos 5 minutos" : a.sesion === "larga" ? "largas, con más repasos" : "de unos 10 minutos"} y meta diaria de ${META_DE_SESION[a.sesion]} XP.`]);
+  if (a.gramatica === "implicita") out.push(["lupa", "En gramática primero practicas con ejemplos y después ves la regla."]);
+  if (a.gramatica === "explicita") out.push(["gramatica", "En gramática primero ves la regla y luego practicas."]);
+  if (a.reto === "reto") out.push(["rayo", "La dificultad sube más rápido: aciertas un poco menos, pero te exige más."]);
+  if (a.reto === "seguro") out.push(["escudo", "La dificultad sube con calma para que aciertes casi siempre."]);
+  out.push(["grafica", "Con cada sesión medimos cómo te va en cada habilidad y reforzamos la que más te cueste."]);
+  return out;
+}
+
 function pintarOnboarding() {
   conNav(false);
-  const ob = S.ob || (S.ob = { paso: 0, motivo: "", nivel: "cero", meta: 40, momento: "", hora: "20:00", nombre: P().nombre || "" });
-  const opcion = (campo, k, e, t, sub) => {
-    const on = String(ob[campo]) === String(k);
-    return `<button class="opcion ${sub ? "fila" : ""} ${on ? "on" : ""}" data-ob="${campo}" data-v="${k}"><span class="op-emoji">${I(e)}</span>${sub ? `<div><b>${t}</b><small>${sub}</small></div>` : `<b>${t}</b>`}<span class="op-check">${I("check")}</span></button>`;
+  const ob = S.ob || (S.ob = nuevoTest(P().onboarding ? "test" : "completo"));
+  const opcion = (campo, k, ico, t, sub, max) => {
+    const on = max ? ob[campo].includes(k) : String(ob[campo]) === String(k);
+    return `<button class="opcion ${sub ? "fila" : ""} ${on ? "on" : ""}" data-ob="${campo}" data-v="${k}" ${max ? `data-max="${max}"` : ""}><span class="op-emoji">${I(ico)}</span>${sub ? `<div><b>${t}</b><small>${sub}</small></div>` : `<b>${t}</b>`}<span class="op-check">${I("check")}</span></button>`;
   };
+  const estado = (v, si, no, nada) => (v === true ? `<em class="ok">${si}</em>` : v === false ? `<em class="mal">${no}</em>` : nada);
   const pasos = [
-    () => `<h2>¡Hallo${ob.nombre ? ", " + esc(ob.nombre) : ""}!<br>¿Para qué quieres el alemán?</h2><p class="muted">Tener un motivo claro te ayuda a no dejarlo.</p>
+    { ok: () => true, html: () => `<div class="test-intro">
+      <span class="test-ico">${I("brillo")}</span>
+      <h2>Tu test de aprendizaje</h2>
+      <p class="muted">Son 2 minutos para ajustar la app a ti: qué quieres lograr, dónde vas a estudiar, qué te motiva y cuánto reto te gusta. Después se sigue ajustando sola con tus resultados.</p>
       ${!P().nombre ? `<label class="campo-ob">¿Cómo te llamas?<input id="obNombre" value="${esc(ob.nombre)}" maxlength="30" autocomplete="given-name"></label>` : ""}
-      <div class="opciones-grid">${MOTIVOS.map(([k, e, t]) => opcion("motivo", k, e, t)).join("")}</div>`,
-    () => `<h2>¿Cuánto alemán sabes?</h2><p class="muted">Si ya sabes algo, un examen corto te deja saltar lo que ya dominas.</p>
-      <div class="opciones-lista">${NIVEL_INICIO.map(([k, e, t, d]) => opcion("nivel", k, e, t, d)).join("")}</div>`,
-    () => `<h2>Tu meta diaria</h2><p class="muted">Mejor poco todos los días que mucho de vez en cuando: el repaso espaciado necesita constancia.</p>
-      <div class="opciones-lista">${METAS.map(([xp, t, d]) => opcion("meta", xp, xp === 20 ? "tortuga" : xp === 40 ? "huellas" : xp === 60 ? "rayo" : "fuego", t + (xp === 40 ? " · recomendada" : ""), `${d} · ${xp} XP`)).join("")}</div>`,
-    () => `<h2>¿Cuándo vas a estudiar?</h2><p class="muted">Decidir de antemano <b>cuándo y dónde</b> (una «intención de implementación») casi duplica las probabilidades de cumplir un hábito.</p>
-      <div class="opciones-grid">${MOMENTOS.map(([k, e, t]) => opcion("momento", k, e, t)).join("")}</div>
-      <label class="campo-ob">¿A qué hora, más o menos?<input id="obHora" type="time" value="${esc(ob.hora)}"></label>
-      ${ob.momento ? `<div class="plan-frase">${I("brillo")}<span>«${esc(fraseIntencion(ob.momento, ob.hora, ob.meta))}»</span></div>` : ""}`,
+      <div class="tip">${I("ciencia")}<span>No es un test de «estilos» (visual, auditivo…): los estudios muestran que enseñar según el estilo no mejora lo que aprendes. Lo que sí ayuda es practicar lo que necesitas, como puedes y con lo que te motiva, y reforzar donde fallas.</span></div>
+    </div>` },
+    { ok: () => ob.metas.length > 0, html: () => `<h2>¿Qué quieres poder hacer primero?</h2><p class="muted">Elige hasta 2.</p>
+      <div class="opciones-lista">${T_METAS.map(([k, i, t, d]) => opcion("metas", k, i, t, d, 2)).join("")}</div>` },
+    { ok: () => ob.gustos.length > 0, html: () => `<h2>¿Qué disfrutas más al aprender?</h2><p class="muted">Elige hasta 3. Lo que disfrutas es lo que te hace volver cada día.</p>
+      <div class="opciones-grid">${T_GUSTOS.map(([k, i, t]) => opcion("gustos", k, i, t, null, 3)).join("")}</div>` },
+    { ok: () => !!ob.lugar, html: () => `<h2>¿Dónde vas a estudiar casi siempre?</h2><p class="muted">Así sabemos si puedes usar audio y micrófono.</p>
+      <div class="opciones-lista">${T_LUGARES.map(([k, i, t, d]) => opcion("lugar", k, i, t, d)).join("")}</div>
+      <div class="pruebas">
+        <div class="prueba"><span class="aj-ico">${I("audio")}</span><span><b>¿Se oye la voz en alemán?</b><small>${estado(ob.audioOk, "Sí se oye", "No se oyó", "Toca «Probar»")}</small></span><button class="btn chico sec" data-prueba="audio">Probar</button></div>
+        ${ob.probandoAudio ? `<div class="pie-fila"><button class="btn chico sec" data-audiook="0">No se oye</button><button class="btn chico primario" data-audiook="1">Sí se oye</button></div>` : ""}
+        ${Oido.ok ? `<div class="prueba"><span class="aj-ico">${I("mic")}</span><span><b>¿Funciona tu micrófono?</b><small>${estado(ob.micOk, "¡Te escuché!", "No funcionó", "Toca «Probar» y di «Hallo»")}</small></span><button class="btn chico sec" data-prueba="mic">${ob.probandoMic ? "Escuchando…" : "Probar"}</button></div>` : ""}
+      </div>` },
+    { ok: () => !!ob.sesion, html: () => `<h2>¿Cómo prefieres tus sesiones?</h2><p class="muted">Cualquiera funciona: lo importante es que sea todos los días.</p>
+      <div class="opciones-lista">${T_SESIONES.map(([k, i, t, d]) => opcion("sesion", k, i, t, d)).join("")}</div>` },
+    { ok: () => !!ob.gramatica, html: () => `<h2>Cuando aprendes una regla nueva…</h2><p class="muted">Las dos formas funcionan; elige la que te acomode más.</p>
+      <div class="opciones-lista">${T_GRAMATICA.map(([k, i, t, d]) => opcion("gramatica", k, i, t, d)).join("")}</div>` },
+    { ok: () => !!ob.reto, html: () => `<h2>¿Cuánto reto te gusta?</h2><p class="muted">Se aprende más cerca del 85% de aciertos; esto mueve un poco ese punto.</p>
+      <div class="opciones-lista">${T_RETO.map(([k, i, t, d]) => opcion("reto", k, i, t, d)).join("")}</div>` },
   ];
-  const ultimo = ob.paso === pasos.length - 1;
-  const puede = [ob.motivo, ob.nivel, ob.meta, ob.momento][ob.paso];
+  if (ob.modo === "completo") {
+    pasos.push({ ok: () => !!ob.nivel, html: () => `<h2>¿Cuánto alemán sabes?</h2><p class="muted">Si ya sabes algo, un examen corto te deja saltar lo que ya dominas.</p>
+      <div class="opciones-lista">${NIVEL_INICIO.map(([k, i, t, d]) => opcion("nivel", k, i, t, d)).join("")}</div>` });
+    pasos.push({ ok: () => !!ob.momento, html: () => `<h2>¿Cuándo vas a estudiar?</h2><p class="muted">Decidir de antemano <b>cuándo y dónde</b> (una «intención de implementación») casi duplica las probabilidades de cumplir un hábito.</p>
+      <div class="opciones-grid">${MOMENTOS.map(([k, i, t]) => opcion("momento", k, i, t)).join("")}</div>
+      <label class="campo-ob">¿A qué hora, más o menos?<input id="obHora" type="time" value="${esc(ob.hora)}"></label>
+      ${ob.momento ? `<div class="plan-frase">${I("brillo")}<span>«${esc(fraseIntencion(ob.momento, ob.hora, META_DE_SESION[ob.sesion] || 40))}»</span></div>` : ""}` });
+  }
+  pasos.push({ ok: () => true, html: () => `<div class="test-intro"><span class="test-ico">${I("check")}</span><h2>Tu perfil de aprendizaje</h2>
+      <p class="muted">Esto es lo que la app va a hacer distinto para ti:</p></div>
+      <div class="perfil-lista">${explicarPerfil(perfilDeTest(ob)).map(([i, t]) => `<div>${circ(I(i), "sm p-mantequilla")}<span>${esc(t)}</span></div>`).join("")}</div>
+      <p class="mini">Puedes rehacer el test cuando quieras desde «Yo».</p>` });
+  ob.paso = Math.min(ob.paso, pasos.length - 1);
+  const paso = pasos[ob.paso], ultimo = ob.paso === pasos.length - 1;
   app().innerHTML = `
     <div class="onb anim">
       <div class="onb-top">
-        ${ob.paso ? `<button class="circ-btn" data-obnav="-1" aria-label="Atrás">${I("atras")}</button>` : `<span class="circ-btn fantasma" aria-hidden="true"></span>`}
+        ${ob.paso ? `<button class="circ-btn" data-obnav="-1" aria-label="Atrás">${I("atras")}</button>` : ob.modo === "test" ? `<button class="circ-btn" data-obsalir aria-label="Cerrar">${I("x")}</button>` : `<span class="circ-btn fantasma" aria-hidden="true"></span>`}
         <div class="onb-puntos">${pasos.map((_, i) => `<i class="${i <= ob.paso ? "on" : ""}"></i>`).join("")}</div>
         <span class="onb-n">${ob.paso + 1}/${pasos.length}</span>
       </div>
-      <div class="onb-cuerpo">${pasos[ob.paso]()}</div>
-      <div class="onb-pie"><button class="btn primario ancho" data-obnav="1" ${puede ? "" : "disabled"}>${ultimo ? "¡Empezar!" : "Siguiente"} ${I("flechaR")}</button></div>
+      <div class="onb-cuerpo">${paso.html()}</div>
+      <div class="onb-pie"><button class="btn primario ancho" data-obnav="1" ${paso.ok() ? "" : "disabled"}>${ultimo ? (ob.modo === "completo" ? "¡Empezar!" : "Listo") : ob.paso === 0 ? "Empezar el test" : "Siguiente"} ${I("flechaR")}</button></div>
     </div>`;
   const root = app();
   const nom = $("#obNombre"); if (nom) nom.oninput = () => { ob.nombre = nom.value.trim(); };
   const hora = $("#obHora"); if (hora) hora.onchange = () => { ob.hora = hora.value || "20:00"; pintarOnboarding(); };
-  root.onclick = (e) => {
+  root.onclick = async (e) => {
     const o = e.target.closest("[data-ob]");
-    if (o) { const v = o.dataset.v; ob[o.dataset.ob] = o.dataset.ob === "meta" ? +v : v; pintarOnboarding(); return; }
+    if (o) {
+      const campo = o.dataset.ob, v = o.dataset.v, max = +o.dataset.max || 0;
+      if (max) {
+        const arr = ob[campo], i = arr.indexOf(v);
+        if (i >= 0) arr.splice(i, 1); else { if (arr.length >= max) arr.shift(); arr.push(v); }
+      } else ob[campo] = v;
+      return pintarOnboarding();
+    }
+    if (e.target.closest("[data-obsalir]")) { S.enTest = false; S.ob = null; root.onclick = null; return render(); }
+    const pr = e.target.closest("[data-prueba]");
+    if (pr && pr.dataset.prueba === "audio") { ob.probandoAudio = true; Voz.hablar("Hallo! Kannst du mich hören?"); return pintarOnboarding(); }
+    if (pr && pr.dataset.prueba === "mic" && !ob.probandoMic) {
+      ob.probandoMic = true; pintarOnboarding();
+      try { const alts = await Oido.escuchar(); ob.micOk = alts.length > 0; } catch (err) { ob.micOk = false; }
+      ob.probandoMic = false; toast(ob.micOk ? "¡Te escuché! El micrófono funciona." : "No te escuché. Revisa el permiso del micrófono.");
+      return pintarOnboarding();
+    }
+    const ao = e.target.closest("[data-audiook]");
+    if (ao) { ob.audioOk = ao.dataset.audiook === "1"; ob.probandoAudio = false; return pintarOnboarding(); }
     const nav = e.target.closest("[data-obnav]");
     if (!nav || nav.disabled) return;
     if (+nav.dataset.obnav < 0) { ob.paso--; return pintarOnboarding(); }
-    if (!ultimo) { ob.paso++; return pintarOnboarding(); }
-    // Terminar
-    Object.assign(P(), { onboarding: true, nombre: ob.nombre || P().nombre });
-    Object.assign(A(), { meta: ob.meta });
-    Object.assign(P().plan, { motivo: ob.motivo, momento: ob.momento, hora: ob.hora, tz: zona() });
-    store.guardar();
+    if (!ultimo) { ob.paso++; window.scrollTo(0, 0); return pintarOnboarding(); }
+    // Guardar el perfil y ajustar la app
+    aplicarPerfil(ob);
     root.onclick = null;
+    const completo = ob.modo === "completo";
+    S.ob = null; S.enTest = false;
+    if (!completo) { store.guardar(); toast("¡Listo! La app ya está ajustada a ti."); return render(); }
+    Object.assign(P(), { onboarding: true, nombre: ob.nombre || P().nombre });
+    Object.assign(P().plan, { momento: ob.momento, hora: ob.hora, tz: zona() });
+    store.guardar();
     const destino = (NIVEL_INICIO.find((x) => x[0] === ob.nivel) || [])[4];
-    S.ob = null;
     location.hash = "#hoy";
     render();
     if (destino) {
       const u = C.unidades.find((x) => x.id === destino);
-      openSheet(`<h3>Examen para saltar</h3><p class="muted">Responde ${14} preguntas de las unidades 1 a ${u.i}. Con 80% o más empiezas directo en «${esc(u.titulo)}».</p>
+      openSheet(`<h3>Examen para saltar</h3><p class="muted">Responde 14 preguntas de las unidades 1 a ${u.i}. Con 80% o más empiezas directo en «${esc(u.titulo)}».</p>
         <div class="pie-fila"><button class="btn sec" data-close>Mejor desde el inicio</button><button class="btn primario" data-ex>Hacer el examen</button></div>`, (sh) => { sh.querySelector("[data-ex]").onclick = () => examenHasta(u); });
     } else empezarNodo(NODOS[0]);
   };
+}
+const perfilDeTest = (ob) => ({ metas: ob.metas, gustos: ob.gustos, lugar: ob.lugar, sesion: ob.sesion, gramatica: ob.gramatica, reto: ob.reto, audioOk: ob.audioOk, micOk: ob.micOk });
+function aplicarPerfil(ob) {
+  const a = { ...perfilDeTest(ob), hecho: Date.now() };
+  P().aprendizaje = a;
+  if (ob.nombre && !P().nombre) P().nombre = ob.nombre;
+  Object.assign(A(), {
+    meta: META_DE_SESION[a.sesion] || A().meta,
+    nuevas: NUEVAS_DE_SESION[a.sesion] || A().nuevas,
+    escuchar: a.lugar !== "trabajo" && a.audioOk !== false,
+    hablar: Oido.ok && a.micOk !== false && (a.lugar === "casa" || a.lugar === "varia"),
+  });
+}
+function tarjetaPerfil() {
+  const a = P().aprendizaje;
+  if (!a) return `<button class="leccion-card p-mantequilla" data-a="test">${DECO}<span class="lc-marca" aria-hidden="true">${I("brillo")}</span>
+    <div class="lc-top">${circ(I("brillo"))}<span class="chip-b">${I("reloj")} 2 min</span></div>
+    <span class="lc-cat">Test de aprendizaje</span><b class="lc-tit">Ajusta la app a ti</b>
+    <span class="lc-sub">Tu meta, dónde estudias, qué te motiva y cuánto reto te gusta.</span>
+    <div class="lc-pie"><span class="lc-nota">${I("brillo")} La app se adapta a tus respuestas</span>${flechaAnillo(null)}</div></button>`;
+  const h = M.habilidades(P().tipos), debiles = M.habilidadesDebiles(P().tipos);
+  const nombre = (lista, k) => (lista.find((x) => x[0] === k) || [, , k])[2];
+  return `<section class="card perfil-card">
+    <div class="bloque-cab dentro">${circ(I("brillo"), "sm p-mantequilla")}<h3>Tu perfil de aprendizaje</h3><button class="link-dato" data-a="test">Rehacer</button></div>
+    <div class="chips-fila envuelve">${(a.metas || []).map((k) => `<span class="fchip on">${esc(nombre(T_METAS, k))}</span>`).join("")}${(a.gustos || []).map((k) => `<span class="fchip">${esc(nombre(T_GUSTOS, k))}</span>`).join("")}</div>
+    <div class="habs">${M.HABILIDADES.map(([k, t]) => `<div class="hab-fila"><span>${t}${debiles.includes(k) ? ` <em>reforzando</em>` : ""}</span><div class="meta-barra"><i style="width:${h[k].p == null ? 0 : Math.round(h[k].p * 100)}%"></i></div><b>${h[k].p == null ? "—" : Math.round(h[k].p * 100) + "%"}</b></div>`).join("")}</div>
+    <p class="mini">Aciertos por habilidad en todas tus sesiones. ${debiles.length ? "La que va más baja aparece más seguido en tus ejercicios." : "Cuando haya suficientes datos, la habilidad que vaya más baja aparecerá más seguido."}</p>
+    <details class="perfil-det"><summary>Qué está haciendo la app por ti</summary><div class="perfil-lista">${explicarPerfil(a).map(([i, t]) => `<div>${circ(I(i), "sm p-arena")}<span>${esc(t)}</span></div>`).join("")}</div></details>
+  </section>`;
 }
 function fraseIntencion(momento, hora, meta) {
   const m = (MOMENTOS.find((x) => x[0] === momento) || [, , "En mi momento"])[2];
@@ -681,6 +810,7 @@ function vHoy() {
       <button class="circ-btn racha ${estudio ? "on" : ""}" data-go="#yo" aria-label="Racha de ${racha} días">${I("fuego")}<b>${racha}</b></button>
     </header>
     <div class="titulo-fila"><h1 class="titulo">Tu progreso<br>de hoy</h1><button class="circ-btn grande" data-go="#palabras" aria-label="Buscar palabras">${I("buscar")}</button></div>
+    ${!P().aprendizaje ? tarjetaPerfil() : ""}
     ${due >= 5 ? tarjetaRepaso(vencidos) : ""}
     ${n ? tarjetaNodo(n) : `<section class="leccion-card p-mantequilla">${DECO}<div class="lc-top">${circ(I("trofeo"))}</div><b class="lc-tit">¡Terminaste toda la ruta!</b><span class="lc-sub">Sigue con los repasos diarios para no olvidar nada.</span></section>`}
     ${due && due < 5 ? tarjetaRepaso(vencidos) : ""}
@@ -1188,6 +1318,7 @@ function vYo() {
       <div class="ms">${circ(I("estrella"), "p-menta")}<div><b>${res.maduras}</b><small>dominadas</small></div></div>
       <div class="ms">${circ(I("diana"), "p-rosa")}<div><b>${rev ? Math.round((100 * revOk) / rev) + "%" : "—"}</b><small>retención real</small></div></div>
     </div>
+    ${tarjetaPerfil()}
     <section class="bloque">
       <div class="bloque-cab">${circ(I("grafica"), "sm")}<h2>Progreso</h2><span class="bloque-dato">XP por semana</span></div>
       <div class="card pild-card">${barrasPildora(semanas, "XP por semana en las últimas 6 semanas")}</div>
@@ -1258,6 +1389,7 @@ function vAjustes() {
   return `<div class="wrap ajustes">
     <header class="top"><button class="atras" data-go="#yo" aria-label="Atrás">${I("atras")}</button><div><div class="saludo">Hazla tuya</div><h1>Ajustes</h1></div></header>
     <div class="banner estatico">${DECO}<span class="banner-txt"><small>${I("brillo")} Tu plan</small><b>${esc(pl.momento ? fraseIntencion(pl.momento, pl.hora, a.meta) : "Elige cuándo vas a estudiar")}</b><span>${pl.avisos ? "Con recordatorio diario" : "Sin recordatorio todavía"}</span></span></div>
+    <button class="toggle-btn" data-a="test"><span class="aj-ico">${I("brillo")}</span><span><b>Test de aprendizaje</b><small>${P().aprendizaje ? "Rehazlo si cambió tu meta o dónde estudias" : "Ajusta la app a tu meta y a cómo estudias"}</small></span><span class="flecha-negra">${I("flechaR")}</span></button>
     <section class="card">${ajCab("diana", "Meta diaria")}${seg("meta", a.meta, METAS.map(([x, t]) => [x, t, x + " XP"]))}</section>
     <section class="card">${ajCab("estrella", "Palabras nuevas por día", "Más palabras nuevas = más repasos los días siguientes.")}${seg("nuevas", a.nuevas, [[5, "5"], [10, "10"], [15, "15"], [25, "25"]])}</section>
     <section class="card">${ajCab("ciencia", "Qué tanto quieres recordar", "Probabilidad de recordar cada palabra cuando te toca repasarla. Más alto = repasos más seguidos.")}
@@ -1380,6 +1512,7 @@ document.addEventListener("click", (e) => {
     case "continuar": { const n = nodoActual(); if (n) empezarNodo(n); break; }
     case "repasar": empezarRepaso(); break;
     case "tema": ponerTema(temaOscuro() ? "claro" : "oscuro"); render(); break;
+    case "test": abrirTest(); break;
     case "probarVoz": Voz.hablar("Hallo! Ich heiße Täglich. Wie heißt du?"); break;
     case "avisos": activarAvisos(); break;
     case "exportar": exportar(); break;

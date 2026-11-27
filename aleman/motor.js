@@ -489,7 +489,10 @@ function huecoEnFrase(frase, objetivo) {
 export function crearEjercicio(it, nivel, ctx = {}) {
   const rng = ctx.rng || Math.random, pool = ctx.pool || [];
   if (it.t === "g") return ejercicioGramatica(it, nivel, ctx);
-  const kind = ctx.forzar || elegirTipo(tiposPara(it, nivel, ctx), ctx.ultimo, rng);
+  const tiposBase = tiposPara(it, nivel, ctx);
+  // Pesos del perfil de aprendizaje (meta, gustos, habilidad a reforzar). Si todo queda en 0, se usan los normales.
+  const conPesos = ctx.pesos ? tiposBase.map(([k, w]) => [k, w * (ctx.pesos[k] != null ? ctx.pesos[k] : 1)]).filter(([, w]) => w > 0) : tiposBase;
+  const kind = ctx.forzar || elegirTipo(conPesos.length ? conPesos : tiposBase, ctx.ultimo, rng);
   const de = conArticulo(it);
   const base = { kind, item: it, id: it.id, nivel, produccion: esProduccion(kind) };
   const extra = { ejemplo: it.ex ? [it.ex, it.exEs] : null };
@@ -616,12 +619,13 @@ export function revisar(ex, valor, o = {}) {
 /* ============================ Sesión adaptativa ============================ */
 // Pasos: intro (presentar palabra) · gintro (explicar tema de gramática) · rec (reconocer) · prod (producir) · rev (repaso) · retry · match (parejas)
 export class Sesion {
-  constructor({ nuevos = [], repasos = [], rng = Math.random, conMatch = true, perf = 0.85, sinReintentos = false } = {}) {
+  constructor({ nuevos = [], repasos = [], rng = Math.random, conMatch = true, perf = 0.85, sinReintentos = false, umbrales = null, cadaMatch = 4 } = {}) {
+    this.umbrales = umbrales || { sube: 0.93, baja: 0.72 };
     this.rng = rng; this.perf = perf; this.i = 0; this.sinReintentos = sinReintentos;
     this.stats = { ok: 0, total: 0, xp: 0, racha: 0, maxRacha: 0, porTipo: {}, inicio: Date.now() };
     this.nuevos = new Map(nuevos.map((it) => [it.id, { err: 0, typo: 0, intentos: 0, sabida: false }]));
     this.calificadas = new Map();
-    this.pasos = construirPasos(nuevos, repasos, rng, conMatch);
+    this.pasos = construirPasos(nuevos, repasos, rng, conMatch, cadaMatch);
   }
   get actual() { return this.pasos[this.i]; }
   get terminado() { return this.i >= this.pasos.length; }
@@ -631,7 +635,7 @@ export class Sesion {
     return this.pasos.slice(0, this.i).filter(cuenta).length / total;
   }
   nivel(paso) {
-    const adj = this.perf > 0.93 ? 1 : this.perf < 0.72 ? -1 : 0;
+    const adj = this.perf > this.umbrales.sube ? 1 : this.perf < this.umbrales.baja ? -1 : 0;
     if (paso.tipo === "rec") return paso.item.t === "g" ? clamp(2 + adj, 1, 4) : clamp(1 + Math.max(0, adj), 1, 2);
     if (paso.tipo === "prod") return clamp(3 + adj, 2, 4);
     if (paso.tipo === "retry") return clamp((paso.nivelPrevio || 2) - 1, 1, 3);
@@ -697,7 +701,7 @@ export class Sesion {
   avanzar() { this.i++; }
 }
 
-function construirPasos(nuevos, repasos, rng, conMatch) {
+function construirPasos(nuevos, repasos, rng, conMatch, cadaMatch = 4) {
   const revs = shuffle(repasos, rng);
   const pasos = [];
   const tomar = (n) => { for (let k = 0; k < n && revs.length; k++) { const r = revs.shift(); pasos.push({ tipo: "rev", item: r.item, card: r.card }); } };
@@ -722,7 +726,7 @@ function construirPasos(nuevos, repasos, rng, conMatch) {
     pasos.push(...pendientes);
     pendientes = shuffle(g, rng).map((it) => ({ tipo: "prod", item: it }));
     presentadas.push(...g);
-    if (conMatch && presentadas.length - ultimoMatch >= 4) {
+    if (conMatch && presentadas.length - ultimoMatch >= cadaMatch) {
       pasos.push({ tipo: "match", item: g[0], items: presentadas.slice(-5) });
       ultimoMatch = presentadas.length;
     }
@@ -752,3 +756,48 @@ export function vencidas(cards, hoy = dayNum(), now = Date.now()) {
   return Object.entries(cards || {}).filter(([, c]) => c && c.last && c.due <= hoy)
     .map(([id, c]) => ({ id, c, R: retencionActual(c, now) })).sort((a, b) => a.R - b.R);
 }
+
+/* ============================ Perfil de aprendizaje ============================ */
+// No usamos «estilos de aprendizaje» (visual, auditivo…): enseñar según el estilo no mejora el aprendizaje
+// (Pashler et al., 2008). Lo que sí se adapta: la meta, el contexto, lo que motiva y, sobre todo, los resultados reales.
+export const HABILIDAD_DE = {
+  listen_mc: "escuchar", listen_type: "escuchar", dictation: "escuchar", listen_order: "escuchar",
+  speak: "hablar",
+  type_de: "escribir", cloze_type: "escribir", plural: "escribir", conj: "escribir", perfekt: "escribir", g_type: "escribir",
+  mc_de: "leer", mc_es: "leer", cloze_mc: "leer", order: "leer", article: "leer", g_mc: "leer", g_order: "leer",
+};
+export const HABILIDADES = [["escuchar", "Escuchar"], ["leer", "Leer y reconocer"], ["escribir", "Escribir"], ["hablar", "Hablar"]];
+
+// Aciertos por habilidad a partir de los aciertos por tipo de ejercicio ({ tipo: [ok, total] }).
+export function habilidades(tipos = {}) {
+  const h = {};
+  for (const [k] of HABILIDADES) h[k] = { ok: 0, n: 0, p: null };
+  for (const [kind, v] of Object.entries(tipos || {})) {
+    const hab = HABILIDAD_DE[kind]; if (!hab || !Array.isArray(v)) continue;
+    h[hab].ok += v[0] || 0; h[hab].n += v[1] || 0;
+  }
+  for (const x of Object.values(h)) x.p = x.n ? x.ok / x.n : null;
+  return h;
+}
+// La(s) habilidad(es) claramente más débil(es), con datos suficientes para no adivinar.
+export function habilidadesDebiles(tipos = {}, minimo = 15) {
+  const h = Object.entries(habilidades(tipos)).filter(([, x]) => x.n >= minimo);
+  if (h.length < 2) return [];
+  const prom = h.reduce((t, [, x]) => t + x.p, 0) / h.length;
+  return h.filter(([, x]) => x.p < prom - 0.08).map(([k]) => k);
+}
+// Multiplicadores por tipo de ejercicio según el perfil y los resultados.
+export function pesosAprendizaje(perfil = {}, tipos = {}) {
+  const w = {};
+  const mult = (hab, f) => { for (const [k, h] of Object.entries(HABILIDAD_DE)) if (h === hab) w[k] = (w[k] || 1) * f; };
+  const metas = perfil.metas || [], gustos = perfil.gustos || [];
+  if (metas.includes("conversar")) { mult("hablar", 2); mult("escuchar", 1.4); }
+  if (metas.includes("entender")) mult("escuchar", 1.8);
+  if (metas.includes("leer")) mult("leer", 1.5);
+  if (metas.includes("escribir")) mult("escribir", 1.6);
+  if (metas.includes("examen")) { mult("escribir", 1.3); mult("escuchar", 1.3); }
+  for (const g of ["escuchar", "hablar", "escribir", "leer"]) if (gustos.includes(g)) mult(g, 1.3);
+  for (const hab of habilidadesDebiles(tipos)) mult(hab, 1.4);
+  return w;
+}
+export const UMBRALES = { reto: { sube: 0.88, baja: 0.65 }, normal: { sube: 0.93, baja: 0.72 }, seguro: { sube: 0.96, baja: 0.78 } };

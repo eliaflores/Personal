@@ -116,6 +116,32 @@ for (const it of [...C.vocab, ...Object.values(G).flatMap((g) => g.items)]) {
 }
 ok(tipos.size >= 18, `se generan muchos tipos de ejercicio (${tipos.size}: ${[...tipos].join(", ")})`);
 
+/* ---------- Perfil de aprendizaje ---------- */
+{
+  const w = M.pesosAprendizaje({ metas: ["conversar"], gustos: ["escribir"] }, {});
+  ok(w.speak > 1 && w.listen_mc > 1 && w.type_de > 1 && !w.mc_de, "conversar sube hablar/escuchar y el gusto escribir");
+  const tipos = { listen_mc: [10, 20], listen_type: [2, 10], mc_de: [28, 30], type_de: [27, 30] };
+  const h = M.habilidades(tipos);
+  ok(Math.abs(h.escuchar.p - 0.4) < 1e-9 && h.escuchar.n === 30, "aciertos por habilidad");
+  igual(M.habilidadesDebiles(tipos), ["escuchar"], "detecta la habilidad más débil");
+  ok(M.pesosAprendizaje({}, tipos).dictation > 1, "refuerza la habilidad más débil");
+  igual(M.habilidadesDebiles({ listen_mc: [1, 3], mc_de: [10, 10] }), [], "sin datos suficientes no adivina");
+  // Pesos en 0 quitan un tipo de ejercicio; si todo queda en 0 se usan los normales
+  const it = C.vocab.find((x) => x.t === "n" && x.ex);
+  const rng2 = M.mulberry32(11);
+  let sinType = true;
+  for (let k = 0; k < 60; k++) if (M.crearEjercicio(it, 3, { pool: C.vocab, rng: rng2, audio: true, pesos: { type_de: 0 } }).kind === "type_de") sinType = false;
+  ok(sinType, "un peso de 0 quita ese ejercicio");
+  const todos0 = Object.fromEntries(Object.keys(M.HABILIDAD_DE).map((k) => [k, 0]));
+  ok(!!M.crearEjercicio(it, 3, { pool: C.vocab, rng: rng2, audio: true, pesos: todos0 }).kind, "si todo es 0, igual hay ejercicio");
+  const sReto = new M.Sesion({ repasos: [{ item: it, card: { s: 5, st: 2, reps: 3 } }], perf: 0.9, umbrales: M.UMBRALES.reto });
+  const sSeguro = new M.Sesion({ repasos: [{ item: it, card: { s: 5, st: 2, reps: 3 } }], perf: 0.9, umbrales: M.UMBRALES.seguro });
+  ok(sReto.nivel(sReto.pasos[0]) > sSeguro.nivel(sSeguro.pasos[0]), "con «retos» la dificultad sube antes que con «ir seguro»");
+  const cortas = new M.Sesion({ nuevos: C.vocab.slice(0, 6), cadaMatch: 2 }).pasos.filter((p) => p.tipo === "match").length;
+  const normales = new M.Sesion({ nuevos: C.vocab.slice(0, 6), cadaMatch: 4 }).pasos.filter((p) => p.tipo === "match").length;
+  ok(cortas > normales, "con «juegos» hay más parejas");
+}
+
 /* ---------- Sesión ---------- */
 const nuevos = C.unidades[0].lecciones[0].items;
 const ses = new M.Sesion({ nuevos, repasos: [], rng: M.mulberry32(3) });
